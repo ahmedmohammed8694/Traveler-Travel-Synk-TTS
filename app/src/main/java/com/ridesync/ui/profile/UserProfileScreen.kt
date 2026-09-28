@@ -1,8 +1,11 @@
 package com.ridesync.ui.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,9 +14,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Save
@@ -24,16 +30,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridesync.R
 import com.ridesync.data.model.PrivacySettings
 import com.ridesync.data.model.UserProfile
+import com.ridesync.util.rememberRiderAvatarBitmap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +62,14 @@ fun UserProfileScreen(
     var vehicleModel by remember(userProfile) { mutableStateOf(userProfile.vehicleModel) }
     var tankCapacityText by remember(userProfile) { mutableStateOf(userProfile.tankCapacityLiters.toString()) }
     var photoUrl by remember(userProfile) { mutableStateOf(userProfile.photoUrl) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            photoUrl = uri.toString()
+        }
+    }
 
     val backgroundColor = com.ridesync.ui.theme.HudColors.ObsidianCanvas
     val cardColor = com.ridesync.ui.theme.HudColors.ObsidianSurface
@@ -102,24 +119,141 @@ fun UserProfileScreen(
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // User Profile Image (Avatar)
+                // User Profile & Bike Image (Avatar)
+                val avatarBitmap by rememberRiderAvatarBitmap(photoUrl)
+
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(110.dp)
+                        .size(116.dp)
                         .clip(CircleShape)
                         .border(3.dp, accentColor, CircleShape)
                         .background(cardColor)
+                        .then(
+                            if (isEditing) Modifier.clickable { imagePickerLauncher.launch("image/*") }
+                            else Modifier
+                        )
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_app_logo_badge),
-                        contentDescription = "RRS Profile Picture",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(76.dp)
-                    )
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap!!.asImageBitmap(),
+                            contentDescription = "Rider & Bike Profile Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_app_logo_badge),
+                            contentDescription = "RRS Profile Picture",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(76.dp)
+                        )
+                    }
+
+                    if (isEditing) {
+                        // Camera overlay badge
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.45f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Change Bike / Profile Photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Text(
+                                    text = "CHANGE",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                if (isEditing) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { imagePickerLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = accentColor
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (photoUrl.isNotBlank()) "Change Bike / Profile Photo" else "Upload Bike / Profile Photo",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        if (photoUrl.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = { photoUrl = "" }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Remove Photo",
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "💡 This photo displays on your 3D live location marker on the map as you ride.",
+                        fontSize = 11.sp,
+                        color = com.ridesync.ui.theme.HudColors.CyanGlow,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+                } else if (photoUrl.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFF22C55E),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Live Map Marker Photo Active",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF22C55E)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = displayName.ifBlank { "Rider" },
@@ -132,7 +266,7 @@ fun UserProfileScreen(
                     text = if (vehicleModel.isNotBlank()) "Bike: $vehicleModel" else "Riders Ride Sync (RRS) Member",
                     fontSize = 14.sp,
                     color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                 )
 
                 // Profile Detail Cards / Editable Fields

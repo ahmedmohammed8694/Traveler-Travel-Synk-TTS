@@ -57,6 +57,9 @@ class MainActivity : ComponentActivity() {
                                         onGuestSignInClick = {
                                             authViewModel.signInAnonymously()
                                         },
+                                        onAuthError = { message ->
+                                            authViewModel.setError(message)
+                                        },
                                         isLoading = isLoading,
                                         errorMessage = errorMessage,
                                         passwordResetStatusMessage = passwordResetStatus
@@ -74,6 +77,9 @@ class MainActivity : ComponentActivity() {
                                         onNavigateToLogin = {
                                             authViewModel.setScreenMode(AuthScreenMode.LOGIN)
                                         },
+                                        onAuthError = { message ->
+                                            authViewModel.setError(message)
+                                        },
                                         isLoading = isLoading,
                                         errorMessage = errorMessage
                                     )
@@ -83,7 +89,7 @@ class MainActivity : ComponentActivity() {
 
                         is AuthState.ProfileSetupRequired -> {
                             ProfileSetupScreen(
-                                initialDisplayName = state.user.displayName ?: "Rider",
+                                initialDisplayName = state.user.displayName.ifBlank { "Rider" },
                                 onSaveProfile = { vehicle, tank, shareLoc, phone ->
                                     authViewModel.saveUserProfile(vehicle, tank, shareLoc, phone)
                                 },
@@ -117,6 +123,25 @@ class MainActivity : ComponentActivity() {
     private fun sanitizeIncomingIntent(intent: Intent?) {
         if (intent == null) return
         try {
+            // Check for deep link join code
+            val data = intent.data
+            if (data != null) {
+                val code = if (data.scheme == "ridesync") {
+                    data.getQueryParameter("code")
+                } else if (data.host == "ridesync.app") {
+                    data.lastPathSegment
+                } else null
+
+                if (!code.isNullOrBlank()) {
+                    Log.i("MainActivity", "Deep link received with Lobby Code: $code")
+                    com.ridesync.data.repository.TripRepository.getAllTrips().firstOrNull { 
+                        it.lobbyCode.equals(code, ignoreCase = true) || it.tripId.contains(code, ignoreCase = true) 
+                    }?.let { matchingTrip ->
+                        com.ridesync.data.repository.TripRepository.setOngoingTrip(matchingTrip.tripId)
+                    }
+                }
+            }
+
             // Strip any nested un-sanitized Intent extras to prevent Intent Redirection vulnerabilities
             val extras = intent.extras
             if (extras != null) {

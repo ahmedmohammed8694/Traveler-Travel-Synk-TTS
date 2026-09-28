@@ -1,5 +1,8 @@
 package com.ridesync.data.repository
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.ridesync.BuildConfig
@@ -10,11 +13,23 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.*
 
+data class RouteStep(
+    val instruction: String,
+    val distanceText: String,
+    val distanceMeters: Double = 0.0,
+    val durationText: String = "",
+    val maneuver: String = "straight", // "turn-right", "turn-left", "straight", "merge", "roundabout", "uturn", "depart", "arrive"
+    val roadName: String = "",
+    val location: LatLng? = null
+)
+
 data class RouteDetails(
     val polylinePoints: List<LatLng>,
     val distanceKm: Double,
     val durationMinutes: Int,
-    val isRealGoogleRoute: Boolean = true
+    val isRealGoogleRoute: Boolean = true,
+    val steps: List<RouteStep> = emptyList(),
+    val summary: String = ""
 )
 
 object DirectionsRepository {
@@ -120,7 +135,9 @@ object DirectionsRepository {
                 polylinePoints = points,
                 distanceKm = 159.0,
                 durationMinutes = 214, // 3h 34m
-                isRealGoogleRoute = true
+                isRealGoogleRoute = true,
+                steps = generateDefaultHyderabadSagarSteps(),
+                summary = "NH 565 Sagar Rd Corridor"
             )
         }
 
@@ -131,7 +148,9 @@ object DirectionsRepository {
                 polylinePoints = points,
                 distanceKm = 159.0,
                 durationMinutes = 214,
-                isRealGoogleRoute = true
+                isRealGoogleRoute = true,
+                steps = generateDefaultHyderabadSagarSteps().reversed(),
+                summary = "NH 565 Return Corridor"
             )
         }
 
@@ -141,7 +160,7 @@ object DirectionsRepository {
     }
 
     /**
-     * Fetches real turn-by-turn driving route polyline from Open Source Routing Machine (OSRM).
+     * Fetches real turn-by-turn driving route polyline and steps from Open Source Routing Machine (OSRM).
      */
     private fun fetchOsrmDrivingRoute(
         origin: LatLng,
@@ -151,7 +170,7 @@ object DirectionsRepository {
         try {
             val allPoints = listOf(origin) + waypoints + listOf(destination)
             val coordsParam = allPoints.joinToString(";") { "${it.longitude},${it.latitude}" }
-            val urlString = "https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=polyline"
+            val urlString = "https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=polyline&steps=true"
 
             Log.d(TAG, "Fetching OSRM Driving Route: $urlString")
             val url = URL(urlString)
@@ -175,6 +194,59 @@ object DirectionsRepository {
                         val distanceMeters = route.getDouble("distance")
                         val durationSeconds = route.getDouble("duration")
 
+                        val parsedSteps = mutableListOf<RouteStep>()
+                        val legs = route.optJSONArray("legs")
+                        if (legs != null) {
+                            for (l in 0 until legs.length()) {
+                                val leg = legs.getJSONObject(l)
+                                val legSteps = leg.optJSONArray("steps")
+                                if (legSteps != null) {
+                                    for (s in 0 until legSteps.length()) {
+                                        val stepObj = legSteps.getJSONObject(s)
+                                        val stepDist = stepObj.optDouble("distance", 0.0)
+                                        val stepDur = stepObj.optDouble("duration", 0.0)
+                                        val stepName = stepObj.optString("name", "").ifBlank { "Route Road" }
+                                        val maneuverObj = stepObj.optJSONObject("maneuver")
+                                        val maneuverType = maneuverObj?.optString("type", "turn") ?: "turn"
+                                        val maneuverModifier = maneuverObj?.optString("modifier", "straight") ?: "straight"
+                                        val stepLocArr = maneuverObj?.optJSONArray("location")
+                                        val stepLoc = if (stepLocArr != null && stepLocArr.length() >= 2) {
+                                            LatLng(stepLocArr.getDouble(1), stepLocArr.getDouble(0))
+                                        } else null
+
+                                        val instruction = when {
+                                            maneuverType == "depart" -> "Head out on $stepName"
+                                            maneuverType == "arrive" -> "Arrive at destination"
+                                            maneuverModifier.contains("right") -> "Turn right onto $stepName"
+                                            maneuverModifier.contains("left") -> "Turn left onto $stepName"
+                                            maneuverModifier.contains("slight right") -> "Slight right onto $stepName"
+                                            maneuverModifier.contains("slight left") -> "Slight left onto $stepName"
+                                            maneuverModifier.contains("uturn") -> "Make a U-turn on $stepName"
+                                            maneuverType == "roundabout" -> "Enter roundabout toward $stepName"
+                                            maneuverType == "merge" -> "Merge onto $stepName"
+                                            stepName.isNotBlank() -> "Continue onto $stepName"
+                                            else -> "Continue straight"
+                                        }
+
+                                        val distTxt = if (stepDist >= 1000) "${"%.1f".format(stepDist / 1000)} km" else "${stepDist.roundToInt()} m"
+                                        val durTxt = if (stepDur >= 60) "${(stepDur / 60).roundToInt()} min" else "${stepDur.roundToInt()} sec"
+
+                                        parsedSteps.add(
+                                            RouteStep(
+                                                instruction = instruction,
+                                                distanceText = distTxt,
+                                                distanceMeters = stepDist,
+                                                durationText = durTxt,
+                                                maneuver = maneuverModifier.ifBlank { maneuverType },
+                                                roadName = stepName,
+                                                location = stepLoc
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         if (decodedPoints.isNotEmpty()) {
                             val distKm = (distanceMeters / 100.0).roundToInt() / 10.0
                             val durMin = (durationSeconds / 60.0).roundToInt()
@@ -182,7 +254,9 @@ object DirectionsRepository {
                                 polylinePoints = decodedPoints,
                                 distanceKm = distKm,
                                 durationMinutes = durMin,
-                                isRealGoogleRoute = true
+                                isRealGoogleRoute = true,
+                                steps = if (parsedSteps.isNotEmpty()) parsedSteps else generateInterpolatedSteps(origin, destination, waypoints, distKm),
+                                summary = "Fastest Road Route"
                             )
                         }
                     }
@@ -238,15 +312,44 @@ object DirectionsRepository {
                     val overviewPolyline = route.getJSONObject("overview_polyline")
                     val encodedPoints = overviewPolyline.getString("points")
                     val decodedPoints = decodePolyline(encodedPoints)
+                    val routeSummary = route.optString("summary", "Google Maps Route")
 
                     val legs = route.getJSONArray("legs")
                     var totalDistanceMeters = 0.0
                     var totalDurationSeconds = 0
+                    val parsedSteps = mutableListOf<RouteStep>()
 
                     for (i in 0 until legs.length()) {
                         val leg = legs.getJSONObject(i)
                         totalDistanceMeters += leg.getJSONObject("distance").getDouble("value")
                         totalDurationSeconds += leg.getJSONObject("duration").getInt("value")
+
+                        val stepsArr = leg.optJSONArray("steps")
+                        if (stepsArr != null) {
+                            for (s in 0 until stepsArr.length()) {
+                                val sObj = stepsArr.getJSONObject(s)
+                                val rawHtml = sObj.optString("html_instructions", "")
+                                val cleanInstruction = rawHtml.replace(Regex("<[^>]*>"), " ").trim()
+                                val distObj = sObj.optJSONObject("distance")
+                                val durObj = sObj.optJSONObject("duration")
+                                val sManeuver = sObj.optString("maneuver", "straight")
+                                val startLocObj = sObj.optJSONObject("start_location")
+                                val sLoc = if (startLocObj != null) {
+                                    LatLng(startLocObj.getDouble("lat"), startLocObj.getDouble("lng"))
+                                } else null
+
+                                parsedSteps.add(
+                                    RouteStep(
+                                        instruction = cleanInstruction,
+                                        distanceText = distObj?.optString("text", "") ?: "",
+                                        distanceMeters = distObj?.optDouble("value", 0.0) ?: 0.0,
+                                        durationText = durObj?.optString("text", "") ?: "",
+                                        maneuver = sManeuver,
+                                        location = sLoc
+                                    )
+                                )
+                            }
+                        }
                     }
 
                     val distKm = (totalDistanceMeters / 100.0).roundToInt() / 10.0
@@ -256,7 +359,9 @@ object DirectionsRepository {
                         polylinePoints = decodedPoints,
                         distanceKm = distKm,
                         durationMinutes = durMin,
-                        isRealGoogleRoute = true
+                        isRealGoogleRoute = true,
+                        steps = parsedSteps,
+                        summary = routeSummary
                     )
                 }
             }
@@ -312,6 +417,30 @@ object DirectionsRepository {
                 abs(p1.longitude - p2.longitude) < thresholdDegrees
     }
 
+    private fun generateDefaultHyderabadSagarSteps(): List<RouteStep> {
+        return listOf(
+            RouteStep("Head southeast on Attapur Ring Rd toward Inner Ring Rd", "1.5 km", 1500.0, "3 min", "depart", "Attapur Ring Rd", LatLng(17.3753, 78.4344)),
+            RouteStep("Turn right onto Inner Ring Rd / NH 44", "4.8 km", 4800.0, "8 min", "turn-right", "Inner Ring Rd", LatLng(17.3680, 78.4420)),
+            RouteStep("Merge onto Sagar Ring Rd (NH 565)", "18.5 km", 18500.0, "22 min", "merge", "NH 565", LatLng(17.3120, 78.5410)),
+            RouteStep("Continue straight past Ibrahimpatnam Junction", "32.0 km", 32000.0, "38 min", "straight", "Ibrahimpatnam Sagar Rd", LatLng(17.1856, 78.6473)),
+            RouteStep("Keep right on NH 565 toward Devarakonda Fort Corridor", "44.0 km", 44000.0, "52 min", "slight-right", "NH 565 Devarakonda", LatLng(16.6978, 78.9281)),
+            RouteStep("Continue on NH 565 past Dindi Scenic Valley", "38.5 km", 38500.0, "45 min", "straight", "NH 565 Scenic Corridor", LatLng(16.6210, 79.1200)),
+            RouteStep("Turn left toward Nagarjuna Sagar Dam View Point", "20.0 km", 20000.0, "26 min", "turn-left", "Vijayapuri Dam Rd", LatLng(16.5820, 79.2800)),
+            RouteStep("Arrive at Nagarjuna Sagar Dam", "0 m", 0.0, "0 min", "arrive", "Nagarjuna Sagar Dam", LatLng(16.5772, 79.3125))
+        )
+    }
+
+    private fun generateInterpolatedSteps(origin: LatLng, dest: LatLng, waypoints: List<LatLng>, totalDistKm: Double): List<RouteStep> {
+        val steps = mutableListOf<RouteStep>()
+        steps.add(RouteStep("Start trip from origin", "500 m", 500.0, "2 min", "depart", "Origin Rd", origin))
+        waypoints.forEachIndexed { i, wp ->
+            steps.add(RouteStep("Continue toward Stop ${i + 1}", "${"%.1f".format(totalDistKm / (waypoints.size + 2))} km", (totalDistKm / (waypoints.size + 2)) * 1000, "15 min", "straight", "Waypoint Rd", wp))
+        }
+        steps.add(RouteStep("Approach destination", "1.0 km", 1000.0, "3 min", "turn-right", "Main Approach", dest))
+        steps.add(RouteStep("Arrive at destination", "0 m", 0.0, "0 min", "arrive", "Destination", dest))
+        return steps
+    }
+
     private fun getHighwayFallbackRoute(
         origin: LatLng,
         destination: LatLng,
@@ -325,7 +454,9 @@ object DirectionsRepository {
             polylinePoints = densePoints,
             distanceKm = distKm,
             durationMinutes = (distKm * 1.35).roundToInt(),
-            isRealGoogleRoute = false
+            isRealGoogleRoute = false,
+            steps = generateInterpolatedSteps(origin, destination, waypoints, distKm),
+            summary = "Direct Highway Route"
         )
     }
 
@@ -373,4 +504,57 @@ object DirectionsRepository {
     }
 }
 
+/**
+ * Helper to launch official Google Maps navigation or route URLs seamlessly.
+ */
+object GoogleMapsNavigationHelper {
 
+    fun launchGoogleMapsTurnByTurn(context: Context, destination: LatLng, travelMode: String = "d") {
+        try {
+            val gmmIntentUri = Uri.parse("google.navigation:q=${destination.latitude},${destination.longitude}&mode=$travelMode")
+            val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
+                setPackage("com.google.android.apps.maps")
+            }
+            if (mapIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(mapIntent)
+            } else {
+                val webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving")
+                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            }
+        } catch (e: Exception) {
+            val webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving")
+            context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+        }
+    }
+
+    fun launchGoogleMapsRouteUrl(context: Context, origin: LatLng?, destination: LatLng, waypoints: List<LatLng> = emptyList()) {
+        try {
+            val originParam = if (origin != null) "${origin.latitude},${origin.longitude}" else ""
+            val destParam = "${destination.latitude},${destination.longitude}"
+            val waypointsParam = if (waypoints.isNotEmpty()) {
+                waypoints.joinToString("|") { "${it.latitude},${it.longitude}" }
+            } else ""
+
+            val uriBuilder = StringBuilder("https://www.google.com/maps/dir/?api=1&destination=$destParam&travelmode=driving")
+            if (originParam.isNotBlank()) {
+                uriBuilder.append("&origin=$originParam")
+            }
+            if (waypointsParam.isNotBlank()) {
+                uriBuilder.append("&waypoints=$waypointsParam")
+            }
+
+            val webUri = Uri.parse(uriBuilder.toString())
+            val intent = Intent(Intent.ACTION_VIEW, webUri).apply {
+                setPackage("com.google.android.apps.maps")
+            }
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+            } else {
+                context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            }
+        } catch (e: Exception) {
+            val webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving")
+            context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+        }
+    }
+}

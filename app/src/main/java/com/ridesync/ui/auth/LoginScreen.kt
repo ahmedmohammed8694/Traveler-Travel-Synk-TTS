@@ -52,6 +52,7 @@ fun LoginScreen(
     onNavigateToSignUp: () -> Unit,
     onForgotPasswordClick: (email: String) -> Unit = {},
     onGuestSignInClick: () -> Unit = {},
+    onAuthError: ((String) -> Unit)? = null,
     isLoading: Boolean,
     errorMessage: String?,
     passwordResetStatusMessage: String? = null
@@ -70,9 +71,9 @@ fun LoginScreen(
     val webClientId = remember(context) {
         try {
             val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-            if (resId != 0) context.getString(resId) else "395720155616-cgoovj6g86pqm18v1723u61bgtgv3ccl.apps.googleusercontent.com"
+            if (resId != 0) context.getString(resId) else "395720155616-qlsvl60qq4c6qti4nkt0lcqji04nkvbt.apps.googleusercontent.com"
         } catch (e: Exception) {
-            "395720155616-cgoovj6g86pqm18v1723u61bgtgv3ccl.apps.googleusercontent.com"
+            "395720155616-qlsvl60qq4c6qti4nkt0lcqji04nkvbt.apps.googleusercontent.com"
         }
     }
 
@@ -95,9 +96,19 @@ fun LoginScreen(
                 onGoogleSignInClick(idToken)
             } else {
                 Log.e("RideSyncAuth", "Google Sign-In returned null idToken")
+                onAuthError?.invoke("Google Sign-In failed: no credential returned. Please try again.")
             }
         } catch (e: Exception) {
-            Log.e("RideSyncAuth", "Google Sign-In intent failed: ${e.message}", e)
+            val apiException = e as? ApiException
+            val statusCode = apiException?.statusCode
+            val detail = when (statusCode) {
+                10 -> "Configuration error (Code 10: Developer Error)"
+                12500 -> "Sign-in configuration error (Code 12500)"
+                7 -> "Network error (Code 7)"
+                else -> e.localizedMessage ?: "Sign-in was cancelled or failed"
+            }
+            Log.e("RideSyncAuth", "Google Sign-In intent failed: status=$statusCode, ${e.message}", e)
+            onAuthError?.invoke("Google Sign-In: $detail. Please try again.")
         }
     }
 
@@ -369,6 +380,9 @@ fun LoginScreen(
                             onIdTokenReceived = onGoogleSignInClick,
                             onFallbackNeeded = {
                                 googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                            },
+                            onError = { msg ->
+                                onAuthError?.invoke(msg)
                             }
                         )
                     }
@@ -424,7 +438,8 @@ private suspend fun triggerGoogleSignIn(
     context: Context,
     webClientId: String,
     onIdTokenReceived: (String) -> Unit,
-    onFallbackNeeded: () -> Unit
+    onFallbackNeeded: () -> Unit,
+    onError: ((String) -> Unit)? = null
 ) {
     val credentialManager = CredentialManager.create(context)
     val googleIdOption = GetGoogleIdOption.Builder()

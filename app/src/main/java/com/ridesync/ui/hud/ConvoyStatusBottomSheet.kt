@@ -1,5 +1,6 @@
 package com.ridesync.ui.hud
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -13,9 +14,13 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +28,7 @@ import com.ridesync.data.model.ConvoyMember
 import com.ridesync.data.model.ConvoyRole
 import com.ridesync.data.model.RiderLocationPing
 import com.ridesync.data.model.RiderStatus
+import com.ridesync.util.rememberRiderAvatarBitmap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +81,7 @@ private fun ConvoyMemberCard(
         RiderStatus.DELAYED -> com.ridesync.ui.theme.HudColors.StatusDelayed
         RiderStatus.SOS -> com.ridesync.ui.theme.HudColors.StatusSos
     }
+    val avatarBitmap by rememberRiderAvatarBitmap(member.photoUrl)
 
     Surface(
         color = com.ridesync.ui.theme.HudColors.ObsidianElevated,
@@ -92,30 +99,41 @@ private fun ConvoyMemberCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Role Icon Badge
+                // Role Icon Badge / Avatar
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(44.dp)
-                        .background(statusColor.copy(alpha = 0.2f), CircleShape)
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, statusColor, CircleShape)
+                        .background(statusColor.copy(alpha = 0.2f))
                 ) {
-                    when (member.role) {
-                        ConvoyRole.LEAD -> Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Lead",
-                            tint = com.ridesync.ui.theme.HudColors.CyanPrimary
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap!!.asImageBitmap(),
+                            contentDescription = "${member.displayName} Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
-                        ConvoyRole.SWEEP -> Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = "Sweep",
-                            tint = com.ridesync.ui.theme.HudColors.CobaltBlue
-                        )
-                        ConvoyRole.MEMBER -> Text(
-                            text = member.displayName.take(1).uppercase(),
-                            color = com.ridesync.ui.theme.HudColors.TextCrispWhite,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
+                    } else {
+                        when (member.role) {
+                            ConvoyRole.LEAD -> Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Lead",
+                                tint = com.ridesync.ui.theme.HudColors.CyanPrimary
+                            )
+                            ConvoyRole.SWEEP -> Icon(
+                                imageVector = Icons.Default.Shield,
+                                contentDescription = "Sweep",
+                                tint = com.ridesync.ui.theme.HudColors.CobaltBlue
+                            )
+                            ConvoyRole.MEMBER -> Text(
+                                text = member.displayName.take(1).uppercase(),
+                                color = com.ridesync.ui.theme.HudColors.TextCrispWhite,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
                     }
                 }
 

@@ -60,5 +60,7 @@ data class TripMetadata(
     val sweepUserId: String = "",
     val status: String = "ACTIVE",
     val createdTimestamp: Long = System.currentTimeMillis(),
-    val members: Map<String, ConvoyMember> = emptyMap()
+    val members: Map<String, ConvoyMember> = emptyMap(),
+    val routeSegments: List<TripRouteSegment> = emptyList(),
+    val activeSegmentId: String = ""
 )

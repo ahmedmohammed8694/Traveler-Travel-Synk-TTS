@@ -20,6 +20,7 @@ data class JoinedRiderProfile(
 
 data class SavedTrip(
     val tripId: String,
+    val plannerId: String = "user_host",
     val title: String,
     val originName: String,
     val destinationName: String,
@@ -38,5 +39,9 @@ data class SavedTrip(
     val completedKm: Double = 0.0,
     val ratingStars: Double = 5.0,
     val incidentsCount: Int = 0,
-    val joinedRiders: List<JoinedRiderProfile> = emptyList()
+    val joinedRiders: List<JoinedRiderProfile> = emptyList(),
+    val routeSegments: List<TripRouteSegment> = emptyList(),
+    val activeSegmentId: String = "",
+    val itineraryPlan: ItineraryTripPlan? = null
 )
+

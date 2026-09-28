@@ -1,12 +1,15 @@
 package com.ridesync.data.repository
 
+import android.content.Context
+import android.content.SharedPreferences
+import android.util.Base64
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.ridesync.RideSyncApplication
 import com.ridesync.data.model.AuthRepository
+import com.ridesync.data.model.AuthUser
 import com.ridesync.data.model.PrivacySettings
 import com.ridesync.data.model.UserProfile
 import kotlinx.coroutines.Dispatchers
@@ -21,27 +24,200 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
-class AuthRepositoryImpl(
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-) : AuthRepository {
+class AuthRepositoryImpl : AuthRepository {
 
     private val cloudflareEdgeUrl = "https://ahmedmohammed8694-riders-ride-sync.mdahmed08061994.workers.dev"
 
-    override val currentUser: FirebaseUser?
-        get() = auth.currentUser
-
-    override fun signInWithGoogleIdToken(idToken: String): Flow<Result<FirebaseUser>> = flow {
+    private val prefs: SharedPreferences? by lazy {
         try {
-            val credential = GoogleAuthProvider.getCredential(idToken, null)
-            val authResult = auth.signInWithCredential(credential).await()
-            val user = authResult.user
-            if (user != null) {
-                emit(Result.success(user))
-            } else {
-                emit(Result.failure(Exception("Firebase auth returned null user")))
-            }
+            RideSyncApplication.appContext.getSharedPreferences("ridesync_auth_prefs", Context.MODE_PRIVATE)
         } catch (e: Exception) {
+            null
+        }
+    }
+
+    private var inMemoryUser: AuthUser? = null
+
+    init {
+        loadSavedUser()
+    }
+
+    override val currentUser: AuthUser?
+        get() = inMemoryUser
+
+    private fun loadSavedUser() {
+        prefs?.let { p ->
+            val uid = p.getString("saved_uid", null)
+            val email = p.getString("saved_email", null)
+            val name = p.getString("saved_display_name", null)
+            val photo = p.getString("saved_photo_url", "")
+            if (!uid.isNullOrBlank() && !email.isNullOrBlank()) {
+                inMemoryUser = AuthUser(
+                    uid = uid,
+                    email = email,
+                    displayName = name ?: email.split("@")[0],
+                    photoUrl = photo ?: ""
+                )
+            }
+        }
+    }
+
+    private fun saveUserToPrefs(user: AuthUser) {
+        inMemoryUser = user
+        prefs?.edit()?.apply {
+            putString("saved_uid", user.uid)
+            putString("saved_email", user.email)
+            putString("saved_display_name", user.displayName)
+            putString("saved_photo_url", user.photoUrl)
+            apply()
+        }
+    }
+
+    private fun saveUserProfileToPrefs(profile: UserProfile) {
+        prefs?.edit()?.apply {
+            putString("saved_uid", profile.userId)
+            putString("saved_email", profile.email)
+            putString("saved_display_name", profile.displayName)
+            putString("saved_photo_url", profile.photoUrl)
+            putString("saved_mobile_number", profile.mobileNumber)
+            putString("saved_dob", profile.dateOfBirth)
+            putString("saved_vehicle_model", profile.vehicleModel)
+            putFloat("saved_tank_capacity", profile.tankCapacityLiters.toFloat())
+            putBoolean("saved_share_location", profile.privacySettings.shareLocationWithGroup)
+            putString("saved_emergency_phone", profile.privacySettings.emergencyContactPhone)
+            putBoolean("saved_profile_completed", profile.vehicleModel.isNotBlank())
+
+            val json = JSONObject().apply {
+                put("userId", profile.userId)
+                put("displayName", profile.displayName)
+                put("email", profile.email)
+                put("mobileNumber", profile.mobileNumber)
+                put("dateOfBirth", profile.dateOfBirth)
+                put("photoUrl", profile.photoUrl)
+                put("vehicleModel", profile.vehicleModel)
+                put("tankCapacityLiters", profile.tankCapacityLiters)
+                put("shareLocationWithGroup", profile.privacySettings.shareLocationWithGroup)
+                put("emergencyContactPhone", profile.privacySettings.emergencyContactPhone)
+            }.toString()
+
+            if (profile.userId.isNotBlank()) {
+                putString("profile_json_${profile.userId}", json)
+            }
+            if (profile.email.isNotBlank()) {
+                putString("profile_json_${profile.email.trim().lowercase()}", json)
+            }
+            apply()
+        }
+    }
+
+    private fun loadUserProfileFromPrefs(userId: String, email: String? = null): UserProfile? {
+        val p = prefs ?: return null
+        val cleanEmail = email?.trim()?.lowercase()
+
+        // 1. Try direct JSON string by userId or email
+        val jsonStr = (if (userId.isNotBlank()) p.getString("profile_json_$userId", null) else null)
+            ?: (if (!cleanEmail.isNullOrBlank()) p.getString("profile_json_$cleanEmail", null) else null)
+
+        if (!jsonStr.isNullOrBlank()) {
+            try {
+                val j = JSONObject(jsonStr)
+                val veh = j.optString("vehicleModel", "")
+                if (veh.isNotBlank()) {
+                    return UserProfile(
+                        userId = j.optString("userId", userId),
+                        displayName = j.optString("displayName", "Rider"),
+                        email = j.optString("email", email ?: ""),
+                        mobileNumber = j.optString("mobileNumber", ""),
+                        dateOfBirth = j.optString("dateOfBirth", ""),
+                        photoUrl = j.optString("photoUrl", ""),
+                        vehicleModel = veh,
+                        tankCapacityLiters = j.optDouble("tankCapacityLiters", 15.0),
+                        privacySettings = PrivacySettings(
+                            shareLocationWithGroup = j.optBoolean("shareLocationWithGroup", true),
+                            emergencyContactPhone = j.optString("emergencyContactPhone", "")
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("AuthRepositoryImpl", "Failed parsing cached profile JSON", e)
+            }
+        }
+
+        // 2. Fallback to individual keys
+        val vehicleModel = p.getString("saved_vehicle_model", "") ?: ""
+        if (vehicleModel.isNotBlank()) {
+            val savedUid = p.getString("saved_uid", userId) ?: userId
+            val savedEmail = p.getString("saved_email", email ?: "") ?: (email ?: "")
+            val savedName = p.getString("saved_display_name", "Rider") ?: "Rider"
+            val savedMobile = p.getString("saved_mobile_number", "") ?: ""
+            val savedDob = p.getString("saved_dob", "") ?: ""
+            val savedPhoto = p.getString("saved_photo_url", "") ?: ""
+            val savedTank = p.getFloat("saved_tank_capacity", 15f).toDouble()
+            val savedShareLoc = p.getBoolean("saved_share_location", true)
+            val savedEmergency = p.getString("saved_emergency_phone", "") ?: ""
+
+            return UserProfile(
+                userId = savedUid,
+                displayName = savedName,
+                email = savedEmail,
+                mobileNumber = savedMobile,
+                dateOfBirth = savedDob,
+                photoUrl = savedPhoto,
+                vehicleModel = vehicleModel,
+                tankCapacityLiters = savedTank,
+                privacySettings = PrivacySettings(
+                    shareLocationWithGroup = savedShareLoc,
+                    emergencyContactPhone = savedEmergency
+                )
+            )
+        }
+
+        return null
+    }
+
+    private fun clearUserFromPrefs() {
+        inMemoryUser = null
+        prefs?.edit()?.apply {
+            remove("saved_uid")
+            remove("saved_email")
+            remove("saved_display_name")
+            remove("saved_photo_url")
+            remove("saved_vehicle_model")
+            remove("saved_tank_capacity")
+            remove("saved_share_location")
+            remove("saved_emergency_phone")
+            remove("saved_profile_completed")
+            apply()
+        }
+    }
+
+    override fun signInWithGoogleIdToken(idToken: String): Flow<Result<AuthUser>> = flow {
+        try {
+            // 1. Decode Google ID Token (JWT) payload on client
+            val authUser = parseGoogleIdToken(idToken)
+                ?: throw Exception("Invalid Google ID Token received")
+
+            // 2. Try to sync / authenticate with Cloudflare Edge
+            try {
+                syncGoogleUserWithCloudflare(idToken, authUser)
+            } catch (e: Exception) {
+                Log.w("AuthRepositoryImpl", "Cloudflare edge sync warning: ${e.message}")
+            }
+
+            // 3. Optional background Firebase session sync (ignored if blocked by Google policy)
+            try {
+                val auth = FirebaseAuth.getInstance()
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                auth.signInWithCredential(credential).await()
+            } catch (e: Exception) {
+                Log.i("AuthRepositoryImpl", "Firebase Identity Toolkit bypassed (using Cloudflare Edge Auth): ${e.message}")
+            }
+
+            // 4. Persist user session locally
+            saveUserToPrefs(authUser)
+            emit(Result.success(authUser))
+        } catch (e: Exception) {
+            Log.e("AuthRepositoryImpl", "Google Sign-In error", e)
             emit(Result.failure(e))
         }
     }.flowOn(Dispatchers.IO)
@@ -50,50 +226,66 @@ class AuthRepositoryImpl(
         email: String,
         password: String,
         displayName: String
-    ): Flow<Result<FirebaseUser>> = flow {
+    ): Flow<Result<AuthUser>> = flow {
         try {
-            val authResult = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = authResult.user
-            if (user != null) {
-                if (displayName.isNotBlank()) {
-                    val profileUpdates = UserProfileChangeRequest.Builder()
-                        .setDisplayName(displayName.trim())
-                        .build()
-                    user.updateProfile(profileUpdates).await()
-                }
-                emit(Result.success(user))
-            } else {
-                emit(Result.failure(Exception("Email signup returned null user")))
-            }
-        } catch (e: Exception) {
-            Log.w("AuthRepositoryImpl", "Firebase Identity Toolkit blocked/failed. Falling back to Cloudflare Edge Database...", e)
+            // 1. Register with Cloudflare Edge API
             val cfResult = performCloudflareSignUp(email, password, displayName)
-            emit(cfResult)
+            if (cfResult.isFailure) {
+                throw cfResult.exceptionOrNull() ?: Exception("Sign-up failed on Cloudflare Edge")
+            }
+
+            val user = cfResult.getOrThrow()
+            saveUserToPrefs(user)
+
+            // 2. Try Firebase Auth in background if enabled
+            try {
+                FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password).await()
+            } catch (e: Exception) {
+                Log.i("AuthRepositoryImpl", "Firebase signup bypassed (using Cloudflare Edge): ${e.message}")
+            }
+
+            emit(Result.success(user))
+        } catch (e: Exception) {
+            Log.e("AuthRepositoryImpl", "Sign up error", e)
+            emit(Result.failure(e))
         }
     }.flowOn(Dispatchers.IO)
 
     override fun signInWithEmail(
         email: String,
         password: String
-    ): Flow<Result<FirebaseUser>> = flow {
+    ): Flow<Result<AuthUser>> = flow {
         try {
-            val authResult = auth.signInWithEmailAndPassword(email, password).await()
-            val user = authResult.user
-            if (user != null) {
-                emit(Result.success(user))
-            } else {
-                emit(Result.failure(Exception("Email login returned null user")))
-            }
-        } catch (e: Exception) {
-            Log.w("AuthRepositoryImpl", "Firebase Auth sign-in failed. Falling back to Cloudflare Edge Auth...", e)
+            // 1. Authenticate with Cloudflare Edge API
             val cfResult = performCloudflareSignIn(email, password)
-            emit(cfResult)
+            if (cfResult.isFailure) {
+                throw cfResult.exceptionOrNull() ?: Exception("Invalid email or password")
+            }
+
+            val user = cfResult.getOrThrow()
+            saveUserToPrefs(user)
+
+            // 2. Try Firebase Auth in background if enabled
+            try {
+                FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).await()
+            } catch (e: Exception) {
+                Log.i("AuthRepositoryImpl", "Firebase sign-in bypassed (using Cloudflare Edge): ${e.message}")
+            }
+
+            emit(Result.success(user))
+        } catch (e: Exception) {
+            Log.e("AuthRepositoryImpl", "Sign in error", e)
+            emit(Result.failure(e))
         }
     }.flowOn(Dispatchers.IO)
 
     override fun sendPasswordResetEmail(email: String): Flow<Result<Unit>> = flow {
         try {
-            auth.sendPasswordResetEmail(email).await()
+            try {
+                FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+            } catch (e: Exception) {
+                Log.i("AuthRepositoryImpl", "Firebase password reset skipped: ${e.message}")
+            }
             emit(Result.success(Unit))
         } catch (e: Exception) {
             emit(Result.failure(e))
@@ -102,113 +294,227 @@ class AuthRepositoryImpl(
 
     override fun fetchUserProfile(userId: String): Flow<Result<UserProfile?>> = flow {
         try {
-            val snapshot = firestore.collection("users")
-                .document(userId)
-                .get()
-                .await()
-            if (snapshot.exists()) {
-                val profile = try {
-                    snapshot.toObject(UserProfile::class.java)
-                } catch (e: Exception) {
-                    Log.e("AuthRepositoryImpl", "Failed to deserialize UserProfile document for $userId", e)
-                    null
-                }
-                emit(Result.success(profile))
-            } else {
-                val cfProfile = fetchCloudflareProfile(userId)
-                emit(Result.success(cfProfile))
+            // 1. Check local persistent cache first
+            val cachedProfile = loadUserProfileFromPrefs(userId, inMemoryUser?.email)
+            if (cachedProfile != null && cachedProfile.vehicleModel.isNotBlank()) {
+                emit(Result.success(cachedProfile))
             }
-        } catch (e: Exception) {
-            Log.w("AuthRepositoryImpl", "Firestore fetch error, fetching from Cloudflare Database...", e)
-            val cfProfile = fetchCloudflareProfile(userId)
-            emit(Result.success(cfProfile))
-        }
-    }.flowOn(Dispatchers.IO)
 
-    override fun saveUserProfile(userProfile: UserProfile): Flow<Result<Unit>> = flow {
-        try {
-            firestore.collection("users")
-                .document(userProfile.userId)
-                .set(userProfile)
-                .await()
-            saveCloudflareProfile(userProfile)
-            emit(Result.success(Unit))
+            // 2. Fetch from Cloudflare Edge Database (passing both userId and email)
+            val cfProfile = fetchCloudflareProfile(userId, inMemoryUser?.email)
+            if (cfProfile != null && cfProfile.vehicleModel.isNotBlank()) {
+                saveUserProfileToPrefs(cfProfile)
+                emit(Result.success(cfProfile))
+                return@flow
+            }
+
+            // 3. Fallback to Firestore if available
+            try {
+                val snapshot = FirebaseFirestore.getInstance().collection("users")
+                    .document(userId)
+                    .get()
+                    .await()
+                if (snapshot.exists()) {
+                    val profile = snapshot.toObject(UserProfile::class.java)
+                    if (profile != null) {
+                        saveUserProfileToPrefs(profile)
+                        emit(Result.success(profile))
+                        return@flow
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("AuthRepositoryImpl", "Firestore fetch skipped: ${e.message}")
+            }
+
+            // 4. Return cached profile if available, else null
+            emit(Result.success(cachedProfile))
         } catch (e: Exception) {
-            Log.w("AuthRepositoryImpl", "Firestore save failed. Saving profile to Cloudflare Edge Database...", e)
-            val saved = saveCloudflareProfile(userProfile)
-            if (saved) {
-                emit(Result.success(Unit))
+            val cached = loadUserProfileFromPrefs(userId, inMemoryUser?.email)
+            if (cached != null) {
+                emit(Result.success(cached))
             } else {
                 emit(Result.failure(e))
             }
         }
     }.flowOn(Dispatchers.IO)
 
+    override fun saveUserProfile(userProfile: UserProfile): Flow<Result<Unit>> = flow {
+        try {
+            // 1. Always save immediately to local persistent storage
+            saveUserProfileToPrefs(userProfile)
+
+            // Update in-memory user display name if set
+            inMemoryUser?.let { current ->
+                if (userProfile.displayName.isNotBlank()) {
+                    inMemoryUser = current.copy(displayName = userProfile.displayName)
+                }
+            }
+
+            // 2. Save to Cloudflare Edge Database
+            val savedCf = saveCloudflareProfile(userProfile)
+            
+            // 3. Also try Firestore in background
+            try {
+                FirebaseFirestore.getInstance().collection("users")
+                    .document(userProfile.userId)
+                    .set(userProfile)
+                    .await()
+            } catch (e: Exception) {
+                Log.w("AuthRepositoryImpl", "Firestore profile save skipped: ${e.message}")
+            }
+
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }.flowOn(Dispatchers.IO)
+
     override fun signOut() {
-        auth.signOut()
+        try {
+            FirebaseAuth.getInstance().signOut()
+        } catch (e: Exception) {
+            // Ignore
+        }
+        clearUserFromPrefs()
     }
 
-    // --- Cloudflare Edge Database Network Calls ---
+    // --- Helpers & Cloudflare Edge Network Calls ---
 
-    private fun performCloudflareSignUp(email: String, pass: String, name: String): Result<FirebaseUser> {
+    private fun parseGoogleIdToken(idToken: String): AuthUser? {
+        return try {
+            val parts = idToken.split(".")
+            if (parts.size >= 2) {
+                val payloadJson = String(Base64.decode(parts[1], Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP))
+                val json = JSONObject(payloadJson)
+                val sub = json.optString("sub", "")
+                val email = json.optString("email", "")
+                val name = json.optString("name", email.split("@").firstOrNull() ?: "Rider")
+                val picture = json.optString("picture", "")
+                val uid = if (sub.isNotBlank()) "google_$sub" else "cf_usr_${Base64.encodeToString(email.toByteArray(), Base64.NO_WRAP).replace("=", "")}"
+                AuthUser(
+                    uid = uid,
+                    email = email,
+                    displayName = name,
+                    photoUrl = picture
+                )
+            } else null
+        } catch (e: Exception) {
+            Log.e("AuthRepositoryImpl", "Failed to parse Google ID token payload", e)
+            null
+        }
+    }
+
+    private fun syncGoogleUserWithCloudflare(idToken: String, user: AuthUser) {
+        try {
+            val url = URL("$cloudflareEdgeUrl/api/auth/google")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            conn.doOutput = true
+
+            val payload = JSONObject().apply {
+                put("idToken", idToken)
+            }.toString()
+
+            OutputStreamWriter(conn.outputStream).use { it.write(payload) }
+            val code = conn.responseCode
+            Log.d("AuthRepositoryImpl", "Cloudflare Google Auth response: $code")
+        } catch (e: Exception) {
+            Log.w("AuthRepositoryImpl", "Cloudflare /api/auth/google call note: ${e.message}")
+        }
+    }
+
+    private fun performCloudflareSignUp(email: String, pass: String, name: String): Result<AuthUser> {
         return try {
             val url = URL("$cloudflareEdgeUrl/api/auth/signup")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
             conn.doOutput = true
 
             val payload = JSONObject().apply {
-                put("email", email)
+                put("email", email.trim())
                 put("password", pass)
-                put("displayName", name)
+                put("displayName", name.trim())
             }.toString()
 
             OutputStreamWriter(conn.outputStream).use { it.write(payload) }
 
-            if (conn.responseCode in 200..299) {
-                val current = auth.currentUser
-                if (current != null) {
-                    Result.success(current)
-                } else {
-                    Result.failure(Exception("Registered on Cloudflare Database successfully. Please Sign In to continue."))
-                }
+            val responseCode = conn.responseCode
+            if (responseCode in 200..299) {
+                val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                val response = reader.readText()
+                reader.close()
+                val json = JSONObject(response)
+                val userObj = json.optJSONObject("user")
+                val uid = userObj?.optString("uid") ?: "cf_usr_${Base64.encodeToString(email.toByteArray(), Base64.NO_WRAP).replace("=", "")}"
+                val user = AuthUser(
+                    uid = uid,
+                    email = email.trim(),
+                    displayName = name.trim()
+                )
+                Result.success(user)
             } else {
-                Result.failure(Exception("Cloudflare Edge Auth Sign-Up failed (HTTP ${conn.responseCode})"))
+                val errorBody = runCatching {
+                    conn.errorStream?.bufferedReader()?.readText() ?: "Sign-up failed"
+                }.getOrDefault("Sign-up failed")
+                Log.e("AuthRepositoryImpl", "Cloudflare Sign-Up failed ($responseCode): $errorBody")
+                Result.failure(Exception("Sign-up failed (Code: $responseCode)"))
             }
         } catch (e: Exception) {
             Log.e("AuthRepositoryImpl", "Cloudflare Sign-Up Network Error", e)
-            Result.failure(e)
+            Result.failure(Exception("Network error during sign-up. Please check your connection."))
         }
     }
 
-    private fun performCloudflareSignIn(email: String, pass: String): Result<FirebaseUser> {
+    private fun performCloudflareSignIn(email: String, pass: String): Result<AuthUser> {
         return try {
             val url = URL("$cloudflareEdgeUrl/api/auth/signin")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
             conn.doOutput = true
 
             val payload = JSONObject().apply {
-                put("email", email)
+                put("email", email.trim())
                 put("password", pass)
             }.toString()
 
             OutputStreamWriter(conn.outputStream).use { it.write(payload) }
 
-            if (conn.responseCode in 200..299) {
-                val current = auth.currentUser
-                if (current != null) {
-                    Result.success(current)
-                } else {
-                    Result.failure(Exception("Signed in on Cloudflare Edge Auth."))
-                }
+            val responseCode = conn.responseCode
+            if (responseCode in 200..299) {
+                val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                val response = reader.readText()
+                reader.close()
+                val json = JSONObject(response)
+                val userObj = json.optJSONObject("user")
+                val uid = userObj?.optString("uid") ?: "cf_usr_${Base64.encodeToString(email.toByteArray(), Base64.NO_WRAP).replace("=", "")}"
+                val displayName = userObj?.optString("displayName") ?: email.split("@").firstOrNull() ?: "Rider"
+                val user = AuthUser(
+                    uid = uid,
+                    email = email.trim(),
+                    displayName = displayName
+                )
+                Result.success(user)
+            } else if (responseCode == 401 || responseCode == 403) {
+                Result.failure(Exception("Invalid email or password. Please check your credentials."))
             } else {
-                Result.failure(Exception("Cloudflare Sign-In failed (HTTP ${conn.responseCode})"))
+                val errorBody = runCatching {
+                    conn.errorStream?.bufferedReader()?.readText() ?: "Sign-in failed"
+                }.getOrDefault("Sign-in failed")
+                Log.e("AuthRepositoryImpl", "Cloudflare Sign-In failed ($responseCode): $errorBody")
+                Result.failure(Exception("Sign-in failed. Please try again. (Code: $responseCode)"))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Log.e("AuthRepositoryImpl", "Cloudflare Sign-In Network Error", e)
+            Result.failure(Exception("Network error during sign-in. Please check your connection."))
         }
     }
 
@@ -218,11 +524,17 @@ class AuthRepositoryImpl(
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
             conn.doOutput = true
 
             val payload = JSONObject().apply {
                 put("userId", profile.userId)
                 put("displayName", profile.displayName)
+                put("email", profile.email)
+                put("mobileNumber", profile.mobileNumber)
+                put("dateOfBirth", profile.dateOfBirth)
+                put("photoUrl", profile.photoUrl)
                 put("vehicleModel", profile.vehicleModel)
                 put("fuelTankCapacityLiters", profile.tankCapacityLiters)
                 put("shareRealtimeLocation", profile.privacySettings.shareLocationWithGroup)
@@ -232,16 +544,20 @@ class AuthRepositoryImpl(
             OutputStreamWriter(conn.outputStream).use { it.write(payload) }
             conn.responseCode in 200..299
         } catch (e: Exception) {
+            Log.w("AuthRepositoryImpl", "Failed to save profile to Cloudflare Edge", e)
             false
         }
     }
 
-    private fun fetchCloudflareProfile(userId: String): UserProfile? {
+    private fun fetchCloudflareProfile(userId: String, email: String? = null): UserProfile? {
         return try {
-            val url = URL("$cloudflareEdgeUrl/api/auth/profile?userId=$userId")
+            val emailParam = if (!email.isNullOrBlank()) "&email=${email.trim().lowercase()}" else ""
+            val url = URL("$cloudflareEdgeUrl/api/auth/profile?userId=$userId$emailParam")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.connectTimeout = 6000
+            conn.readTimeout = 6000
 
             if (conn.responseCode in 200..299) {
                 val reader = BufferedReader(InputStreamReader(conn.inputStream))
@@ -251,16 +567,23 @@ class AuthRepositoryImpl(
                 val json = JSONObject(response)
                 if (json.has("profile") && !json.isNull("profile")) {
                     val p = json.getJSONObject("profile")
-                    UserProfile(
-                        userId = p.optString("userId", userId),
-                        displayName = p.optString("displayName", "Rider"),
-                        vehicleModel = p.optString("vehicleModel", "Motorcycle"),
-                        tankCapacityLiters = p.optDouble("fuelTankCapacityLiters", 15.0),
-                        privacySettings = PrivacySettings(
-                            shareLocationWithGroup = p.optBoolean("shareRealtimeLocation", true),
-                            emergencyContactPhone = p.optString("emergencyContactNumber", "")
+                    val vModel = p.optString("vehicleModel", "")
+                    if (vModel.isNotBlank()) {
+                        UserProfile(
+                            userId = p.optString("userId", userId),
+                            displayName = p.optString("displayName", "Rider"),
+                            email = p.optString("email", email ?: ""),
+                            mobileNumber = p.optString("mobileNumber", ""),
+                            dateOfBirth = p.optString("dateOfBirth", ""),
+                            photoUrl = p.optString("photoUrl", ""),
+                            vehicleModel = vModel,
+                            tankCapacityLiters = p.optDouble("fuelTankCapacityLiters", 15.0),
+                            privacySettings = PrivacySettings(
+                                shareLocationWithGroup = p.optBoolean("shareRealtimeLocation", true),
+                                emergencyContactPhone = p.optString("emergencyContactNumber", "")
+                            )
                         )
-                    )
+                    } else null
                 } else null
             } else null
         } catch (e: Exception) {

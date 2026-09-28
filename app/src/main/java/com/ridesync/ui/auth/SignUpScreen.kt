@@ -51,6 +51,7 @@ fun SignUpScreen(
     onSignUpClick: (name: String, email: String, pass: String, confirmPass: String) -> Unit,
     onGoogleSignUpClick: (String) -> Unit,
     onNavigateToLogin: () -> Unit,
+    onAuthError: ((String) -> Unit)? = null,
     isLoading: Boolean,
     errorMessage: String?
 ) {
@@ -72,9 +73,9 @@ fun SignUpScreen(
     val webClientId = remember(context) {
         try {
             val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-            if (resId != 0) context.getString(resId) else "395720155616-cgoovj6g86pqm18v1723u61bgtgv3ccl.apps.googleusercontent.com"
+            if (resId != 0) context.getString(resId) else "395720155616-qlsvl60qq4c6qti4nkt0lcqji04nkvbt.apps.googleusercontent.com"
         } catch (e: Exception) {
-            "395720155616-cgoovj6g86pqm18v1723u61bgtgv3ccl.apps.googleusercontent.com"
+            "395720155616-qlsvl60qq4c6qti4nkt0lcqji04nkvbt.apps.googleusercontent.com"
         }
     }
 
@@ -97,9 +98,19 @@ fun SignUpScreen(
                 onGoogleSignUpClick(idToken)
             } else {
                 Log.e("RideSyncAuth", "Google Sign-Up returned null idToken")
+                onAuthError?.invoke("Google Sign-Up failed: no credential returned. Please try again.")
             }
         } catch (e: Exception) {
-            Log.e("RideSyncAuth", "Google Sign-Up intent failed: ${e.message}", e)
+            val apiException = e as? ApiException
+            val statusCode = apiException?.statusCode
+            val detail = when (statusCode) {
+                10 -> "Configuration error (Code 10: Developer Error)"
+                12500 -> "Sign-in configuration error (Code 12500)"
+                7 -> "Network error (Code 7)"
+                else -> e.localizedMessage ?: "Sign-up was cancelled or failed"
+            }
+            Log.e("RideSyncAuth", "Google Sign-Up intent failed: status=$statusCode, ${e.message}", e)
+            onAuthError?.invoke("Google Sign-Up: $detail. Please try again.")
         }
     }
 
@@ -347,6 +358,9 @@ fun SignUpScreen(
                             onIdTokenReceived = onGoogleSignUpClick,
                             onFallbackNeeded = {
                                 googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                            },
+                            onError = { msg ->
+                                onAuthError?.invoke(msg)
                             }
                         )
                     }
@@ -392,7 +406,8 @@ private suspend fun triggerGoogleSignUp(
     context: Context,
     webClientId: String,
     onIdTokenReceived: (String) -> Unit,
-    onFallbackNeeded: () -> Unit
+    onFallbackNeeded: () -> Unit,
+    onError: ((String) -> Unit)? = null
 ) {
     val credentialManager = CredentialManager.create(context)
     val googleIdOption = GetGoogleIdOption.Builder()

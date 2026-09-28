@@ -1,5 +1,7 @@
 package com.ridesync.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -20,6 +22,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.ridesync.data.model.*
 import com.ridesync.data.remote.HybridFirebaseClient
 import com.ridesync.data.repository.TelemetryBufferRepository
+import com.ridesync.engine.LiveLocationEngine
 import com.ridesync.ui.hud.ConvoyAlertBanner
 import com.ridesync.ui.hud.ConvoyStatusBottomSheet
 import com.ridesync.ui.hud.GloveFriendlyActionPad
@@ -42,6 +45,33 @@ fun MainContainerScreen(
     val telemetryRepository = remember(context) { TelemetryBufferRepository(context) }
     val firebaseClient = remember { HybridFirebaseClient() }
 
+    // Live Phone Mobile GPS Tracking Engine
+    val phoneLocationPing by LiveLocationEngine.liveLocationPing.collectAsState()
+
+    // Runtime Permission Launcher for Real Phone GPS
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            LiveLocationEngine.startLiveLocationUpdates(context)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!LiveLocationEngine.hasLocationPermission(context)) {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        } else {
+            LiveLocationEngine.startLiveLocationUpdates(context)
+        }
+    }
+
     val isOnline by telemetryRepository.isOnline.collectAsState()
     val liveTelemetry by firebaseClient.observeLiveConvoyTelemetry("active_trip_101").collectAsState(initial = emptyMap<String, RiderLocationPing>())
     val liveStops by firebaseClient.observeStopEvents("active_trip_101").collectAsState(initial = emptyList<StopEvent>())
@@ -60,28 +90,40 @@ fun MainContainerScreen(
         activeRoutePolyline = defaultRoute.polylinePoints
     }
 
-    val mergedLocations = remember(liveTelemetry, userProfile) {
-        val map = liveTelemetry.toMutableMap()
-        if (!map.containsKey(userProfile.userId)) {
-            map[userProfile.userId] = RiderLocationPing(
-                latitude = 17.3753,
-                longitude = 78.4344,
-                speedKmh = 65f,
-                bearing = 45f,
-                timestamp = System.currentTimeMillis()
+    // Buffer real mobile phone GPS telemetry automatically
+    LaunchedEffect(phoneLocationPing) {
+        phoneLocationPing?.let { ping ->
+            telemetryRepository.processIncomingPing(
+                tripId = "active_trip_101",
+                userId = userProfile.userId,
+                ping = ping
             )
         }
+    }
+
+    val mergedLocations = remember(liveTelemetry, userProfile, phoneLocationPing) {
+        val map = liveTelemetry.toMutableMap()
+        val myPing = phoneLocationPing ?: RiderLocationPing(
+            latitude = 17.3753,
+            longitude = 78.4344,
+            speedKmh = 0f,
+            bearing = 0f,
+            timestamp = System.currentTimeMillis()
+        )
+        map[userProfile.userId] = myPing
         map
     }
 
-    val mockMembers = remember(userProfile, activeRole) {
+    val mockMembers = remember(userProfile, activeRole, phoneLocationPing) {
         mapOf(
             userProfile.userId to ConvoyMember(
                 userId = userProfile.userId,
-                displayName = userProfile.displayName.ifBlank { "Rider" },
+                displayName = userProfile.displayName.ifBlank { "Rider (You)" },
+                photoUrl = userProfile.photoUrl,
+                vehicleModel = userProfile.vehicleModel,
                 role = activeRole,
-                status = RiderStatus.RIDING,
-                batteryPercent = 88,
+                status = if ((phoneLocationPing?.speedKmh ?: 0f) > 3f) RiderStatus.RIDING else RiderStatus.STOPPED,
+                batteryPercent = 92,
                 lastSeenTimestamp = System.currentTimeMillis()
             )
         )
@@ -219,6 +261,7 @@ fun MainContainerScreen(
                 1 -> {
                     // Trip & Route Planner
                     TripCreationScreen(
+                        userProfile = userProfile,
                         onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
                             activeRole = role
                             if (routePolyline.isNotEmpty()) {

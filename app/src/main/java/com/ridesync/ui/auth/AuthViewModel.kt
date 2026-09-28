@@ -2,8 +2,8 @@ package com.ridesync.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseUser
 import com.ridesync.data.model.AuthRepository
+import com.ridesync.data.model.AuthUser
 import com.ridesync.data.model.PrivacySettings
 import com.ridesync.data.model.UserProfile
 import com.ridesync.data.repository.AuthRepositoryImpl
@@ -20,7 +20,7 @@ enum class AuthScreenMode {
 sealed interface AuthState {
     data object Idle : AuthState
     data object Authenticating : AuthState
-    data class ProfileSetupRequired(val user: FirebaseUser) : AuthState
+    data class ProfileSetupRequired(val user: AuthUser) : AuthState
     data class Authenticated(val userProfile: UserProfile) : AuthState
     data class Error(val message: String) : AuthState
 }
@@ -60,8 +60,8 @@ class AuthViewModel(
             _uiState.value = AuthState.Authenticating
             repository.signInWithGoogleIdToken(idToken).collect { result ->
                 result.fold(
-                    onSuccess = { firebaseUser ->
-                        loadUserProfile(firebaseUser)
+                    onSuccess = { authUser ->
+                        loadUserProfile(authUser)
                     },
                     onFailure = { throwable ->
                         _uiState.value = AuthState.Error(
@@ -117,12 +117,12 @@ class AuthViewModel(
             _uiState.value = AuthState.Authenticating
             repository.signUpWithEmail(trimmedEmail, password, trimmedName).collect { result ->
                 result.fold(
-                    onSuccess = { firebaseUser ->
-                        loadUserProfile(firebaseUser)
+                    onSuccess = { authUser ->
+                        loadUserProfile(authUser)
                     },
                     onFailure = { throwable ->
                         _uiState.value = AuthState.Error(
-                            throwable.localizedMessage ?: "Sign up failed. Email may already be registered."
+                            throwable.localizedMessage ?: "Sign up failed. Please check your connection."
                         )
                     }
                 )
@@ -147,8 +147,8 @@ class AuthViewModel(
             _uiState.value = AuthState.Authenticating
             repository.signInWithEmail(trimmedEmail, password).collect { result ->
                 result.fold(
-                    onSuccess = { firebaseUser ->
-                        loadUserProfile(firebaseUser)
+                    onSuccess = { authUser ->
+                        loadUserProfile(authUser)
                     },
                     onFailure = { throwable ->
                         _uiState.value = AuthState.Error(
@@ -192,21 +192,19 @@ class AuthViewModel(
         _passwordResetStatus.value = null
     }
 
-    private fun loadUserProfile(firebaseUser: FirebaseUser) {
+    private fun loadUserProfile(authUser: AuthUser) {
         viewModelScope.launch {
-            repository.fetchUserProfile(firebaseUser.uid).collect { result ->
+            repository.fetchUserProfile(authUser.uid).collect { result ->
                 result.fold(
                     onSuccess = { profile ->
-                        if (profile != null) {
+                        if (profile != null && profile.vehicleModel.isNotBlank()) {
                             _uiState.value = AuthState.Authenticated(profile)
                         } else {
-                            _uiState.value = AuthState.ProfileSetupRequired(firebaseUser)
+                            _uiState.value = AuthState.ProfileSetupRequired(authUser)
                         }
                     },
                     onFailure = { throwable ->
-                        _uiState.value = AuthState.Error(
-                            "Failed to load profile: ${throwable.localizedMessage}"
-                        )
+                        _uiState.value = AuthState.ProfileSetupRequired(authUser)
                     }
                 )
             }
@@ -220,7 +218,7 @@ class AuthViewModel(
         emergencyContactPhone: String
     ) {
         val currentState = _uiState.value
-        val firebaseUser = when (currentState) {
+        val authUser = when (currentState) {
             is AuthState.ProfileSetupRequired -> currentState.user
             is AuthState.Authenticated -> repository.currentUser
             else -> repository.currentUser
@@ -230,10 +228,10 @@ class AuthViewModel(
         }
 
         val newProfile = UserProfile(
-            userId = firebaseUser.uid,
-            displayName = firebaseUser.displayName ?: "Rider",
-            email = firebaseUser.email ?: "",
-            photoUrl = firebaseUser.photoUrl?.toString() ?: "",
+            userId = authUser.uid,
+            displayName = authUser.displayName.ifBlank { "Rider" },
+            email = authUser.email,
+            photoUrl = authUser.photoUrl,
             vehicleModel = vehicleModel.trim(),
             tankCapacityLiters = tankCapacityLiters,
             privacySettings = PrivacySettings(
@@ -281,6 +279,10 @@ class AuthViewModel(
         if (_uiState.value is AuthState.Error) {
             _uiState.value = AuthState.Idle
         }
+    }
+
+    fun setError(message: String) {
+        _uiState.value = AuthState.Error(message)
     }
 
     fun signOut() {
