@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TwoWheeler
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,20 +21,38 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridesync.R
+import com.ridesync.data.model.FuelType
+import com.ridesync.data.model.Vehicle
+import com.ridesync.data.model.VehicleType
+import com.ridesync.ui.profile.DateOfBirthCalendarField
 
 @Composable
 fun ProfileSetupScreen(
     initialDisplayName: String,
     onSaveProfile: (vehicleModel: String, tankCapacity: Double, shareLocation: Boolean, emergencyPhone: String) -> Unit,
+    onSaveFullProfile: ((dateOfBirth: String, initialVehicle: Vehicle, shareLocation: Boolean, emergencyPhone: String) -> Unit)? = null,
     isLoading: Boolean
 ) {
-    var vehicleModel by remember { mutableStateOf("") }
-    var tankCapacityText by remember { mutableStateOf("18") }
+    var dateOfBirth by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf(VehicleType.BIKE.name) }
+    var selectedFuelType by remember { mutableStateOf(FuelType.PETROL.name) }
+    var brandName by remember { mutableStateOf("") }
+    var modelName by remember { mutableStateOf("") }
+    var capacityText by remember { mutableStateOf("15.0") }
+    var mileageText by remember { mutableStateOf("35.0") }
+    var currentFuelText by remember { mutableStateOf("10.0") }
     var emergencyPhone by remember { mutableStateOf("") }
     var shareLocation by remember { mutableStateOf(true) }
+
+    val currentFuelVal = currentFuelText.toDoubleOrNull() ?: 0.0
+    val mileageVal = mileageText.toDoubleOrNull() ?: 0.0
+    val capacityVal = capacityText.toDoubleOrNull() ?: 0.0
+    val calculatedRange = (currentFuelVal * mileageVal * 10.0).let { Math.round(it) / 10.0 }
+    val currentFuelTypeEnum = try { FuelType.valueOf(selectedFuelType) } catch (_: Exception) { FuelType.PETROL }
 
     val backgroundColor = com.ridesync.ui.theme.HudColors.ObsidianCanvas
     val cardColor = com.ridesync.ui.theme.HudColors.ObsidianSurface
@@ -68,33 +87,128 @@ fun ProfileSetupScreen(
                 
                 Text(
                     text = "Welcome, $initialDisplayName!",
-                    fontSize = 28.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = com.ridesync.ui.theme.HudColors.TextCrispWhite
                 )
 
                 Text(
-                    text = "Set up your motorcycle profile to enable accurate fuel stop alerts and convoy tracking.",
-                    fontSize = 15.sp,
+                    text = "Complete your profile, date of birth & vehicle specifications to calculate live trip range & refuel reminders.",
+                    fontSize = 14.sp,
                     color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
+                    modifier = Modifier.padding(top = 6.dp, bottom = 24.dp)
                 )
 
-                // Vehicle Model Input
-                OutlinedTextField(
-                    value = vehicleModel,
-                    onValueChange = { vehicleModel = it },
-                    label = { Text("Motorcycle Model (e.g. BMW R1250GS)") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.TwoWheeler,
-                            contentDescription = null,
-                            tint = accentColor
-                        )
-                    },
+                // Date of Birth Calendar Field
+                DateOfBirthCalendarField(
+                    value = dateOfBirth,
+                    onDateSelected = { dateOfBirth = it },
+                    label = "Date of Birth (Select via Calendar)",
+                    modifier = Modifier.padding(bottom = 20.dp)
+                )
+
+                Text(
+                    text = "Primary Vehicle Details",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = com.ridesync.ui.theme.HudColors.TextCrispWhite,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // 1. Vehicle Type Selection
+                Text(
+                    text = "Vehicle Type",
+                    fontSize = 13.sp,
+                    color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    VehicleType.entries.forEach { type ->
+                        val isSelected = selectedType == type.name
+                        Surface(
+                            onClick = { selectedType = type.name },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) accentColor.copy(alpha = 0.25f) else cardColor,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.5.dp,
+                                if (isSelected) accentColor else com.ridesync.ui.theme.HudColors.ObsidianBorder
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(text = type.iconEmoji, fontSize = 18.sp)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = type.displayName,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) accentColor else com.ridesync.ui.theme.HudColors.TextCrispWhite
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Fuel Type Selection
+                Text(
+                    text = "Fuel Type",
+                    fontSize = 13.sp,
+                    color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FuelType.entries.forEach { fuel ->
+                        val isSelected = selectedFuelType == fuel.name
+                        Surface(
+                            onClick = { selectedFuelType = fuel.name },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) accentColor else cardColor,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) accentColor else com.ridesync.ui.theme.HudColors.ObsidianBorder
+                            ),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = fuel.iconEmoji, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = fuel.displayName.split(" ").first(),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.Black else com.ridesync.ui.theme.HudColors.TextCrispWhite
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Brand Name
+                OutlinedTextField(
+                    value = brandName,
+                    onValueChange = { brandName = it },
+                    label = { Text("Vehicle Brand (e.g. Honda, Royal Enfield, Tesla)") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = cardColor,
@@ -108,22 +222,94 @@ fun ProfileSetupScreen(
                     )
                 )
 
-                // Tank Capacity Input
+                // Model Name
                 OutlinedTextField(
-                    value = tankCapacityText,
-                    onValueChange = { tankCapacityText = it },
-                    label = { Text("Fuel Tank Capacity (Liters)") },
+                    value = modelName,
+                    onValueChange = { modelName = it },
+                    label = { Text("Vehicle Model (e.g. Classic 350, Thar, Model 3)") },
+                    singleLine = true,
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.LocalGasStation,
-                            contentDescription = null,
-                            tint = accentColor
-                        )
+                        Icon(imageVector = Icons.Default.TwoWheeler, contentDescription = null, tint = accentColor)
                     },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = cardColor,
+                        unfocusedContainerColor = cardColor,
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = com.ridesync.ui.theme.HudColors.ObsidianBorder,
+                        focusedLabelColor = accentColor,
+                        unfocusedLabelColor = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                        focusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite,
+                        unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                    )
+                )
+
+                // Capacity & Mileage & Current Fuel Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Capacity
+                    OutlinedTextField(
+                        value = capacityText,
+                        onValueChange = { capacityText = it },
+                        label = { Text("Tank (${currentFuelTypeEnum.capacityUnit})") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = cardColor,
+                            unfocusedContainerColor = cardColor,
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = com.ridesync.ui.theme.HudColors.ObsidianBorder,
+                            focusedLabelColor = accentColor,
+                            unfocusedLabelColor = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                            focusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite,
+                            unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                        )
+                    )
+
+                    // Mileage
+                    OutlinedTextField(
+                        value = mileageText,
+                        onValueChange = { mileageText = it },
+                        label = { Text("Mileage (${currentFuelTypeEnum.mileageUnit})") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = cardColor,
+                            unfocusedContainerColor = cardColor,
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = com.ridesync.ui.theme.HudColors.ObsidianBorder,
+                            focusedLabelColor = accentColor,
+                            unfocusedLabelColor = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                            focusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite,
+                            unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                        )
+                    )
+                }
+
+                // Current Fuel Field
+                OutlinedTextField(
+                    value = currentFuelText,
+                    onValueChange = { currentFuelText = it },
+                    label = { Text("Current Fuel Available in Vehicle (${currentFuelTypeEnum.fuelUnit})") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.LocalGasStation, contentDescription = null, tint = accentColor)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 14.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = cardColor,
@@ -136,6 +322,35 @@ fun ProfileSetupScreen(
                         unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
                     )
                 )
+
+                // Range Preview Card
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF0F2D2E),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(text = "Estimated Vehicle Range", fontSize = 12.sp, color = com.ridesync.ui.theme.HudColors.TextCoolSilver)
+                            Text(text = "Current fuel × Mileage efficiency", fontSize = 11.sp, color = com.ridesync.ui.theme.HudColors.TextCoolSilver)
+                        }
+                        Text(
+                            text = "$calculatedRange km",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = accentColor
+                        )
+                    }
+                }
 
                 // Emergency Contact Input
                 OutlinedTextField(
@@ -152,7 +367,7 @@ fun ProfileSetupScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 24.dp),
+                        .padding(bottom = 20.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = cardColor,
@@ -184,12 +399,12 @@ fun ProfileSetupScreen(
                                 text = "Share Live Location with Convoy",
                                 color = com.ridesync.ui.theme.HudColors.TextCrispWhite,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp
+                                fontSize = 15.sp
                             )
                             Text(
                                 text = "Allows convoy members to track your position during active rides",
                                 color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
-                                fontSize = 13.sp
+                                fontSize = 12.sp
                             )
                         }
                         Switch(
@@ -206,16 +421,31 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Large Tactile Save Button
+            // Save Button
             Button(
                 onClick = {
-                    val capacity = tankCapacityText.toDoubleOrNull() ?: 18.0
-                    onSaveProfile(vehicleModel, capacity, shareLocation, emergencyPhone)
+                    val fullModel = listOf(brandName.trim(), modelName.trim()).filter { it.isNotBlank() }.joinToString(" ")
+                    val initVehicle = Vehicle(
+                        type = selectedType,
+                        fuelType = selectedFuelType,
+                        brandName = brandName.trim(),
+                        model = modelName.trim(),
+                        fuelTankCapacity = capacityVal,
+                        mileage = mileageVal,
+                        currentFuelAvailable = currentFuelVal,
+                        isActive = true
+                    )
+
+                    if (onSaveFullProfile != null) {
+                        onSaveFullProfile(dateOfBirth.trim(), initVehicle, shareLocation, emergencyPhone)
+                    } else {
+                        onSaveProfile(fullModel, capacityVal, shareLocation, emergencyPhone)
+                    }
                 },
-                enabled = !isLoading && vehicleModel.isNotBlank(),
+                enabled = !isLoading && (brandName.isNotBlank() || modelName.isNotBlank()),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
+                    .height(60.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = accentColor,

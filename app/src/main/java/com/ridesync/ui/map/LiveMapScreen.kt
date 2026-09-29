@@ -46,6 +46,7 @@ import com.ridesync.engine.LiveLocationEngine
 import com.ridesync.ui.hud.ConvoyRadarOverlay
 import com.ridesync.ui.hud.GoogleMapsDirectionsOptionsModal
 import com.ridesync.ui.hud.GoogleMapsNavigationHUD
+import com.ridesync.ui.hud.TopConvoyLeaderboardOverlay
 import com.ridesync.ui.theme.HudColors
 import com.ridesync.ui.theme.frostedGlassHud
 import com.ridesync.ui.theme.hud3dCard
@@ -271,6 +272,21 @@ fun LiveMapScreen(
         }
     }
 
+    // Calculate convoy rider position ranks (#1, #2, #3...) along route
+    val riderRanks = remember(dynamicStartPos, riderLocations, convoyMembers) {
+        val list = com.ridesync.engine.ConvoyRadarEngine.calculateRelativePositions(
+            myLocation = dynamicStartPos,
+            myBearing = myPing?.bearing ?: 0f,
+            riders = riderLocations,
+            members = convoyMembers
+        )
+        val rankMap = mutableMapOf<String, Int>()
+        list.forEachIndexed { idx, info ->
+            rankMap[info.riderId] = idx + 1
+        }
+        rankMap
+    }
+
     Box(modifier = modifier.fillMaxSize().background(HudColors.ObsidianCanvas)) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
@@ -306,35 +322,30 @@ fun LiveMapScreen(
                 )
             }
 
-            // Render Only Active PENDING Stops on the Map (Completed/Skipped stops are removed)
+            // Render Only Active PENDING Stops on the Map displaying actual Stop Name
             pendingStopsOnMap.forEachIndexed { sIdx, stop ->
                 if (stop.latitude != 0.0 && stop.longitude != 0.0) {
                     val isFirst = sIdx == 0
                     val isLast = sIdx == pendingStopsOnMap.size - 1
 
-                    val pinHue = when {
-                        isFirst -> BitmapDescriptorFactory.HUE_GREEN
-                        isLast -> BitmapDescriptorFactory.HUE_RED
-                        else -> BitmapDescriptorFactory.HUE_CYAN
-                    }
-
-                    Marker(
-                        state = MarkerState(position = LatLng(stop.latitude, stop.longitude)),
-                        title = "${stop.orderIndex + 1}. ${stop.stopName}",
-                        snippet = stop.activityDescription.ifBlank { "Tap for stop actions" },
-                        icon = BitmapDescriptorFactory.defaultMarker(pinHue),
+                    RouteStopMarker(
+                        position = LatLng(stop.latitude, stop.longitude),
+                        stopName = stop.stopName,
+                        stopNumber = stop.orderIndex + 1,
+                        isFirstStop = isFirst,
+                        isLastStop = isLast,
                         onClick = {
                             selectedStopForModal = stop
-                            true
                         }
                     )
                 }
             }
 
-            // Render 3D Rider Markers
+            // Render 3D Rider Markers with Position Rank Badge (#1, #2, #3...) & Profile Photo
             riderLocations.forEach { (userId, ping) ->
                 val member = convoyMembers[userId]
                 val status = member?.status ?: RiderStatus.RIDING
+                val posRank = riderRanks[userId] ?: 0
 
                 InterpolatedRiderMarker3D(
                     targetLocation = LatLng(ping.latitude, ping.longitude),
@@ -342,7 +353,8 @@ fun LiveMapScreen(
                     displayName = member?.displayName ?: "Rider",
                     status = status,
                     photoUrl = member?.photoUrl ?: "",
-                    vehicleModel = member?.vehicleModel ?: ""
+                    vehicleModel = member?.vehicleModel ?: "",
+                    positionNumber = posRank
                 )
             }
 
@@ -355,6 +367,33 @@ fun LiveMapScreen(
                 )
             }
         }
+
+        // TOP SIDE RACING CONVOY LEADERBOARD OVERLAY (Click any rider circle to focus map)
+        TopConvoyLeaderboardOverlay(
+            myLocation = dynamicStartPos,
+            myBearing = myPing?.bearing ?: 0f,
+            riderLocations = riderLocations,
+            convoyMembers = convoyMembers,
+            onFocusRider = { targetPos, riderName ->
+                isFollowMode = false
+                coroutineScope.launch {
+                    cameraPositionState.animate(
+                        CameraUpdateFactory.newCameraPosition(
+                            CameraPosition.Builder()
+                                .target(targetPos)
+                                .zoom(17.5f)
+                                .tilt(if (is3dTilt) 50f else 0f)
+                                .build()
+                        ),
+                        600
+                    )
+                }
+                Toast.makeText(context, "Map camera focused on $riderName 🎯", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 10.dp)
+        )
 
         // Top Right: Floating Frosted HUD Map Controls
         Column(

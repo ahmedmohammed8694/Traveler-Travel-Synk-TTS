@@ -257,6 +257,56 @@ class AuthViewModel(
         }
     }
 
+    fun saveFullUserProfile(
+        dateOfBirth: String,
+        initialVehicle: com.ridesync.data.model.Vehicle,
+        shareLocationWithGroup: Boolean,
+        emergencyContactPhone: String
+    ) {
+        val currentState = _uiState.value
+        val authUser = when (currentState) {
+            is AuthState.ProfileSetupRequired -> currentState.user
+            is AuthState.Authenticated -> repository.currentUser
+            else -> repository.currentUser
+        } ?: run {
+            _uiState.value = AuthState.Error("No authenticated session found")
+            return
+        }
+
+        val activeVeh = initialVehicle.copy(isActive = true)
+        val newProfile = UserProfile(
+            userId = authUser.uid,
+            displayName = authUser.displayName.ifBlank { "Rider" },
+            email = authUser.email,
+            dateOfBirth = dateOfBirth.trim(),
+            photoUrl = authUser.photoUrl,
+            vehicleModel = activeVeh.fullDisplayName,
+            tankCapacityLiters = activeVeh.fuelTankCapacity,
+            vehicles = listOf(activeVeh),
+            activeVehicleId = activeVeh.id,
+            privacySettings = PrivacySettings(
+                shareLocationWithGroup = shareLocationWithGroup,
+                emergencyContactPhone = emergencyContactPhone.trim()
+            )
+        )
+
+        viewModelScope.launch {
+            _uiState.value = AuthState.Authenticating
+            repository.saveUserProfile(newProfile).collect { result ->
+                result.fold(
+                    onSuccess = {
+                        _uiState.value = AuthState.Authenticated(newProfile)
+                    },
+                    onFailure = { throwable ->
+                        _uiState.value = AuthState.Error(
+                            "Failed to save profile: ${throwable.localizedMessage}"
+                        )
+                    }
+                )
+            }
+        }
+    }
+
     fun updateFullUserProfile(updatedProfile: UserProfile) {
         viewModelScope.launch {
             _uiState.value = AuthState.Authenticating

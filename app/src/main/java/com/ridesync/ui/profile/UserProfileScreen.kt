@@ -13,9 +13,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocalGasStation
@@ -24,6 +27,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,9 +44,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridesync.R
-import com.ridesync.data.model.PrivacySettings
+import com.ridesync.data.model.FuelType
 import com.ridesync.data.model.UserProfile
+import com.ridesync.data.model.Vehicle
+import com.ridesync.data.model.VehicleType
+import com.ridesync.ui.theme.HudColors
 import com.ridesync.util.rememberRiderAvatarBitmap
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,9 +67,48 @@ fun UserProfileScreen(
     var emergencyContactPhone by remember(userProfile) { mutableStateOf(userProfile.privacySettings.emergencyContactPhone) }
     var email by remember(userProfile) { mutableStateOf(userProfile.email) }
     var mobileNumber by remember(userProfile) { mutableStateOf(userProfile.mobileNumber) }
-    var vehicleModel by remember(userProfile) { mutableStateOf(userProfile.vehicleModel) }
-    var tankCapacityText by remember(userProfile) { mutableStateOf(userProfile.tankCapacityLiters.toString()) }
     var photoUrl by remember(userProfile) { mutableStateOf(userProfile.photoUrl) }
+
+    // Vehicles List State
+    val vehiclesList = remember(userProfile) {
+        mutableStateListOf<Vehicle>().apply {
+            if (userProfile.vehicles.isNotEmpty()) {
+                addAll(userProfile.vehicles)
+            } else if (userProfile.vehicleModel.isNotBlank()) {
+                // Legacy fallback vehicle creation
+                add(
+                    Vehicle(
+                        id = UUID.randomUUID().toString(),
+                        type = VehicleType.BIKE.name,
+                        fuelType = FuelType.PETROL.name,
+                        brandName = userProfile.vehicleModel.split(" ").firstOrNull() ?: "",
+                        model = userProfile.vehicleModel.split(" ").drop(1).joinToString(" ").ifBlank { userProfile.vehicleModel },
+                        fuelTankCapacity = userProfile.tankCapacityLiters,
+                        mileage = 35.0,
+                        currentFuelAvailable = 10.0,
+                        isActive = true
+                    )
+                )
+            }
+        }
+    }
+
+    var activeVehicleId by remember(userProfile, vehiclesList.size) {
+        mutableStateOf(
+            userProfile.activeVehicleId.ifBlank {
+                vehiclesList.firstOrNull { it.isActive }?.id ?: vehiclesList.firstOrNull()?.id ?: ""
+            }
+        )
+    }
+
+    // Active vehicle computation
+    val activeVehicle = remember(vehiclesList, activeVehicleId) {
+        vehiclesList.firstOrNull { it.id == activeVehicleId } ?: vehiclesList.firstOrNull()
+    }
+
+    // Add / Edit vehicle dialog state
+    var showVehicleDialog by remember { mutableStateOf(false) }
+    var vehicleToEdit by remember { mutableStateOf<Vehicle?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -71,9 +118,9 @@ fun UserProfileScreen(
         }
     }
 
-    val backgroundColor = com.ridesync.ui.theme.HudColors.ObsidianCanvas
-    val cardColor = com.ridesync.ui.theme.HudColors.ObsidianSurface
-    val accentColor = com.ridesync.ui.theme.HudColors.CyanPrimary
+    val backgroundColor = HudColors.ObsidianCanvas
+    val cardColor = HudColors.ObsidianSurface
+    val accentColor = HudColors.CyanPrimary
 
     Scaffold(
         topBar = {
@@ -82,7 +129,7 @@ fun UserProfileScreen(
                     Text(
                         text = "RRS User Profile",
                         fontWeight = FontWeight.Bold,
-                        color = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                        color = HudColors.TextCrispWhite
                     )
                 },
                 actions = {
@@ -96,7 +143,7 @@ fun UserProfileScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = backgroundColor,
-                    titleContentColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                    titleContentColor = HudColors.TextCrispWhite
                 )
             )
         },
@@ -119,7 +166,7 @@ fun UserProfileScreen(
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // User Profile & Bike Image (Avatar)
+                // User Profile & Avatar
                 val avatarBitmap by rememberRiderAvatarBitmap(photoUrl)
 
                 Box(
@@ -137,7 +184,7 @@ fun UserProfileScreen(
                     if (avatarBitmap != null) {
                         Image(
                             bitmap = avatarBitmap!!.asImageBitmap(),
-                            contentDescription = "Rider & Bike Profile Photo",
+                            contentDescription = "Rider Profile Photo",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -151,7 +198,6 @@ fun UserProfileScreen(
                     }
 
                     if (isEditing) {
-                        // Camera overlay badge
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -164,7 +210,7 @@ fun UserProfileScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Change Bike / Profile Photo",
+                                    contentDescription = "Change Profile Photo",
                                     tint = Color.White,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -188,20 +234,14 @@ fun UserProfileScreen(
                         OutlinedButton(
                             onClick = { imagePickerLauncher.launch("image/*") },
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = accentColor
-                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
                             border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (photoUrl.isNotBlank()) "Change Bike / Profile Photo" else "Upload Bike / Profile Photo",
+                                text = if (photoUrl.isNotBlank()) "Change Profile Photo" else "Upload Profile Photo",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -209,9 +249,7 @@ fun UserProfileScreen(
 
                         if (photoUrl.isNotBlank()) {
                             Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                onClick = { photoUrl = "" }
-                            ) {
+                            IconButton(onClick = { photoUrl = "" }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Remove Photo",
@@ -221,36 +259,6 @@ fun UserProfileScreen(
                             }
                         }
                     }
-
-                    Text(
-                        text = "💡 This photo displays on your 3D live location marker on the map as you ride.",
-                        fontSize = 11.sp,
-                        color = com.ridesync.ui.theme.HudColors.CyanGlow,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 2.dp)
-                    )
-                } else if (photoUrl.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(bottom = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = Color(0xFF22C55E),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Live Map Marker Photo Active",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF22C55E)
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -259,15 +267,112 @@ fun UserProfileScreen(
                     text = displayName.ifBlank { "Rider" },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                    color = HudColors.TextCrispWhite
                 )
 
                 Text(
-                    text = if (vehicleModel.isNotBlank()) "Bike: $vehicleModel" else "Riders Ride Sync (RRS) Member",
+                    text = activeVehicle?.fullDisplayName?.let { "Active Ride: $it" } ?: "Riders Ride Sync (RRS) Member",
                     fontSize = 14.sp,
-                    color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                    color = HudColors.TextCoolSilver,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                 )
+
+                // ACTIVE VEHICLE HUD RANGE CARD (RECIRCULATING REMINDER)
+                if (activeVehicle != null) {
+                    Surface(
+                        color = cardColor,
+                        shape = RoundedCornerShape(18.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, accentColor),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 20.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(text = activeVehicle.vehicleTypeEnum.iconEmoji, fontSize = 22.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "ACTIVE TRIP VEHICLE",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = accentColor
+                                    )
+                                }
+                                Text(
+                                    text = activeVehicle.fullDisplayName,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HudColors.TextCrispWhite
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Divider(color = HudColors.ObsidianBorder)
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(text = "Current Fuel Level", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                                    Text(
+                                        text = "${activeVehicle.currentFuelAvailable} / ${activeVehicle.fuelTankCapacity} ${activeVehicle.fuelTypeEnum.fuelUnit}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = HudColors.TextCrispWhite
+                                    )
+                                }
+
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(text = "Available Range", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                                    Text(
+                                        text = "${activeVehicle.estimatedRangeKm} km",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (activeVehicle.isLowFuelAlert) Color(0xFFEF4444) else accentColor
+                                    )
+                                }
+                            }
+
+                            // Refuel Reminder Banner
+                            if (activeVehicle.isLowFuelAlert) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    color = Color(0xFF3B1212),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = null,
+                                            tint = Color(0xFFEF4444),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Refuel Reminder: Fuel low (${activeVehicle.estimatedRangeKm} km remaining)! Please fill up your vehicle before taking on long convoy trips.",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFFCA5A5)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Profile Detail Cards / Editable Fields
                 if (isEditing) {
@@ -281,13 +386,13 @@ fun UserProfileScreen(
                         cardColor = cardColor
                     )
 
-                    OutlinedProfileField(
+                    // Date of Birth Calendar Picker Field
+                    DateOfBirthCalendarField(
                         value = dateOfBirth,
-                        onValueChange = { dateOfBirth = it },
-                        label = "Date of Birth (e.g. YYYY-MM-DD)",
-                        icon = Icons.Default.CalendarToday,
-                        accentColor = accentColor,
-                        cardColor = cardColor
+                        onDateSelected = { dateOfBirth = it },
+                        label = "Date of Birth (Select via Calendar)",
+                        enabled = true,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
 
                     OutlinedProfileField(
@@ -320,38 +425,142 @@ fun UserProfileScreen(
                         cardColor = cardColor
                     )
 
-                    OutlinedProfileField(
-                        value = vehicleModel,
-                        onValueChange = { vehicleModel = it },
-                        label = "Bike Model Name",
-                        icon = Icons.Default.TwoWheeler,
-                        accentColor = accentColor,
-                        cardColor = cardColor
+                } else {
+                    // Read-Only Detail View
+                    ProfileDetailItem(label = "Full Name", value = displayName, icon = Icons.Default.Person, cardColor = cardColor)
+                    
+                    // Date of Birth Read-Only Calendar Field
+                    DateOfBirthCalendarField(
+                        value = dateOfBirth,
+                        onDateSelected = { dateOfBirth = it },
+                        label = "Date of Birth",
+                        enabled = false,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
 
-                    OutlinedProfileField(
-                        value = tankCapacityText,
-                        onValueChange = { tankCapacityText = it },
-                        label = "Fuel Tank Capacity (Liters)",
-                        icon = Icons.Default.LocalGasStation,
-                        keyboardType = KeyboardType.Number,
-                        accentColor = accentColor,
-                        cardColor = cardColor
-                    )
+                    ProfileDetailItem(label = "Register Mobile Number", value = mobileNumber.ifBlank { "Not set" }, icon = Icons.Default.Phone, cardColor = cardColor)
+                    ProfileDetailItem(label = "Emergency Contact Number", value = emergencyContactPhone.ifBlank { "Not set" }, icon = Icons.Default.Phone, cardColor = cardColor)
+                    ProfileDetailItem(label = "Email ID", value = email.ifBlank { "Not set" }, icon = Icons.Default.Email, cardColor = cardColor)
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    // Save Changes CTA
+                // MY VEHICLES / GARAGE SECTION
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "My Vehicles / Garage",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = HudColors.TextCrispWhite
+                        )
+                        Text(
+                            text = "Add multiple vehicles (Car, Bike, Jeep, EV) & select active mode for trips",
+                            fontSize = 11.sp,
+                            color = HudColors.TextCoolSilver
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            vehicleToEdit = null
+                            showVehicleDialog = true
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Vehicle", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (vehiclesList.isEmpty()) {
+                    Surface(
+                        color = cardColor,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "🏍️ 🚗 🚙", fontSize = 32.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No Vehicles Added Yet",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = HudColors.TextCrispWhite
+                            )
+                            Text(
+                                text = "Tap '+ Add Vehicle' above to add your Bike, Car, Jeep, or EV with fuel tank capacity & mileage range calculation.",
+                                fontSize = 12.sp,
+                                color = HudColors.TextCoolSilver,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                } else {
+                    vehiclesList.forEach { vehicle ->
+                        val isThisActive = vehicle.id == activeVehicleId
+                        VehicleItemCard(
+                            vehicle = vehicle,
+                            isActive = isThisActive,
+                            onSelectActive = {
+                                activeVehicleId = vehicle.id
+                                // Update active flags in list
+                                for (i in vehiclesList.indices) {
+                                    vehiclesList[i] = vehiclesList[i].copy(isActive = vehiclesList[i].id == vehicle.id)
+                                }
+                            },
+                            onEdit = {
+                                vehicleToEdit = vehicle
+                                showVehicleDialog = true
+                            },
+                            onDelete = {
+                                vehiclesList.remove(vehicle)
+                                if (activeVehicleId == vehicle.id) {
+                                    activeVehicleId = vehiclesList.firstOrNull()?.id ?: ""
+                                }
+                            },
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Save Changes CTA (if editing)
+                if (isEditing) {
                     Button(
                         onClick = {
-                            val capacity = tankCapacityText.toDoubleOrNull() ?: 15.0
+                            val updatedVehicles = vehiclesList.map {
+                                it.copy(isActive = it.id == activeVehicleId)
+                            }
+                            val updatedActiveVehicle = updatedVehicles.firstOrNull { it.id == activeVehicleId }
+                                ?: updatedVehicles.firstOrNull()
+
                             val updated = userProfile.copy(
                                 displayName = displayName.trim(),
                                 dateOfBirth = dateOfBirth.trim(),
                                 mobileNumber = mobileNumber.trim(),
                                 email = email.trim(),
-                                vehicleModel = vehicleModel.trim(),
-                                tankCapacityLiters = capacity,
+                                vehicleModel = updatedActiveVehicle?.fullDisplayName ?: userProfile.vehicleModel,
+                                tankCapacityLiters = updatedActiveVehicle?.fuelTankCapacity ?: userProfile.tankCapacityLiters,
+                                vehicles = updatedVehicles,
+                                activeVehicleId = activeVehicleId,
                                 photoUrl = photoUrl.trim(),
                                 privacySettings = userProfile.privacySettings.copy(
                                     emergencyContactPhone = emergencyContactPhone.trim()
@@ -371,22 +580,9 @@ fun UserProfileScreen(
                     ) {
                         Icon(imageVector = Icons.Default.Save, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Profile Changes", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("Save Profile & Vehicle Changes", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-
                 } else {
-                    // Read-Only Detail View
-                    ProfileDetailItem(label = "Full Name", value = displayName, icon = Icons.Default.Person, cardColor = cardColor)
-                    ProfileDetailItem(label = "Date of Birth", value = dateOfBirth.ifBlank { "Not set" }, icon = Icons.Default.CalendarToday, cardColor = cardColor)
-                    ProfileDetailItem(label = "Register Mobile Number", value = mobileNumber.ifBlank { "Not set" }, icon = Icons.Default.Phone, cardColor = cardColor)
-                    ProfileDetailItem(label = "Emergency Contact Number", value = emergencyContactPhone.ifBlank { "Not set" }, icon = Icons.Default.Phone, cardColor = cardColor)
-                    ProfileDetailItem(label = "Email ID", value = email.ifBlank { "Not set" }, icon = Icons.Default.Email, cardColor = cardColor)
-                    ProfileDetailItem(label = "Bike Model Name", value = vehicleModel.ifBlank { "Not set" }, icon = Icons.Default.TwoWheeler, cardColor = cardColor)
-                    ProfileDetailItem(label = "Fuel Tank Capacity", value = "${tankCapacityText} Liters", icon = Icons.Default.LocalGasStation, cardColor = cardColor)
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Edit Profile Button
                     Button(
                         onClick = { isEditing = true },
                         modifier = Modifier
@@ -395,7 +591,7 @@ fun UserProfileScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = cardColor,
-                            contentColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                            contentColor = HudColors.TextCrispWhite
                         )
                     ) {
                         Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = accentColor)
@@ -427,6 +623,41 @@ fun UserProfileScreen(
             }
         }
     }
+
+    // Vehicle Dialog
+    if (showVehicleDialog) {
+        AddEditVehicleDialog(
+            vehicle = vehicleToEdit,
+            onDismiss = { showVehicleDialog = false },
+            onSaveVehicle = { savedVehicle ->
+                val existingIndex = vehiclesList.indexOfFirst { it.id == savedVehicle.id }
+                if (existingIndex >= 0) {
+                    vehiclesList[existingIndex] = savedVehicle
+                } else {
+                    vehiclesList.add(savedVehicle)
+                }
+
+                if (savedVehicle.isActive || vehiclesList.size == 1) {
+                    activeVehicleId = savedVehicle.id
+                    for (i in vehiclesList.indices) {
+                        vehiclesList[i] = vehiclesList[i].copy(isActive = vehiclesList[i].id == savedVehicle.id)
+                    }
+                }
+
+                // Immediately trigger profile update if not in edit mode
+                val updatedActive = vehiclesList.firstOrNull { it.id == activeVehicleId } ?: savedVehicle
+                val updatedProfile = userProfile.copy(
+                    vehicles = vehiclesList.toList(),
+                    activeVehicleId = activeVehicleId,
+                    vehicleModel = updatedActive.fullDisplayName,
+                    tankCapacityLiters = updatedActive.fuelTankCapacity
+                )
+                onSaveProfile(updatedProfile)
+
+                showVehicleDialog = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -443,7 +674,7 @@ private fun ProfileDetailItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp)
-            .border(1.dp, com.ridesync.ui.theme.HudColors.ObsidianBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, HudColors.ObsidianBorder, RoundedCornerShape(14.dp))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -452,7 +683,7 @@ private fun ProfileDetailItem(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = com.ridesync.ui.theme.HudColors.CyanPrimary,
+                tint = HudColors.CyanPrimary,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -460,13 +691,13 @@ private fun ProfileDetailItem(
                 Text(
                     text = label,
                     fontSize = 12.sp,
-                    color = com.ridesync.ui.theme.HudColors.TextCoolSilver
+                    color = HudColors.TextCoolSilver
                 )
                 Text(
                     text = value,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = com.ridesync.ui.theme.HudColors.TextCrispWhite,
+                    color = HudColors.TextCrispWhite,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
@@ -501,11 +732,11 @@ private fun OutlinedProfileField(
             focusedContainerColor = cardColor,
             unfocusedContainerColor = cardColor,
             focusedBorderColor = accentColor,
-            unfocusedBorderColor = com.ridesync.ui.theme.HudColors.ObsidianBorder,
+            unfocusedBorderColor = HudColors.ObsidianBorder,
             focusedLabelColor = accentColor,
-            unfocusedLabelColor = com.ridesync.ui.theme.HudColors.TextCoolSilver,
-            focusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite,
-            unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+            unfocusedLabelColor = HudColors.TextCoolSilver,
+            focusedTextColor = HudColors.TextCrispWhite,
+            unfocusedTextColor = HudColors.TextCrispWhite
         )
     )
 }

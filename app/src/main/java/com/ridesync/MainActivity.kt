@@ -93,6 +93,9 @@ class MainActivity : ComponentActivity() {
                                 onSaveProfile = { vehicle, tank, shareLoc, phone ->
                                     authViewModel.saveUserProfile(vehicle, tank, shareLoc, phone)
                                 },
+                                onSaveFullProfile = { dob, initVeh, shareLoc, phone ->
+                                    authViewModel.saveFullUserProfile(dob, initVeh, shareLoc, phone)
+                                },
                                 isLoading = false
                             )
                         }
