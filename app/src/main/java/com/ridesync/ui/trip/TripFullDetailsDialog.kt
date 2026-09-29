@@ -58,7 +58,8 @@ fun TripFullDetailsDialog(
     onDeleteTrip: () -> Unit,
     onExitTrip: () -> Unit,
     onViewItinerary: () -> Unit,
-    onLaunchSegment: ((TripRouteSegment) -> Unit)? = null
+    onLaunchSegment: ((TripRouteSegment) -> Unit)? = null,
+    onJoinTrip: ((SavedTrip) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -162,6 +163,36 @@ fun TripFullDetailsDialog(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    if (onJoinTrip != null) {
+                        Surface(
+                            color = Color(0xFF14532D),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.5.dp, Color(0xFF22C55E)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.GroupAdd, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "🔍 TRIP PREVIEW",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFF4ADE80)
+                                    )
+                                    Text(
+                                        text = "Review trip route & joined riders below. Click 'JOIN TRIP' at bottom to add to your trips list.",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
                     // ==========================================
                     // 1. TRIP SUMMARY & TELEMETRY HEADER CARD
                     // ==========================================
@@ -775,18 +806,33 @@ fun TripFullDetailsDialog(
                         }
                     }
 
-                    // Primary Launch Button
-                    Button(
-                        onClick = onLaunchTrip,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                    ) {
-                        Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("🚀 Launch Master Convoy Live Map", fontSize = 14.sp, fontWeight = FontWeight.Black)
+                    if (onJoinTrip != null) {
+                        Button(
+                            onClick = { onJoinTrip(liveTrip) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E), contentColor = Color.White),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp)
+                        ) {
+                            Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("🤝 JOIN TRIP NOW", fontSize = 16.sp, fontWeight = FontWeight.Black)
+                        }
+                    } else {
+                        // Primary Launch Button
+                        Button(
+                            onClick = onLaunchTrip,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("🚀 Launch Master Convoy Live Map", fontSize = 14.sp, fontWeight = FontWeight.Black)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))

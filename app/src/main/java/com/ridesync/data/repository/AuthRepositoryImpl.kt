@@ -17,7 +17,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
 import org.json.JSONObject
+import com.ridesync.data.model.Vehicle
+import com.ridesync.data.model.VehicleType
+import com.ridesync.data.model.FuelType
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -73,6 +77,113 @@ class AuthRepositoryImpl : AuthRepository {
         }
     }
 
+    private fun vehicleToJson(v: Vehicle): JSONObject {
+        return JSONObject().apply {
+            put("id", v.id)
+            put("type", v.type)
+            put("fuelType", v.fuelType)
+            put("brandName", v.brandName)
+            put("model", v.model)
+            put("fuelTankCapacity", v.fuelTankCapacity)
+            put("mileage", v.mileage)
+            put("currentFuelAvailable", v.currentFuelAvailable)
+            put("isActive", v.isActive)
+        }
+    }
+
+    private fun parseVehicleJson(j: JSONObject): Vehicle {
+        return Vehicle(
+            id = j.optString("id", java.util.UUID.randomUUID().toString()),
+            type = j.optString("type", VehicleType.BIKE.name),
+            fuelType = j.optString("fuelType", FuelType.PETROL.name),
+            brandName = j.optString("brandName", ""),
+            model = j.optString("model", ""),
+            fuelTankCapacity = j.optDouble("fuelTankCapacity", 15.0),
+            mileage = j.optDouble("mileage", 35.0),
+            currentFuelAvailable = j.optDouble("currentFuelAvailable", 10.0),
+            isActive = j.optBoolean("isActive", false)
+        )
+    }
+
+    private fun profileToJson(profile: UserProfile): JSONObject {
+        return JSONObject().apply {
+            put("userId", profile.userId)
+            put("displayName", profile.displayName)
+            put("email", profile.email)
+            put("mobileNumber", profile.mobileNumber)
+            put("dateOfBirth", profile.dateOfBirth)
+            put("photoUrl", profile.photoUrl)
+            put("vehicleModel", profile.displayVehicleModel)
+            put("tankCapacityLiters", profile.displayTankCapacity)
+            put("fuelTankCapacityLiters", profile.displayTankCapacity)
+            put("activeVehicleId", profile.activeVehicleId)
+            put("createdAt", profile.createdAt)
+
+            val vehArray = JSONArray()
+            profile.vehicles.forEach { v ->
+                vehArray.put(vehicleToJson(v))
+            }
+            put("vehicles", vehArray)
+
+            put("privacySettings", JSONObject().apply {
+                put("shareLocationWithGroup", profile.privacySettings.shareLocationWithGroup)
+                put("emergencyContactPhone", profile.privacySettings.emergencyContactPhone)
+            })
+            put("shareRealtimeLocation", profile.privacySettings.shareLocationWithGroup)
+            put("emergencyContactNumber", profile.privacySettings.emergencyContactPhone)
+        }
+    }
+
+    private fun parseUserProfileJson(j: JSONObject): UserProfile? {
+        return try {
+            val uId = j.optString("userId", "")
+            val vehModel = j.optString("vehicleModel", "")
+            val dName = j.optString("displayName", "Rider")
+            val uEmail = j.optString("email", "")
+            val mobile = j.optString("mobileNumber", "")
+            val dob = j.optString("dateOfBirth", "")
+            val photo = j.optString("photoUrl", "")
+            val tank = j.optDouble("tankCapacityLiters", j.optDouble("fuelTankCapacityLiters", 15.0))
+            val activeVehId = j.optString("activeVehicleId", "")
+            val created = j.optLong("createdAt", System.currentTimeMillis())
+
+            val vehiclesList = mutableListOf<Vehicle>()
+            if (j.has("vehicles") && !j.isNull("vehicles")) {
+                val arr = j.getJSONArray("vehicles")
+                for (i in 0 until arr.length()) {
+                    val vObj = arr.getJSONObject(i)
+                    vehiclesList.add(parseVehicleJson(vObj))
+                }
+            }
+
+            val privObj = j.optJSONObject("privacySettings")
+            val shareLoc = privObj?.optBoolean("shareLocationWithGroup", true)
+                ?: j.optBoolean("shareRealtimeLocation", true)
+            val emergency = privObj?.optString("emergencyContactPhone", "")
+                ?: j.optString("emergencyContactNumber", "")
+
+            UserProfile(
+                userId = uId,
+                displayName = dName,
+                email = uEmail,
+                mobileNumber = mobile,
+                dateOfBirth = dob,
+                photoUrl = photo,
+                vehicleModel = vehModel,
+                tankCapacityLiters = tank,
+                vehicles = vehiclesList,
+                activeVehicleId = activeVehId,
+                privacySettings = PrivacySettings(
+                    shareLocationWithGroup = shareLoc,
+                    emergencyContactPhone = emergency
+                ),
+                createdAt = created
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun saveUserProfileToPrefs(profile: UserProfile) {
         prefs?.edit()?.apply {
             putString("saved_uid", profile.userId)
@@ -81,24 +192,13 @@ class AuthRepositoryImpl : AuthRepository {
             putString("saved_photo_url", profile.photoUrl)
             putString("saved_mobile_number", profile.mobileNumber)
             putString("saved_dob", profile.dateOfBirth)
-            putString("saved_vehicle_model", profile.vehicleModel)
-            putFloat("saved_tank_capacity", profile.tankCapacityLiters.toFloat())
+            putString("saved_vehicle_model", profile.displayVehicleModel)
+            putFloat("saved_tank_capacity", profile.displayTankCapacity.toFloat())
             putBoolean("saved_share_location", profile.privacySettings.shareLocationWithGroup)
             putString("saved_emergency_phone", profile.privacySettings.emergencyContactPhone)
-            putBoolean("saved_profile_completed", profile.vehicleModel.isNotBlank())
+            putBoolean("saved_profile_completed", profile.displayVehicleModel.isNotBlank())
 
-            val json = JSONObject().apply {
-                put("userId", profile.userId)
-                put("displayName", profile.displayName)
-                put("email", profile.email)
-                put("mobileNumber", profile.mobileNumber)
-                put("dateOfBirth", profile.dateOfBirth)
-                put("photoUrl", profile.photoUrl)
-                put("vehicleModel", profile.vehicleModel)
-                put("tankCapacityLiters", profile.tankCapacityLiters)
-                put("shareLocationWithGroup", profile.privacySettings.shareLocationWithGroup)
-                put("emergencyContactPhone", profile.privacySettings.emergencyContactPhone)
-            }.toString()
+            val json = profileToJson(profile).toString()
 
             if (profile.userId.isNotBlank()) {
                 putString("profile_json_${profile.userId}", json)
@@ -121,22 +221,9 @@ class AuthRepositoryImpl : AuthRepository {
         if (!jsonStr.isNullOrBlank()) {
             try {
                 val j = JSONObject(jsonStr)
-                val veh = j.optString("vehicleModel", "")
-                if (veh.isNotBlank()) {
-                    return UserProfile(
-                        userId = j.optString("userId", userId),
-                        displayName = j.optString("displayName", "Rider"),
-                        email = j.optString("email", email ?: ""),
-                        mobileNumber = j.optString("mobileNumber", ""),
-                        dateOfBirth = j.optString("dateOfBirth", ""),
-                        photoUrl = j.optString("photoUrl", ""),
-                        vehicleModel = veh,
-                        tankCapacityLiters = j.optDouble("tankCapacityLiters", 15.0),
-                        privacySettings = PrivacySettings(
-                            shareLocationWithGroup = j.optBoolean("shareLocationWithGroup", true),
-                            emergencyContactPhone = j.optString("emergencyContactPhone", "")
-                        )
-                    )
+                val parsed = parseUserProfileJson(j)
+                if (parsed != null && (parsed.displayVehicleModel.isNotBlank() || parsed.displayName.isNotBlank())) {
+                    return parsed
                 }
             } catch (e: Exception) {
                 Log.w("AuthRepositoryImpl", "Failed parsing cached profile JSON", e)
@@ -528,18 +615,7 @@ class AuthRepositoryImpl : AuthRepository {
             conn.readTimeout = 6000
             conn.doOutput = true
 
-            val payload = JSONObject().apply {
-                put("userId", profile.userId)
-                put("displayName", profile.displayName)
-                put("email", profile.email)
-                put("mobileNumber", profile.mobileNumber)
-                put("dateOfBirth", profile.dateOfBirth)
-                put("photoUrl", profile.photoUrl)
-                put("vehicleModel", profile.vehicleModel)
-                put("fuelTankCapacityLiters", profile.tankCapacityLiters)
-                put("shareRealtimeLocation", profile.privacySettings.shareLocationWithGroup)
-                put("emergencyContactNumber", profile.privacySettings.emergencyContactPhone)
-            }.toString()
+            val payload = profileToJson(profile).toString()
 
             OutputStreamWriter(conn.outputStream).use { it.write(payload) }
             conn.responseCode in 200..299
@@ -566,24 +642,8 @@ class AuthRepositoryImpl : AuthRepository {
 
                 val json = JSONObject(response)
                 if (json.has("profile") && !json.isNull("profile")) {
-                    val p = json.getJSONObject("profile")
-                    val vModel = p.optString("vehicleModel", "")
-                    if (vModel.isNotBlank()) {
-                        UserProfile(
-                            userId = p.optString("userId", userId),
-                            displayName = p.optString("displayName", "Rider"),
-                            email = p.optString("email", email ?: ""),
-                            mobileNumber = p.optString("mobileNumber", ""),
-                            dateOfBirth = p.optString("dateOfBirth", ""),
-                            photoUrl = p.optString("photoUrl", ""),
-                            vehicleModel = vModel,
-                            tankCapacityLiters = p.optDouble("fuelTankCapacityLiters", 15.0),
-                            privacySettings = PrivacySettings(
-                                shareLocationWithGroup = p.optBoolean("shareRealtimeLocation", true),
-                                emergencyContactPhone = p.optString("emergencyContactNumber", "")
-                            )
-                        )
-                    } else null
+                    val pObj = json.getJSONObject("profile")
+                    parseUserProfileJson(pObj)
                 } else null
             } else null
         } catch (e: Exception) {

@@ -469,7 +469,7 @@ fun AddEditVehicleDialog(
                     }
                 }
 
-                // 9. Active Mode Toggle
+                // 9. Default Vehicle Toggle
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -479,13 +479,13 @@ fun AddEditVehicleDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Active Mode for Trip",
+                            text = "Set as Default Vehicle for Trips",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = HudColors.TextCrispWhite
                         )
                         Text(
-                            text = "Sets this vehicle as active for your active convoy rides",
+                            text = "Sets this vehicle as default for all new trips",
                             fontSize = 11.sp,
                             color = HudColors.TextCoolSilver
                         )
@@ -614,7 +614,7 @@ fun VehicleItemCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "ACTIVE TRIP MODE",
+                                text = "★ DEFAULT VEHICLE",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = accentColor
@@ -709,7 +709,7 @@ fun VehicleItemCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action CTAs: Select Active Mode | Edit | Delete
+            // Action CTAs: Select Default Vehicle | Edit | Delete
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -725,11 +725,11 @@ fun VehicleItemCard(
                     ) {
                         Icon(imageVector = Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Use for Trip", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Set as Default", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     Text(
-                        text = "✓ Currently Active for Convoy Trips",
+                        text = "★ Default Vehicle for Trips",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = accentColor

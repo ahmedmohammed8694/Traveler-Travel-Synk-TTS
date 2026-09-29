@@ -22,12 +22,14 @@ import com.google.android.gms.maps.model.LatLng
 import com.ridesync.data.model.*
 import com.ridesync.data.remote.HybridFirebaseClient
 import com.ridesync.data.repository.TelemetryBufferRepository
+import kotlinx.coroutines.launch
 import com.ridesync.engine.LiveLocationEngine
 import com.ridesync.ui.hud.ConvoyAlertBanner
 import com.ridesync.ui.hud.ConvoyStatusBottomSheet
 import com.ridesync.ui.hud.GloveFriendlyActionPad
 import com.ridesync.ui.map.LiveMapScreen
 import com.ridesync.ui.profile.UserProfileScreen
+import com.ridesync.ui.qr.JoinTripScreen
 import com.ridesync.ui.qr.QrCodeScannerScreen
 import com.ridesync.ui.theme.HudColors
 import com.ridesync.ui.theme.RideSyncTheme
@@ -76,19 +78,13 @@ fun MainContainerScreen(
     val liveTelemetry by firebaseClient.observeLiveConvoyTelemetry("active_trip_101").collectAsState(initial = emptyMap<String, RiderLocationPing>())
     val liveStops by firebaseClient.observeStopEvents("active_trip_101").collectAsState(initial = emptyList<StopEvent>())
 
+    val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
     var activeRole by remember { mutableStateOf(ConvoyRole.LEAD) }
+    var activeTripId by remember { mutableStateOf<String?>(null) }
 
     // Active Real Google Maps Road Polyline State
     var activeRoutePolyline by remember { mutableStateOf<List<LatLng>>(emptyList()) }
-
-    LaunchedEffect(Unit) {
-        val defaultRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(
-            origin = LatLng(17.3753, 78.4344), // Attapur, Hyderabad
-            destination = LatLng(16.5772, 79.3125) // Nagarjuna Sagar Dam
-        )
-        activeRoutePolyline = defaultRoute.polylinePoints
-    }
 
     // Buffer real mobile phone GPS telemetry automatically
     LaunchedEffect(phoneLocationPing) {
@@ -114,16 +110,16 @@ fun MainContainerScreen(
         map
     }
 
-    val mockMembers = remember(userProfile, activeRole, phoneLocationPing) {
+    val activeConvoyMembers = remember(userProfile, activeRole, phoneLocationPing) {
         mapOf(
             userProfile.userId to ConvoyMember(
                 userId = userProfile.userId,
                 displayName = userProfile.displayName.ifBlank { "Rider (You)" },
                 photoUrl = userProfile.photoUrl,
-                vehicleModel = userProfile.vehicleModel,
+                vehicleModel = userProfile.displayVehicleModel,
                 role = activeRole,
                 status = if ((phoneLocationPing?.speedKmh ?: 0f) > 3f) RiderStatus.RIDING else RiderStatus.STOPPED,
-                batteryPercent = 92,
+                batteryPercent = 100,
                 lastSeenTimestamp = System.currentTimeMillis()
             )
         )
@@ -131,78 +127,81 @@ fun MainContainerScreen(
 
     val stopEvents = remember { mutableStateListOf<StopEvent>() }
     var alertBannerText by remember { mutableStateOf<String?>(null) }
+    var isMapFullScreen by remember { mutableStateOf(false) }
 
     RideSyncTheme {
         Scaffold(
             modifier = modifier.fillMaxSize(),
             containerColor = HudColors.ObsidianCanvas,
             bottomBar = {
-                NavigationBar(
-                    containerColor = HudColors.ObsidianSurface,
-                    contentColor = HudColors.TextCrispWhite
-                ) {
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        icon = { Icon(Icons.Default.Map, contentDescription = "Convoy Map") },
-                        label = { Text("Convoy Map", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = HudColors.CyanPrimary,
-                            selectedTextColor = HudColors.CyanPrimary,
-                            unselectedIconColor = HudColors.TextCoolSilver,
-                            unselectedTextColor = HudColors.TextCoolSilver,
-                            indicatorColor = HudColors.ObsidianElevated
+                if (!isMapFullScreen) {
+                    NavigationBar(
+                        containerColor = HudColors.ObsidianSurface,
+                        contentColor = HudColors.TextCrispWhite
+                    ) {
+                        NavigationBarItem(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            icon = { Icon(Icons.Default.Map, contentDescription = "Convoy Map") },
+                            label = { Text("Convoy Map", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        icon = { Icon(Icons.Default.Route, contentDescription = "Trip Planner") },
-                        label = { Text("Trip Planner", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = HudColors.CyanPrimary,
-                            selectedTextColor = HudColors.CyanPrimary,
-                            unselectedIconColor = HudColors.TextCoolSilver,
-                            unselectedTextColor = HudColors.TextCoolSilver,
-                            indicatorColor = HudColors.ObsidianElevated
+                        NavigationBarItem(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            icon = { Icon(Icons.Default.Route, contentDescription = "Trip Planner") },
+                            label = { Text("Trip Planner", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "QR Scanner") },
-                        label = { Text("Join Lobby", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = HudColors.CyanPrimary,
-                            selectedTextColor = HudColors.CyanPrimary,
-                            unselectedIconColor = HudColors.TextCoolSilver,
-                            unselectedTextColor = HudColors.TextCoolSilver,
-                            indicatorColor = HudColors.ObsidianElevated
+                        NavigationBarItem(
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
+                            icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "Join Trip") },
+                            label = { Text("Join Trip", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 },
-                        icon = { Icon(Icons.Default.Person, contentDescription = "Rider Profile") },
-                        label = { Text("Rider Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = HudColors.CyanPrimary,
-                            selectedTextColor = HudColors.CyanPrimary,
-                            unselectedIconColor = HudColors.TextCoolSilver,
-                            unselectedTextColor = HudColors.TextCoolSilver,
-                            indicatorColor = HudColors.ObsidianElevated
+                        NavigationBarItem(
+                            selected = selectedTab == 3,
+                            onClick = { selectedTab = 3 },
+                            icon = { Icon(Icons.Default.Person, contentDescription = "Rider Profile") },
+                            label = { Text("Rider Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
                         )
-                    )
+                    }
                 }
             }
         ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(if (isMapFullScreen) PaddingValues(0.dp) else innerPadding)
         ) {
             when (selectedTab) {
                 0 -> {
@@ -211,50 +210,45 @@ fun MainContainerScreen(
                         LiveMapScreen(
                             routePolyline = activeRoutePolyline,
                             riderLocations = mergedLocations,
-                            convoyMembers = mockMembers,
+                            convoyMembers = activeConvoyMembers,
                             stopEvents = if (liveStops.isNotEmpty()) liveStops else stopEvents,
-                            isOnline = isOnline
-                        )
-
-                        // Top Convoy Alert Banner
-                        val banner = alertBannerText?.let { text ->
-                            AlertBanner(
-                                title = "Convoy Broadcast",
-                                message = text,
-                                severity = if (text.contains("SOS", ignoreCase = true)) AlertSeverity.CRITICAL else AlertSeverity.WARNING
-                            )
-                        }
-                        ConvoyAlertBanner(
-                            banner = banner,
-                            onDismiss = { alertBannerText = null },
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(16.dp)
-                        )
-
-                        // Glove-Friendly Action Pad (Bottom Controls)
-                        GloveFriendlyActionPad(
+                            isOnline = isOnline,
+                            activeTripId = activeTripId,
+                            onToggleFullScreen = { isMapFullScreen = it },
                             onStopReported = { reason ->
+                                val myPing = phoneLocationPing
                                 stopEvents.add(
                                     StopEvent(
                                         stopId = "evt-${System.currentTimeMillis()}",
                                         riderId = userProfile.userId,
                                         riderName = userProfile.displayName.ifBlank { "Rider" },
                                         reason = reason,
-                                        latitude = 17.3753,
-                                        longitude = 78.4344,
+                                        latitude = myPing?.latitude ?: 17.3753,
+                                        longitude = myPing?.longitude ?: 78.4344,
                                         timestamp = System.currentTimeMillis()
                                     )
                                 )
-                                alertBannerText = "Stop Reported: ${reason.name} by ${userProfile.displayName}"
+                                alertBannerText = "Stop Reported: ${reason.name} by ${userProfile.displayName.ifBlank { "Rider" }}"
                             },
                             onSosReported = {
-                                alertBannerText = "🚨 EMERGENCY SOS BROADCAST SENT BY ${userProfile.displayName}!"
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 20.dp, start = 16.dp, end = 16.dp)
+                                alertBannerText = "🚨 EMERGENCY SOS BROADCAST SENT BY ${userProfile.displayName.ifBlank { "Rider" }}!"
+                            }
                         )
+
+                        if (!isMapFullScreen && alertBannerText != null) {
+                            val banner = AlertBanner(
+                                title = "Convoy Broadcast",
+                                message = alertBannerText!!,
+                                severity = if (alertBannerText!!.contains("SOS", ignoreCase = true)) AlertSeverity.CRITICAL else AlertSeverity.WARNING
+                            )
+                            ConvoyAlertBanner(
+                                banner = banner,
+                                onDismiss = { alertBannerText = null },
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(16.dp)
+                            )
+                        }
                     }
                 }
 
@@ -264,8 +258,45 @@ fun MainContainerScreen(
                         userProfile = userProfile,
                         onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
                             activeRole = role
-                            if (routePolyline.isNotEmpty()) {
-                                activeRoutePolyline = routePolyline
+                            stopEvents.clear()
+
+                            val originPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(origin, routePolyline.firstOrNull())
+                            val destPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(dest, routePolyline.lastOrNull())
+                            val waypointPts = waypoints.map { wpName -> com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(wpName) }
+
+                            // Create stop markers with actual Stop Names along the specific route
+                            waypoints.forEachIndexed { idx, wpName ->
+                                val stopLatLng = waypointPts.getOrNull(idx) ?: if (routePolyline.size > 2) {
+                                    val targetIndex = (routePolyline.size * (idx + 1) / (waypoints.size + 1)).coerceIn(0, routePolyline.lastIndex)
+                                    routePolyline[targetIndex]
+                                } else {
+                                    LatLng(
+                                        originPt.latitude + (destPt.latitude - originPt.latitude) * (idx + 1) / (waypoints.size + 1),
+                                        originPt.longitude + (destPt.longitude - originPt.longitude) * (idx + 1) / (waypoints.size + 1)
+                                    )
+                                }
+                                stopEvents.add(
+                                    StopEvent(
+                                        stopId = "stop_evt_$idx",
+                                        riderId = userProfile.userId,
+                                        riderName = wpName,
+                                        reason = StopReason.REST,
+                                        latitude = stopLatLng.latitude,
+                                        longitude = stopLatLng.longitude,
+                                        timestamp = System.currentTimeMillis()
+                                    )
+                                )
+                            }
+
+                            coroutineScope.launch {
+                                val realRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(originPt, destPt, waypointPts)
+                                if (realRoute.polylinePoints.isNotEmpty()) {
+                                    activeRoutePolyline = realRoute.polylinePoints
+                                } else if (routePolyline.size > 2) {
+                                    activeRoutePolyline = routePolyline
+                                } else {
+                                    activeRoutePolyline = listOf(originPt, destPt)
+                                }
                             }
                             alertBannerText = "Started Trip: $title as ${role.name}!"
                             selectedTab = 0 // Switch to Convoy Map
@@ -277,11 +308,12 @@ fun MainContainerScreen(
                 }
 
                 2 -> {
-                    // QR Code Scanner / Join Lobby
-                    QrCodeScannerScreen(
-                        onQrCodeScanned = { code ->
-                            alertBannerText = "Joined Convoy Lobby: $code"
-                            selectedTab = 0 // Switch to Live Map
+                    // Join Trip (QR Scanner / Trip Code / Join Link)
+                    JoinTripScreen(
+                        userProfile = userProfile,
+                        onTripJoined = { joinedTrip ->
+                            alertBannerText = "Joined Trip: ${joinedTrip.title}"
+                            selectedTab = 1 // Switch to Saved Trips & History tab to show the trip!
                         },
                         onCancel = {
                             selectedTab = 0

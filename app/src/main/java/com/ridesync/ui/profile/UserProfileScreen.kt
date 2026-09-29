@@ -271,7 +271,7 @@ fun UserProfileScreen(
                 )
 
                 Text(
-                    text = activeVehicle?.fullDisplayName?.let { "Active Ride: $it" } ?: "Riders Ride Sync (RRS) Member",
+                    text = activeVehicle?.fullDisplayName?.let { "Default Ride: $it" } ?: "Riders Ride Sync (RRS) Member",
                     fontSize = 14.sp,
                     color = HudColors.TextCoolSilver,
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -298,7 +298,7 @@ fun UserProfileScreen(
                                     Text(text = activeVehicle.vehicleTypeEnum.iconEmoji, fontSize = 22.sp)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "ACTIVE TRIP VEHICLE",
+                                        text = "★ DEFAULT VEHICLE FOR TRIPS",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = accentColor
@@ -461,7 +461,7 @@ fun UserProfileScreen(
                             color = HudColors.TextCrispWhite
                         )
                         Text(
-                            text = "Add multiple vehicles (Car, Bike, Jeep, EV) & select active mode for trips",
+                            text = "Add multiple vehicles (Car, Bike, Jeep, EV) & set default vehicle for trips",
                             fontSize = 11.sp,
                             color = HudColors.TextCoolSilver
                         )

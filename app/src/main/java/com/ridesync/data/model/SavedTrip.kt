@@ -15,7 +15,7 @@ data class JoinedRiderProfile(
     val role: ConvoyRole,
     val status: String = "Confirmed & Ready",
     val experienceBadge: String = "Pro Tourer",
-    val emergencyContact: String = "+91 98765 43210"
+    val emergencyContact: String = ""
 )
 
 data class SavedTrip(

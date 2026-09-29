@@ -38,7 +38,7 @@ object DirectionsRepository {
 
     // High-density pre-computed road polyline for Hyderabad (Attapur) -> Nagarjuna Sagar Dam (NH565)
     // Decodes into 800+ precise LatLng turn-by-turn road points matching Google Maps Web UI
-    private const val HYD_NAGARJUNA_SAGAR_ENCODED_POLYLINE =
+    const val HYD_NAGARJUNA_SAGAR_ENCODED_POLYLINE =
         "sCBI@KF[FUX_BFo@?EOeBDsADSDS@KBQD[Jo@DSFWHm@@Q@SHQRYf@cA`@_ALYHQRe@HON[v@eARQdA_Ap@i@BA\\WTSl@k@JGz@{@l@m@" +
         "x@s@JO~@y@JKj@k@^a@r@s@b@c@nAqAFK`@i@~@w@z@u@h@g@bBQdAK`@EVOt@_@~@w@x@i@LKLI`Aq@jAu@t@WHEhAk@`B_@|@G\\CrC?" +
         "rA@@IHuAL}@|@}AhBcBz@a@zAm@`@QJRROVQv@w@n@u@r@w@bJkLvBkCt@g@d@]h@o@hHsFxEuDTQvEsDVU|DoDrCeCpAmAhA}AFGLKNID" +
@@ -127,32 +127,7 @@ object DirectionsRepository {
             return@withContext googleRoute
         }
 
-        // Priority 3: Check if route is Hyderabad (Attapur) -> Nagarjuna Sagar Dam (NH565)
-        if (isNear(origin, LatLng(17.3753, 78.4344), 0.6) && isNear(destination, LatLng(16.5772, 79.3125), 0.6)) {
-            Log.i(TAG, "Using high-resolution 800-point pre-computed polyline for Hyderabad -> Nagarjuna Sagar Dam")
-            val points = decodePolyline(HYD_NAGARJUNA_SAGAR_ENCODED_POLYLINE)
-            return@withContext RouteDetails(
-                polylinePoints = points,
-                distanceKm = 159.0,
-                durationMinutes = 214, // 3h 34m
-                isRealGoogleRoute = true,
-                steps = generateDefaultHyderabadSagarSteps(),
-                summary = "NH 565 Sagar Rd Corridor"
-            )
-        }
 
-        if (isNear(origin, LatLng(16.5772, 79.3125), 0.6) && isNear(destination, LatLng(17.3753, 78.4344), 0.6)) {
-            Log.i(TAG, "Using high-resolution 800-point pre-computed polyline for Nagarjuna Sagar Dam -> Hyderabad")
-            val points = decodePolyline(HYD_NAGARJUNA_SAGAR_ENCODED_POLYLINE).reversed()
-            return@withContext RouteDetails(
-                polylinePoints = points,
-                distanceKm = 159.0,
-                durationMinutes = 214,
-                isRealGoogleRoute = true,
-                steps = generateDefaultHyderabadSagarSteps().reversed(),
-                summary = "NH 565 Return Corridor"
-            )
-        }
 
         // Priority 4: Dense highway interpolation fallback
         Log.i(TAG, "Fallback to interpolated highway corridor between $origin and $destination")
@@ -161,109 +136,118 @@ object DirectionsRepository {
 
     /**
      * Fetches real turn-by-turn driving route polyline and steps from Open Source Routing Machine (OSRM).
+     * Uses primary and secondary OSRM servers for global reliability.
      */
     private fun fetchOsrmDrivingRoute(
         origin: LatLng,
         destination: LatLng,
         waypoints: List<LatLng>
     ): RouteDetails? {
-        try {
-            val allPoints = listOf(origin) + waypoints + listOf(destination)
-            val coordsParam = allPoints.joinToString(";") { "${it.longitude},${it.latitude}" }
-            val urlString = "https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=polyline&steps=true"
+        val allPoints = listOf(origin) + waypoints + listOf(destination)
+        val validPoints = allPoints.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+        if (validPoints.size < 2) return null
 
-            Log.d(TAG, "Fetching OSRM Driving Route: $urlString")
-            val url = URL(urlString)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "RideSync-Android/1.0")
-            }
+        val coordsParam = validPoints.joinToString(";") { "${it.longitude},${it.latitude}" }
+        val endpoints = listOf(
+            "https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=polyline&steps=true",
+            "https://routing.openstreetmap.de/routed-car/route/v1/driving/$coordsParam?overview=full&geometries=polyline&steps=true"
+        )
 
-            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
-                val jsonObject = JSONObject(jsonText)
+        for (urlString in endpoints) {
+            try {
+                Log.d(TAG, "Fetching OSRM Driving Route: $urlString")
+                val url = URL(urlString)
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "RideSync-Android/1.0")
+                }
 
-                if (jsonObject.optString("code") == "Ok") {
-                    val routes = jsonObject.getJSONArray("routes")
-                    if (routes.length() > 0) {
-                        val route = routes.getJSONObject(0)
-                        val encodedPolyline = route.getString("geometry")
-                        val decodedPoints = decodePolyline(encodedPolyline)
-                        val distanceMeters = route.getDouble("distance")
-                        val durationSeconds = route.getDouble("duration")
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
+                    val jsonObject = JSONObject(jsonText)
 
-                        val parsedSteps = mutableListOf<RouteStep>()
-                        val legs = route.optJSONArray("legs")
-                        if (legs != null) {
-                            for (l in 0 until legs.length()) {
-                                val leg = legs.getJSONObject(l)
-                                val legSteps = leg.optJSONArray("steps")
-                                if (legSteps != null) {
-                                    for (s in 0 until legSteps.length()) {
-                                        val stepObj = legSteps.getJSONObject(s)
-                                        val stepDist = stepObj.optDouble("distance", 0.0)
-                                        val stepDur = stepObj.optDouble("duration", 0.0)
-                                        val stepName = stepObj.optString("name", "").ifBlank { "Route Road" }
-                                        val maneuverObj = stepObj.optJSONObject("maneuver")
-                                        val maneuverType = maneuverObj?.optString("type", "turn") ?: "turn"
-                                        val maneuverModifier = maneuverObj?.optString("modifier", "straight") ?: "straight"
-                                        val stepLocArr = maneuverObj?.optJSONArray("location")
-                                        val stepLoc = if (stepLocArr != null && stepLocArr.length() >= 2) {
-                                            LatLng(stepLocArr.getDouble(1), stepLocArr.getDouble(0))
-                                        } else null
+                    if (jsonObject.optString("code") == "Ok") {
+                        val routes = jsonObject.getJSONArray("routes")
+                        if (routes.length() > 0) {
+                            val route = routes.getJSONObject(0)
+                            val encodedPolyline = route.getString("geometry")
+                            val decodedPoints = decodePolyline(encodedPolyline)
+                            val distanceMeters = route.getDouble("distance")
+                            val durationSeconds = route.getDouble("duration")
 
-                                        val instruction = when {
-                                            maneuverType == "depart" -> "Head out on $stepName"
-                                            maneuverType == "arrive" -> "Arrive at destination"
-                                            maneuverModifier.contains("right") -> "Turn right onto $stepName"
-                                            maneuverModifier.contains("left") -> "Turn left onto $stepName"
-                                            maneuverModifier.contains("slight right") -> "Slight right onto $stepName"
-                                            maneuverModifier.contains("slight left") -> "Slight left onto $stepName"
-                                            maneuverModifier.contains("uturn") -> "Make a U-turn on $stepName"
-                                            maneuverType == "roundabout" -> "Enter roundabout toward $stepName"
-                                            maneuverType == "merge" -> "Merge onto $stepName"
-                                            stepName.isNotBlank() -> "Continue onto $stepName"
-                                            else -> "Continue straight"
-                                        }
+                            val parsedSteps = mutableListOf<RouteStep>()
+                            val legs = route.optJSONArray("legs")
+                            if (legs != null) {
+                                for (l in 0 until legs.length()) {
+                                    val leg = legs.getJSONObject(l)
+                                    val legSteps = leg.optJSONArray("steps")
+                                    if (legSteps != null) {
+                                        for (s in 0 until legSteps.length()) {
+                                            val stepObj = legSteps.getJSONObject(s)
+                                            val stepDist = stepObj.optDouble("distance", 0.0)
+                                            val stepDur = stepObj.optDouble("duration", 0.0)
+                                            val stepName = stepObj.optString("name", "").ifBlank { "Route Road" }
+                                            val maneuverObj = stepObj.optJSONObject("maneuver")
+                                            val maneuverType = maneuverObj?.optString("type", "turn") ?: "turn"
+                                            val maneuverModifier = maneuverObj?.optString("modifier", "straight") ?: "straight"
+                                            val stepLocArr = maneuverObj?.optJSONArray("location")
+                                            val stepLoc = if (stepLocArr != null && stepLocArr.length() >= 2) {
+                                                LatLng(stepLocArr.getDouble(1), stepLocArr.getDouble(0))
+                                            } else null
 
-                                        val distTxt = if (stepDist >= 1000) "${"%.1f".format(stepDist / 1000)} km" else "${stepDist.roundToInt()} m"
-                                        val durTxt = if (stepDur >= 60) "${(stepDur / 60).roundToInt()} min" else "${stepDur.roundToInt()} sec"
+                                            val instruction = when {
+                                                maneuverType == "depart" -> "Head out on $stepName"
+                                                maneuverType == "arrive" -> "Arrive at destination"
+                                                maneuverModifier.contains("right") -> "Turn right onto $stepName"
+                                                maneuverModifier.contains("left") -> "Turn left onto $stepName"
+                                                maneuverModifier.contains("slight right") -> "Slight right onto $stepName"
+                                                maneuverModifier.contains("slight left") -> "Slight left onto $stepName"
+                                                maneuverModifier.contains("uturn") -> "Make a U-turn on $stepName"
+                                                maneuverType == "roundabout" -> "Enter roundabout toward $stepName"
+                                                maneuverType == "merge" -> "Merge onto $stepName"
+                                                stepName.isNotBlank() -> "Continue onto $stepName"
+                                                else -> "Continue straight"
+                                            }
 
-                                        parsedSteps.add(
-                                            RouteStep(
-                                                instruction = instruction,
-                                                distanceText = distTxt,
-                                                distanceMeters = stepDist,
-                                                durationText = durTxt,
-                                                maneuver = maneuverModifier.ifBlank { maneuverType },
-                                                roadName = stepName,
-                                                location = stepLoc
+                                            val distTxt = if (stepDist >= 1000) "${"%.1f".format(stepDist / 1000)} km" else "${stepDist.roundToInt()} m"
+                                            val durTxt = if (stepDur >= 60) "${(stepDur / 60).roundToInt()} min" else "${stepDur.roundToInt()} sec"
+
+                                            parsedSteps.add(
+                                                RouteStep(
+                                                    instruction = instruction,
+                                                    distanceText = distTxt,
+                                                    distanceMeters = stepDist,
+                                                    durationText = durTxt,
+                                                    maneuver = maneuverModifier.ifBlank { maneuverType },
+                                                    roadName = stepName,
+                                                    location = stepLoc
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (decodedPoints.isNotEmpty()) {
-                            val distKm = (distanceMeters / 100.0).roundToInt() / 10.0
-                            val durMin = (durationSeconds / 60.0).roundToInt()
-                            return RouteDetails(
-                                polylinePoints = decodedPoints,
-                                distanceKm = distKm,
-                                durationMinutes = durMin,
-                                isRealGoogleRoute = true,
-                                steps = if (parsedSteps.isNotEmpty()) parsedSteps else generateInterpolatedSteps(origin, destination, waypoints, distKm),
-                                summary = "Fastest Road Route"
-                            )
+                            if (decodedPoints.size > 5) {
+                                val distKm = (distanceMeters / 100.0).roundToInt() / 10.0
+                                val durMin = (durationSeconds / 60.0).roundToInt()
+                                return RouteDetails(
+                                    polylinePoints = decodedPoints,
+                                    distanceKm = distKm,
+                                    durationMinutes = durMin,
+                                    isRealGoogleRoute = true,
+                                    steps = if (parsedSteps.isNotEmpty()) parsedSteps else generateInterpolatedSteps(origin, destination, waypoints, distKm),
+                                    summary = "Fastest Road Route"
+                                )
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "OSRM fetch endpoint failed ($urlString): ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "OSRM fetch failed: ${e.message}")
         }
         return null
     }
@@ -501,6 +485,52 @@ object DirectionsRepository {
             totalKm += r * c
         }
         return (totalKm * 1.25 * 10).roundToInt() / 10.0
+    }
+
+    /**
+     * Dynamically maps location text or address strings to geographic LatLng coordinates.
+     */
+    fun resolveLocationNameToLatLng(name: String, fallback: LatLng? = null): LatLng {
+        if (name.isBlank() && fallback != null) return fallback
+        val lower = name.lowercase().trim()
+
+        val coordMatch = Regex("""(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)""").find(name)
+        if (coordMatch != null) {
+            val lat = coordMatch.groupValues[1].toDoubleOrNull()
+            val lng = coordMatch.groupValues[2].toDoubleOrNull()
+            if (lat != null && lng != null) {
+                return LatLng(lat, lng)
+            }
+        }
+
+        return when {
+            lower.contains("mumbai") || lower.contains("marine drive") -> LatLng(18.9438, 72.8234)
+            lower.contains("ratnagiri") -> LatLng(16.9902, 73.3120)
+            lower.contains("calangute") || lower.contains("goa") -> LatLng(15.5438, 73.7554)
+            lower.contains("malvan") -> LatLng(16.0558, 73.4687)
+            lower.contains("alibaug") -> LatLng(18.6414, 72.8722)
+            lower.contains("chiplun") -> LatLng(17.5323, 73.5186)
+            lower.contains("bangalore") || lower.contains("bengaluru") -> LatLng(12.9716, 77.5946)
+            lower.contains("nandi") -> LatLng(13.3702, 77.6835)
+            lower.contains("devanahalli") -> LatLng(13.2483, 77.7126)
+            lower.contains("nagarjuna") || lower.contains("sagar dam") -> LatLng(16.5772, 79.3125)
+            lower.contains("attapur") -> LatLng(17.3753, 78.4344)
+            lower.contains("devarakonda") -> LatLng(16.6978, 78.9281)
+            lower.contains("ibrahimpatnam") -> LatLng(17.1856, 78.6473)
+            lower.contains("srisailam") -> LatLng(16.0748, 78.8687)
+            lower.contains("kadthal") -> LatLng(17.0854, 78.5891)
+            lower.contains("dindi") -> LatLng(16.5700, 78.9600)
+            lower.contains("gachibowli") -> LatLng(17.4401, 78.3489)
+            lower.contains("hitech") || lower.contains("cyber towers") -> LatLng(17.4435, 78.3772)
+            lower.contains("charminar") -> LatLng(17.3616, 78.4747)
+            lower.contains("ananthagiri") || lower.contains("vikarabad") -> LatLng(17.3114, 77.8631)
+            lower.contains("san francisco") -> LatLng(37.7749, -122.4194)
+            lower.contains("lake tahoe") -> LatLng(39.0968, -120.0324)
+            lower.contains("yosemite") -> LatLng(37.8651, -119.5383)
+            lower.contains("delhi") || lower.contains("india gate") -> LatLng(28.6129, 77.2295)
+            fallback != null -> fallback
+            else -> LatLng(17.3753, 78.4344)
+        }
     }
 }
 

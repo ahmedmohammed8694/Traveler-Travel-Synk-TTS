@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,8 +36,10 @@ import com.ridesync.data.repository.GoogleMapsNavigationHelper
 import com.ridesync.data.repository.RouteDetails
 import com.ridesync.data.repository.RouteStep
 import com.ridesync.ui.theme.HudColors
-import com.ridesync.ui.theme.frostedGlassHud
-import com.ridesync.ui.theme.hud3dCard
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -79,130 +82,216 @@ fun GoogleMapsNavigationHUD(
         SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(etaMillis))
     }
 
+    var bannerOffsetX by remember { mutableFloatStateOf(0f) }
+    var bannerOffsetY by remember { mutableFloatStateOf(0f) }
+    var isBannerMinimized by remember { mutableStateOf(false) }
+
     Box(modifier = modifier.fillMaxSize()) {
         // ==========================================
-        // 1. TOP TURN-BY-TURN MANEUVER BANNER (GOOGLE MAPS STYLE)
+        // 1. TOP TURN-BY-TURN MANEUVER BANNER (DRAGGABLE & MINIMIZABLE)
         // ==========================================
-        AnimatedVisibility(
-            visible = true,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                .offset { IntOffset(bannerOffsetX.roundToInt(), bannerOffsetY.roundToInt()) }
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        bannerOffsetX += dragAmount.x
+                        bannerOffsetY += dragAmount.y
+                    }
+                }
                 .padding(top = 16.dp, start = 16.dp, end = 16.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = Color(0xF20F172A),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.5.dp,
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF00E5FF), Color(0xFF10B981), Color(0xFF00E5FF))
-                    )
-                ),
-                shadowElevation = 14.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showStepsModal = true }
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+            if (isBannerMinimized) {
+                // Compact Minimized Pill (Draggable & Expandable)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xF20F172A),
+                    border = BorderStroke(1.5.dp, Color(0xFF00E5FF)),
+                    shadowElevation = 10.dp,
+                    modifier = Modifier.clickable { isBannerMinimized = false }
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        // Big Turn Direction Arrow Puck (Google Maps Navigation Style)
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(50.dp)
-                                .background(
-                                    Brush.radialGradient(listOf(Color(0xFF10B981), Color(0xFF047857))),
-                                    CircleShape
-                                )
-                                .border(1.5.dp, Color.White, CircleShape)
+                                .size(32.dp)
+                                .background(Brush.radialGradient(listOf(Color(0xFF10B981), Color(0xFF047857))), CircleShape)
                         ) {
                             Icon(
                                 imageVector = getManeuverIcon(currentStep.maneuver),
-                                contentDescription = "Maneuver",
+                                contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            // Turn distance
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
                             Text(
                                 text = "In ${currentStep.distanceText}",
                                 color = Color(0xFF00E5FF),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 0.5.sp
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black
                             )
-                            // Step instruction
                             Text(
-                                text = currentStep.instruction,
+                                text = currentStep.roadName.ifBlank { currentStep.instruction },
                                 color = Color.White,
-                                fontSize = 15.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                maxLines = 2,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-
-                        // Tap for steps badge
-                        Surface(
-                            color = Color(0x3338BDF8),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.padding(start = 6.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "STEPS",
-                                    color = Color(0xFF38BDF8),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Icon(
-                                    Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = Color(0xFF38BDF8),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Next upcoming step teaser
-                    if (nextStep != null) {
-                        HorizontalDivider(
-                            color = Color(0x33334155),
-                            modifier = Modifier.padding(vertical = 8.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.OpenInFull,
+                            contentDescription = "Expand Navigation HUD",
+                            tint = HudColors.CyanPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
+                    }
+                }
+            } else {
+                // Full Expanded Navigation Banner
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color(0xF20F172A),
+                    border = BorderStroke(
+                        1.5.dp,
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF00E5FF), Color(0xFF10B981), Color(0xFF00E5FF))
+                        )
+                    ),
+                    shadowElevation = 14.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = getManeuverIcon(nextStep.maneuver),
-                                contentDescription = null,
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(16.dp)
+                            // Big Turn Direction Arrow Puck
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .background(
+                                        Brush.radialGradient(listOf(Color(0xFF10B981), Color(0xFF047857))),
+                                        CircleShape
+                                    )
+                                    .border(1.5.dp, Color.White, CircleShape)
+                                    .clickable { showStepsModal = true }
+                            ) {
+                                Icon(
+                                    imageVector = getManeuverIcon(currentStep.maneuver),
+                                    contentDescription = "Maneuver",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { showStepsModal = true }
+                            ) {
+                                Text(
+                                    text = "In ${currentStep.distanceText}",
+                                    color = Color(0xFF00E5FF),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Text(
+                                    text = currentStep.instruction,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // Steps button
+                            Surface(
+                                color = Color(0x3338BDF8),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .clickable { showStepsModal = true }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "STEPS",
+                                        color = Color(0xFF38BDF8),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Icon(
+                                        Icons.Default.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Minimize Action Button
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(Color(0x33FFFFFF), CircleShape)
+                                    .clickable { isBannerMinimized = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Remove,
+                                    contentDescription = "Minimize Navigation Banner",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        if (nextStep != null) {
+                            HorizontalDivider(
+                                color = Color(0x33334155),
+                                modifier = Modifier.padding(vertical = 8.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Then: ${nextStep.instruction} (${nextStep.distanceText})",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showStepsModal = true }
+                            ) {
+                                Icon(
+                                    imageVector = getManeuverIcon(nextStep.maneuver),
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Then: ${nextStep.instruction} (${nextStep.distanceText})",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }

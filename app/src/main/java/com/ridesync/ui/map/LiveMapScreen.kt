@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -74,11 +75,20 @@ fun LiveMapScreen(
     stopEvents: List<StopEvent>,
     isOnline: Boolean = true,
     activeTripId: String? = null,
+    onToggleFullScreen: (Boolean) -> Unit = {},
+    onStopReported: (StopReason) -> Unit = {},
+    onSosReported: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
+
+    var isFullScreenMap by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFullScreenMap) {
+        onToggleFullScreen(isFullScreenMap)
+    }
 
     // Observe all saved trips from repository
     val allTrips by TripRepository.tripsFlow.collectAsState()
@@ -111,7 +121,13 @@ fun LiveMapScreen(
                     orderIndex = 0
                 )
             ) + currentActiveTrip.waypoints.mapIndexed { idx, wp ->
-                val latLng = currentActiveTrip.waypointLatLngs.getOrNull(idx) ?: LatLng(17.1856 + idx * 0.1, 78.6473 + idx * 0.1)
+                val latLng = currentActiveTrip.waypointLatLngs.getOrNull(idx) ?: DirectionsRepository.resolveLocationNameToLatLng(
+                    wp,
+                    LatLng(
+                        currentActiveTrip.startLatLng.latitude + (currentActiveTrip.destLatLng.latitude - currentActiveTrip.startLatLng.latitude) * (idx + 1) / (currentActiveTrip.waypoints.size + 1),
+                        currentActiveTrip.startLatLng.longitude + (currentActiveTrip.destLatLng.longitude - currentActiveTrip.startLatLng.longitude) * (idx + 1) / (currentActiveTrip.waypoints.size + 1)
+                    )
+                )
                 ItineraryStop(
                     stopId = "stop_${idx + 1}",
                     stopName = wp,
@@ -146,33 +162,59 @@ fun LiveMapScreen(
     val livePhonePing by LiveLocationEngine.liveLocationPing.collectAsState()
     val myPing = livePhonePing ?: riderLocations.values.firstOrNull()
 
-    // Dynamic start point: starts from real current phone GPS location if available
-    val dynamicStartPos = remember(myPing, routePolyline, currentActiveTrip) {
-        if (myPing != null && myPing.latitude != 0.0 && myPing.longitude != 0.0) {
-            LatLng(myPing.latitude, myPing.longitude)
-        } else if (currentActiveTrip != null) {
+    // Trip Navigation State (false = Route Preview Mode from Planned Origin, true = Live Navigation Mode from Current GPS)
+    var isTripStarted by remember(currentActiveTrip?.tripId, selectedDayNumber) { mutableStateOf(false) }
+
+    // Planned origin and destination from trip itinerary / day route details
+    val plannedStartPos = remember(currentDayStops, currentActiveTrip, routePolyline) {
+        val firstStop = currentDayStops.firstOrNull()
+        if (firstStop != null && firstStop.latitude != 0.0 && firstStop.longitude != 0.0) {
+            LatLng(firstStop.latitude, firstStop.longitude)
+        } else if (currentActiveTrip != null && currentActiveTrip.startLatLng.latitude != 0.0) {
             currentActiveTrip.startLatLng
         } else {
             routePolyline.firstOrNull() ?: LatLng(17.3753, 78.4344)
         }
     }
 
-    val dynamicDestPos = remember(pendingStopsOnMap, routePolyline, currentActiveTrip) {
-        val lastPending = pendingStopsOnMap.lastOrNull()
-        if (lastPending != null && lastPending.latitude != 0.0) {
-            LatLng(lastPending.latitude, lastPending.longitude)
-        } else if (currentActiveTrip != null) {
+    val plannedDestPos = remember(currentDayStops, currentActiveTrip, routePolyline) {
+        val lastStop = currentDayStops.lastOrNull()
+        if (lastStop != null && lastStop.latitude != 0.0 && lastStop.longitude != 0.0) {
+            LatLng(lastStop.latitude, lastStop.longitude)
+        } else if (currentActiveTrip != null && currentActiveTrip.destLatLng.latitude != 0.0) {
             currentActiveTrip.destLatLng
         } else {
             routePolyline.lastOrNull() ?: LatLng(16.5772, 79.3125)
         }
     }
 
+    // Dynamic start point: Uses planned start pos in preview mode, and real current phone GPS in live navigation mode
+    val dynamicStartPos = remember(isTripStarted, myPing, plannedStartPos) {
+        if (isTripStarted && myPing != null && myPing.latitude != 0.0 && myPing.longitude != 0.0) {
+            LatLng(myPing.latitude, myPing.longitude)
+        } else {
+            plannedStartPos
+        }
+    }
+
+    val dynamicDestPos = remember(isTripStarted, pendingStopsOnMap, plannedDestPos) {
+        if (isTripStarted) {
+            val lastPending = pendingStopsOnMap.lastOrNull()
+            if (lastPending != null && lastPending.latitude != 0.0 && lastPending.longitude != 0.0) {
+                LatLng(lastPending.latitude, lastPending.longitude)
+            } else {
+                plannedDestPos
+            }
+        } else {
+            plannedDestPos
+        }
+    }
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.Builder()
-            .target(dynamicStartPos)
-            .zoom(16f)
-            .tilt(50f)
+            .target(plannedStartPos)
+            .zoom(15f)
+            .tilt(30f)
             .bearing(0f)
             .build()
     }
@@ -191,6 +233,7 @@ fun LiveMapScreen(
     var showShareQrDialog by remember { mutableStateOf(false) }
     var currentNavStepIndex by remember { mutableIntStateOf(0) }
     var currentRouteDetails by remember { mutableStateOf<RouteDetails?>(null) }
+    var plannedRoadPolyline by remember { mutableStateOf<List<LatLng>>(routePolyline) }
     var activeDynamicPolyline by remember { mutableStateOf(routePolyline) }
 
     // Arrival Notification Geofence State
@@ -205,10 +248,23 @@ fun LiveMapScreen(
                 com.ridesync.BuildConfig.MAPS_API_KEY.isBlank()
     }
 
-    // Dynamic Route Calculation from Current Phone GPS -> Remaining Pending Stops -> Destination
-    LaunchedEffect(dynamicStartPos, dynamicDestPos, pendingStopsOnMap.size) {
+    // Dynamic Route Calculation: Planned Trip Details (Preview Mode) OR Current Phone GPS (Live Navigation Mode)
+    LaunchedEffect(isTripStarted, plannedStartPos, plannedDestPos, myPing, pendingStopsOnMap.size, selectedDayNumber) {
         try {
-            val intermediateWaypoints = pendingStopsOnMap
+            val origin = if (isTripStarted && myPing != null && myPing.latitude != 0.0 && myPing.longitude != 0.0) {
+                LatLng(myPing.latitude, myPing.longitude)
+            } else {
+                plannedStartPos
+            }
+
+            val destination = if (isTripStarted) {
+                pendingStopsOnMap.lastOrNull()?.let { LatLng(it.latitude, it.longitude) } ?: plannedDestPos
+            } else {
+                plannedDestPos
+            }
+
+            val stopsList = if (isTripStarted) pendingStopsOnMap else currentDayStops
+            val intermediateWaypoints = stopsList
                 .drop(1)
                 .dropLast(1)
                 .filter { it.latitude != 0.0 && it.longitude != 0.0 }
@@ -216,14 +272,49 @@ fun LiveMapScreen(
 
             val details = withContext(Dispatchers.IO) {
                 DirectionsRepository.getDirectionsRoute(
-                    origin = dynamicStartPos,
-                    destination = dynamicDestPos,
+                    origin = origin,
+                    destination = destination,
                     waypoints = intermediateWaypoints
                 )
             }
             currentRouteDetails = details
-            if (details.polylinePoints.isNotEmpty()) {
-                activeDynamicPolyline = details.polylinePoints
+
+            if (!isTripStarted) {
+                // Preview Mode: Save high-density planned road polyline
+                if (details.isRealGoogleRoute && details.polylinePoints.size > 10) {
+                    plannedRoadPolyline = details.polylinePoints
+                    activeDynamicPolyline = details.polylinePoints
+                } else if (routePolyline.size > 10) {
+                    plannedRoadPolyline = routePolyline
+                    activeDynamicPolyline = routePolyline
+                } else if (details.polylinePoints.isNotEmpty()) {
+                    activeDynamicPolyline = details.polylinePoints
+                }
+            } else {
+                // Live Navigation Mode: Use live road route if available, otherwise snap myPing to planned road polyline
+                if (details.isRealGoogleRoute && details.polylinePoints.size > 10) {
+                    activeDynamicPolyline = details.polylinePoints
+                } else {
+                    val basePolyline = when {
+                        plannedRoadPolyline.size > 10 -> plannedRoadPolyline
+                        activeDynamicPolyline.size > 10 -> activeDynamicPolyline
+                        routePolyline.size > 10 -> routePolyline
+                        else -> emptyList()
+                    }
+
+                    if (basePolyline.isNotEmpty() && myPing != null && myPing.latitude != 0.0 && myPing.longitude != 0.0) {
+                        val myPos = LatLng(myPing.latitude, myPing.longitude)
+                        val closestIdx = findClosestPointIndex(basePolyline, myPos)
+                        val snappedPoints = listOf(myPos) + basePolyline.drop(closestIdx)
+                        if (snappedPoints.size > 1) {
+                            activeDynamicPolyline = snappedPoints
+                        }
+                    } else if (basePolyline.isNotEmpty()) {
+                        activeDynamicPolyline = basePolyline
+                    } else if (details.polylinePoints.isNotEmpty()) {
+                        activeDynamicPolyline = details.polylinePoints
+                    }
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -257,9 +348,9 @@ fun LiveMapScreen(
         }
     }
 
-    // Follow lead/phone rider location automatically
-    LaunchedEffect(dynamicStartPos, isFollowMode, is3dTilt, isLiveNavigating) {
-        if (isFollowMode || isLiveNavigating) {
+    // Follow lead/phone rider location automatically in live mode, or center on planned origin in preview mode
+    LaunchedEffect(plannedStartPos, dynamicStartPos, isFollowMode, is3dTilt, isLiveNavigating, isTripStarted) {
+        if (isTripStarted && (isFollowMode || isLiveNavigating)) {
             val tiltAngle = if (is3dTilt || isLiveNavigating) 55f else 0f
             val bearingAngle = myPing?.bearing ?: 0f
             val targetCam = CameraPosition.Builder()
@@ -267,6 +358,14 @@ fun LiveMapScreen(
                 .zoom(if (isLiveNavigating) 17.5f else 16.5f)
                 .tilt(tiltAngle)
                 .bearing(bearingAngle)
+                .build()
+            cameraPositionState.animate(CameraUpdateFactory.newCameraPosition(targetCam), 800)
+        } else if (!isTripStarted && isFollowMode) {
+            val targetCam = CameraPosition.Builder()
+                .target(plannedStartPos)
+                .zoom(15f)
+                .tilt(30f)
+                .bearing(0f)
                 .build()
             cameraPositionState.animate(CameraUpdateFactory.newCameraPosition(targetCam), 800)
         }
@@ -403,6 +502,30 @@ fun LiveMapScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // "I'm Stopping" Warning Button (Same 52.dp size & shape as map controls)
+            HudMapOptionIconButton(
+                icon = Icons.Default.Warning,
+                contentDescription = "I'm Stopping",
+                active = true,
+                activeColor = Color(0xFFF59E0B),
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onStopReported(StopReason.REST)
+                }
+            )
+
+            // "Emergency SOS" Alert Button (Same 52.dp size & shape as map controls)
+            HudMapOptionIconButton(
+                icon = Icons.Default.ReportProblem,
+                contentDescription = "Emergency SOS",
+                active = true,
+                activeColor = Color(0xFFEF4444),
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onSosReported()
+                }
+            )
+
             // My Live Phone GPS Re-center Button
             HudMapOptionIconButton(
                 icon = Icons.Default.MyLocation,
@@ -512,87 +635,66 @@ fun LiveMapScreen(
                     is3dTilt = !is3dTilt
                 }
             )
+
+            // Fullscreen Map Mode Toggle Button
+            HudMapOptionIconButton(
+                icon = if (isFullScreenMap) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                contentDescription = "Full Screen Map",
+                active = isFullScreenMap,
+                activeColor = Color(0xFF10B981),
+                onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    isFullScreenMap = !isFullScreenMap
+                }
+            )
         }
 
-        // Top Left: Status Indicators
-        Column(
+        // Top Left: Compact Semi-Transparent HUD & GPS Status Badge (Does not cover map)
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0x35000000), // High transparency (20% opacity) so map is completely visible
+            border = BorderStroke(1.dp, Color(0x22FFFFFF)),
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 16.dp, start = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(top = 16.dp, start = 16.dp)
         ) {
-            // HUD Mode Indicator
-            Box(
-                modifier = Modifier
-                    .frostedGlassHud(shape = RoundedCornerShape(20.dp))
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            Column(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .background(
-                                if (isFollowMode) HudColors.StatusRiding else HudColors.StatusStopped,
-                                CircleShape
-                            )
-                            .border(1.dp, Color.White.copy(alpha = 0.6f), CircleShape)
+                            .size(6.dp)
+                            .background(if (isFollowMode) HudColors.StatusRiding else HudColors.StatusStopped, CircleShape)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isFollowMode) "HUD 3D: GPS LOCKED" else "HUD 3D: FREE PAN",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = HudColors.TextCrispWhite
+                        text = if (isFollowMode) "GPS LOCKED" else "FREE PAN",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.9f)
                     )
-                }
-            }
-
-            // Active Trip & Next Stop Quick Badge
-            if (currentActiveTrip != null) {
-                val nextStop = pendingStopsOnMap.firstOrNull()
-                Box(
-                    modifier = Modifier
-                        .frostedGlassHud(shape = RoundedCornerShape(20.dp), backgroundColor = Color(0xDD0F172A))
-                        .clickable { showStopsDrawer = true }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                    if (currentActiveTrip != null) {
+                        val nextStop = pendingStopsOnMap.firstOrNull()
                         Text(
-                            text = if (nextStop != null) "Next Stop: ${nextStop.stopName}" else "Trip Complete 🎉",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            text = " • Next: ${nextStop?.stopName ?: "Destination"}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFFBBF24),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable { showStopsDrawer = true }
                         )
                     }
                 }
-            }
-
-            // Live Phone GPS Telemetry Indicator Badge
-            if (myPing != null) {
-                Box(
-                    modifier = Modifier
-                        .frostedGlassHud(
-                            shape = RoundedCornerShape(20.dp),
-                            backgroundColor = Color(0xDD0F172A)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(Color(0xFF00E5FF), CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "📡 GPS: ${"%.4f".format(myPing.latitude)}, ${"%.4f".format(myPing.longitude)} • ${myPing.speedKmh.toInt()} KM/H",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF00E5FF)
-                        )
-                    }
+                if (myPing != null) {
+                    Text(
+                        text = "📡 ${"%.4f".format(myPing.latitude)}, ${"%.4f".format(myPing.longitude)} • ${myPing.speedKmh.toInt()} km/h",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFF67E8F9)
+                    )
                 }
             }
         }
@@ -741,6 +843,151 @@ fun LiveMapScreen(
             }
         }
 
+        // Route Preview & "START TRIP NAVIGATION" HUD Card
+        AnimatedVisibility(
+            visible = !isTripStarted,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 90.dp, start = 16.dp, end = 16.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xF00F172A)),
+                shape = RoundedCornerShape(22.dp),
+                border = BorderStroke(1.5.dp, Color(0xFF00E5FF)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Surface(
+                            color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, Color(0xFF38BDF8))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(Color(0xFF38BDF8), CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "🗺️ PLANNED ROUTE PREVIEW",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF38BDF8)
+                                )
+                            }
+                        }
+
+                        if (currentActiveTrip != null && (currentActiveTrip.itineraryPlan?.days?.size ?: 0) > 1) {
+                            Text(
+                                text = "Day $selectedDayNumber of ${currentActiveTrip.itineraryPlan?.days?.size}",
+                                color = Color(0xFFF59E0B),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = currentActiveTrip?.title ?: "Planned Trip Route",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    val startName = currentDayStops.firstOrNull()?.stopName ?: currentActiveTrip?.originName ?: "Origin"
+                    val destName = currentDayStops.lastOrNull()?.stopName ?: currentActiveTrip?.destinationName ?: "Destination"
+                    val stopCount = (currentDayStops.size - 2).coerceAtLeast(0)
+
+                    Text(
+                        text = "From $startName to $destName" + (if (stopCount > 0) " ($stopCount intermediate stop${if (stopCount > 1) "s" else ""})" else ""),
+                        fontSize = 13.sp,
+                        color = Color(0xFFCBD5E1)
+                    )
+
+                    if (currentDayStops.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            currentDayStops.take(4).forEachIndexed { idx, stop ->
+                                Surface(
+                                    color = Color(0xFF1E293B),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, Color(0xFF334155))
+                                ) {
+                                    Text(
+                                        text = "${idx + 1}. ${stop.stopName}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF94A3B8),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                            if (currentDayStops.size > 4) {
+                                Text(
+                                    text = "+${currentDayStops.size - 4} more",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF64748B),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            isTripStarted = true
+                            isLiveNavigating = true
+                            isFollowMode = true
+                            is3dTilt = true
+                            Toast.makeText(context, "🚀 Trip Started! Navigating from current GPS location", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF00E5FF),
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Navigation,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "🚀 START TRIP NAVIGATION",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+        }
+
         // Google Maps Turn-by-Turn Live Navigation HUD Overlay
         if (isLiveNavigating) {
             GoogleMapsNavigationHUD(
@@ -748,7 +995,10 @@ fun LiveMapScreen(
                 currentSpeedKmh = myPing?.speedKmh?.toDouble() ?: 0.0,
                 currentStepIndex = currentNavStepIndex,
                 onStepSelected = { idx -> currentNavStepIndex = idx },
-                onExitNavigation = { isLiveNavigating = false },
+                onExitNavigation = {
+                    isLiveNavigating = false
+                    isTripStarted = false
+                },
                 onOpenGoogleMapsApp = {
                     GoogleMapsNavigationHelper.launchGoogleMapsTurnByTurn(context, dynamicDestPos)
                 },
@@ -1137,3 +1387,19 @@ private fun HudMapTypeCard(
         }
     }
 }
+
+private fun findClosestPointIndex(points: List<LatLng>, target: LatLng): Int {
+    var minDist = Double.MAX_VALUE
+    var bestIdx = 0
+    points.forEachIndexed { idx, pt ->
+        val dLat = pt.latitude - target.latitude
+        val dLng = pt.longitude - target.longitude
+        val dist = dLat * dLat + dLng * dLng
+        if (dist < minDist) {
+            minDist = dist
+            bestIdx = idx
+        }
+    }
+    return bestIdx
+}
+

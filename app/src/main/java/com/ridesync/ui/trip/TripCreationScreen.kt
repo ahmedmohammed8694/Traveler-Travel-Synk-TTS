@@ -101,25 +101,27 @@ fun TripCreationScreen(
     var selectedScreenTab by remember { mutableIntStateOf(0) } // 0: Plan & Route Builder, 1: Saved Trips & History
 
     // Core Route Builder States
-    var tripTitle by remember { mutableStateOf("Hyderabad to Nagarjuna Sagar Run") }
+    var tripTitle by remember { mutableStateOf("") }
     var tripStartDate by remember { mutableStateOf("15 Oct 2026") }
-    var origin by remember { mutableStateOf("Attapur, Hyderabad") }
-    var destination by remember { mutableStateOf("Nagarjuna Sagar Dam") }
+    var origin by remember { mutableStateOf("") }
+    var destination by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(ConvoyRole.LEAD) }
 
-    // Google Maps Coordinates State (Default: Attapur -> Nagarjuna Sagar Dam)
+    // Trip Vehicle selection (Defaults to user's Default Vehicle, but can be changed per trip)
+    val userDefaultVehicle = remember(userProfile) {
+        userProfile.vehicles.firstOrNull { it.id == userProfile.activeVehicleId }
+            ?: userProfile.vehicles.firstOrNull()
+    }
+    var selectedTripVehicle by remember(userProfile) { mutableStateOf(userDefaultVehicle) }
+
+    // Google Maps Coordinates State
     var startLatLng by remember { mutableStateOf(LatLng(17.3753, 78.4344)) }
-    var destLatLng by remember { mutableStateOf(LatLng(16.5772, 79.3125)) }
+    var destLatLng by remember { mutableStateOf(LatLng(17.4435, 78.3772)) }
     var mapPinSelectionMode by remember { mutableStateOf("START") }
 
-    // Highway Stops / Waypoints (NH565 Corridor)
-    val waypointNames = remember { mutableStateListOf("Ibrahimpatnam Sagar Rd Stop", "Devarakonda Fort Stop") }
-    val waypointLatLngs = remember {
-        mutableStateListOf(
-            LatLng(17.1856, 78.6473),
-            LatLng(16.6978, 78.9281)
-        )
-    }
+    // Highway Stops / Waypoints
+    val waypointNames = remember { mutableStateListOf<String>() }
+    val waypointLatLngs = remember { mutableStateListOf<LatLng>() }
 
     // Google Maps Search Dialog State
     var searchTargetField by remember { mutableStateOf<String?>(null) } // "START", "DEST", or "STOP"
@@ -583,6 +585,125 @@ fun TripCreationScreen(
                     )
                 }
 
+                // 2.5 Vehicle Selection for Trip (Pre-selected to Default Vehicle, expandable to change)
+                var showVehicleDropdown by remember { mutableStateOf(false) }
+
+                Surface(
+                    color = Color(0xFF0F172A),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = selectedTripVehicle?.vehicleTypeEnum?.iconEmoji ?: "🏍️",
+                                    fontSize = 20.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "Trip Vehicle",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                        if (selectedTripVehicle?.id == userProfile.activeVehicleId) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    text = "★ DEFAULT",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = Color(0xFF38BDF8),
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Text(
+                                        text = selectedTripVehicle?.fullDisplayName ?: userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+
+                            if (userProfile.vehicles.size > 1) {
+                                TextButton(onClick = { showVehicleDropdown = !showVehicleDropdown }) {
+                                    Text(
+                                        text = if (showVehicleDropdown) "Close" else "Change",
+                                        color = Color(0xFF38BDF8),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "${selectedTripVehicle?.estimatedRangeKm ?: 350.0} km range",
+                                    color = Color(0xFF10B981),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Vehicle picker dropdown if user has multiple vehicles
+                        if (showVehicleDropdown && userProfile.vehicles.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Divider(color = Color(0xFF334155))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Select vehicle for this trip:",
+                                fontSize = 11.sp,
+                                color = Color(0xFF94A3B8),
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                            userProfile.vehicles.forEach { v ->
+                                val isSelected = selectedTripVehicle?.id == v.id
+                                Surface(
+                                    onClick = {
+                                        selectedTripVehicle = v
+                                        showVehicleDropdown = false
+                                    },
+                                    color = if (isSelected) Color(0xFF1E293B) else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 2.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "${v.vehicleTypeEnum.iconEmoji} ${v.fullDisplayName}",
+                                            color = if (isSelected) Color(0xFF38BDF8) else Color.White,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        if (v.id == userProfile.activeVehicleId) {
+                                            Text("★ Default", fontSize = 10.sp, color = Color(0xFFFBBF24), fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // 3. DEDICATED METHOD VIEWS
                 when (currentCreationMode) {
                     TripCreationMode.DOCUMENT -> {
@@ -889,32 +1010,16 @@ fun TripCreationScreen(
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Button(
-                                        onClick = { showAddSegmentDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = Color(0xFF38BDF8)),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("+ Add Day Route", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-
-                                    Button(
-                                        onClick = { showDayByDayLinksDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color.Black),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(Icons.Default.ViewCarousel, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Multi-Day Wizard", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
+                                 Button(
+                                     onClick = { showAddSegmentDialog = true },
+                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = Color(0xFF38BDF8)),
+                                     shape = RoundedCornerShape(10.dp),
+                                     modifier = Modifier.fillMaxWidth().height(42.dp)
+                                 ) {
+                                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                     Spacer(modifier = Modifier.width(4.dp))
+                                     Text("+ Add Day Route", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                 }
 
                                 if (multiDaySegments.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(14.dp))
@@ -1035,13 +1140,13 @@ fun TripCreationScreen(
                                                 scheduledDate = tripStartDate,
                                                 joinedRiders = listOf(
                                                     JoinedRiderProfile(
-                                                        riderId = userProfile.userId.ifBlank { "r1" },
+                                                        riderId = userProfile.userId.ifBlank { "rider_me" },
                                                         displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                                        bikeModel = userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
+                                                        bikeModel = userProfile.displayVehicleModel,
                                                         role = selectedRole,
                                                         status = "Lead Navigator",
                                                         experienceBadge = "Trip Host",
-                                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone.ifBlank { "+91 86868 71994" }
+                                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone
                                                     )
                                                 ),
                                                 routeSegments = multiDaySegments.toList(),
@@ -1605,13 +1710,13 @@ fun TripCreationScreen(
                                 scheduledDate = "Planned Upcoming Ride",
                                 joinedRiders = listOf(
                                     JoinedRiderProfile(
-                                        riderId = userProfile.userId.ifBlank { "r1" },
+                                        riderId = userProfile.userId.ifBlank { "rider_me" },
                                         displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                        bikeModel = userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
+                                        bikeModel = userProfile.displayVehicleModel,
                                         role = selectedRole,
                                         status = "Lead Navigator",
                                         experienceBadge = "Trip Host",
-                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone.ifBlank { "+91 86868 71994" }
+                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone
                                     )
                                 ),
                                 routeSegments = multiDaySegments.toList(),
@@ -1706,13 +1811,13 @@ fun TripCreationScreen(
                                 scheduledDate = "Active Live Convoy",
                                 joinedRiders = listOf(
                                     JoinedRiderProfile(
-                                        riderId = userProfile.userId.ifBlank { "r1" },
+                                        riderId = userProfile.userId.ifBlank { "rider_me" },
                                         displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                        bikeModel = userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
+                                        bikeModel = userProfile.displayVehicleModel,
                                         role = selectedRole,
                                         status = "Active Live Convoy",
                                         experienceBadge = "Lead Navigator",
-                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone.ifBlank { "+91 86868 71994" }
+                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone
                                     )
                                 ),
                                 routeSegments = multiDaySegments.toList(),
@@ -2181,21 +2286,26 @@ fun TripCreationScreen(
                     selectedTripForDetails = null
                 },
                 onLaunchSegment = { segment ->
-                    val segmentPolyline = if (segment.encodedPolyline.isNotBlank()) {
+                    val segOriginName = segment.originName.ifBlank { trip.originName }
+                    val segDestName = segment.destinationName.ifBlank { trip.destinationName }
+                    val origPt = DirectionsRepository.resolveLocationNameToLatLng(segOriginName, trip.startLatLng)
+                    val destPt = DirectionsRepository.resolveLocationNameToLatLng(segDestName, trip.destLatLng)
+
+                    val segmentPolyline = if (segment.encodedPolyline.isNotBlank() && segment.encodedPolyline.length > 50) {
                         try {
                             com.google.maps.android.PolyUtil.decode(segment.encodedPolyline)
                         } catch (_: Exception) {
-                            listOf(trip.startLatLng, trip.destLatLng)
+                            listOf(origPt, destPt)
                         }
                     } else {
-                        listOf(trip.startLatLng, trip.destLatLng)
+                        listOf(origPt, destPt)
                     }
                     TripRepository.setOngoingTrip(trip.tripId)
                     onStartTripClick(
                         segment.segmentName.ifBlank { trip.title },
                         trip.role,
-                        segment.originName.ifBlank { trip.originName },
-                        segment.destinationName.ifBlank { trip.destinationName },
+                        segOriginName,
+                        segDestName,
                         segment.waypoints,
                         segmentPolyline
                     )
@@ -3524,20 +3634,25 @@ fun SelectDayRouteDialog(
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(
                                 onClick = {
-                                    val segPolyline = if (segment.encodedPolyline.isNotBlank()) {
+                                    val segOriginName = segment.originName.ifBlank { trip.originName }
+                                    val segDestName = segment.destinationName.ifBlank { trip.destinationName }
+                                    val origPt = DirectionsRepository.resolveLocationNameToLatLng(segOriginName, trip.startLatLng)
+                                    val destPt = DirectionsRepository.resolveLocationNameToLatLng(segDestName, trip.destLatLng)
+
+                                    val segPolyline = if (segment.encodedPolyline.isNotBlank() && segment.encodedPolyline.length > 50) {
                                         try {
                                             DirectionsRepository.decodePolyline(segment.encodedPolyline)
                                         } catch (_: Exception) {
-                                            masterPolyline
+                                            listOf(origPt, destPt)
                                         }
                                     } else {
-                                        masterPolyline
+                                        listOf(origPt, destPt)
                                     }
                                     onSelectRoute(
                                         "${trip.title} - ${segment.segmentName.ifBlank { "Day ${index + 1}" }}",
                                         trip.role,
-                                        segment.originName.ifBlank { trip.originName },
-                                        segment.destinationName.ifBlank { trip.destinationName },
+                                        segOriginName,
+                                        segDestName,
                                         segment.waypoints,
                                         segPolyline
                                     )
