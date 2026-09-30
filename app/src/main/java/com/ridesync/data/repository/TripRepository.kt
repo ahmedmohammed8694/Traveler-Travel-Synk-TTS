@@ -113,15 +113,8 @@ object TripRepository {
     @Synchronized
     fun leaveTrip(tripId: String, riderId: String) {
         val currentList = getAllTrips().toMutableList()
-        val index = currentList.indexOfFirst { it.tripId == tripId }
-        if (index >= 0) {
-            val trip = currentList[index]
-            val updatedRiders = trip.joinedRiders.filterNot { it.riderId == riderId || it.riderId == "r1" || it.riderId == "user_me" }
-            val updatedTrip = trip.copy(
-                joinedRiders = updatedRiders,
-                activeRidersCount = updatedRiders.size
-            )
-            currentList[index] = updatedTrip
+        val removed = currentList.removeAll { it.tripId == tripId }
+        if (removed) {
             updateAndPersistList(currentList)
         }
         leaveTripOnCloudflareAsync(tripId, riderId)
@@ -623,6 +616,7 @@ object TripRepository {
     suspend fun fetchTripByLobbyCode(code: String): SavedTrip? {
         return kotlinx.coroutines.withContext(Dispatchers.IO) {
             val cleanCode = code.trim().uppercase()
+            if (cleanCode.isBlank()) return@withContext null
 
             // 1. Query Cloudflare Edge & D1 Database first
             try {
@@ -640,7 +634,6 @@ object TripRepository {
                     if (tripObj != null) {
                         val parsed = deserializeTrip(tripObj)
                         if (parsed != null && parsed.title.isNotBlank()) {
-                            saveTrip(parsed)
                             return@withContext parsed
                         }
                     }
@@ -649,8 +642,10 @@ object TripRepository {
                 Log.e(TAG, "Error looking up trip code $cleanCode on Cloudflare", e)
             }
 
-            // 2. Fallback to local cache
-            getAllTrips().firstOrNull { it.lobbyCode.equals(cleanCode, ignoreCase = true) }
+            // 2. Fallback to local cache (only if valid matching lobby code exists)
+            getAllTrips().firstOrNull { 
+                it.lobbyCode.isNotBlank() && it.lobbyCode.equals(cleanCode, ignoreCase = true) 
+            }
         }
     }
 

@@ -72,7 +72,8 @@ fun JoinTripScreen(
             if (remoteTrip != null) {
                 selectedPreviewTrip = remoteTrip
             } else {
-                Toast.makeText(context, "Trip code '$extractedCode' not found in online database. Please verify the invite code.", Toast.LENGTH_LONG).show()
+                selectedPreviewTrip = null
+                Toast.makeText(context, "⚠️ Trip code '$extractedCode' not found in database. Please verify the code.", Toast.LENGTH_LONG).show()
             }
         }
     }

@@ -30,6 +30,14 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.LockOpen
+
 @OptIn(ExperimentalGetImage::class)
 @Composable
 fun QrCodeScannerScreen(
@@ -39,7 +47,79 @@ fun QrCodeScannerScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+    }
+
     var hasScanned by remember { mutableStateOf(false) }
+
+    if (!hasCameraPermission) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(com.ridesync.ui.theme.HudColors.ObsidianCanvas)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = com.ridesync.ui.theme.HudColors.ObsidianSurface),
+                shape = RoundedCornerShape(24.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, com.ridesync.ui.theme.HudColors.CyanPrimary)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        tint = com.ridesync.ui.theme.HudColors.CyanPrimary,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Text(
+                        text = "Camera Permission Required",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "RideSync needs camera access to scan the Lead Captain's QR code and join the convoy trip.",
+                        fontSize = 13.sp,
+                        color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                    Button(
+                        onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = com.ridesync.ui.theme.HudColors.CyanPrimary,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                    ) {
+                        Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("ALLOW CAMERA ACCESS", fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    }
+                    TextButton(onClick = onCancel) {
+                        Text("Cancel", color = com.ridesync.ui.theme.HudColors.TextCoolSilver, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+        return
+    }
 
     Box(
         modifier = Modifier

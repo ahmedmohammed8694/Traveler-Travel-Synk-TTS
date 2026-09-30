@@ -2324,9 +2324,11 @@ fun TripCreationScreen(
                     selectedTripForDetails = null
                 },
                 onDeleteTrip = {
+                    selectedTripForDetails = null
                     tripToDelete = trip
                 },
                 onExitTrip = {
+                    selectedTripForDetails = null
                     tripToExit = trip
                 },
                 onViewItinerary = {

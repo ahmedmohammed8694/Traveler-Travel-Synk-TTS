@@ -61,14 +61,21 @@ fun MainContainerScreen(
         }
     }
 
+    // First-Time App Install & Privacy Policy Permissions Onboarding State
+    var showPermissionsOnboarding by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        if (!LiveLocationEngine.hasLocationPermission(context)) {
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    android.Manifest.permission.ACCESS_FINE_LOCATION,
-                    android.Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
+        val prefs = context.getSharedPreferences("ridesync_app_prefs", android.content.Context.MODE_PRIVATE)
+        val hasCompletedOnboarding = prefs.getBoolean("has_completed_permissions_onboarding", false)
+        val hasLocation = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasCamera = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!hasCompletedOnboarding || !hasLocation || !hasCamera) {
+            showPermissionsOnboarding = true
         } else {
             LiveLocationEngine.startLiveLocationUpdates(context)
         }
@@ -329,6 +336,20 @@ fun MainContainerScreen(
                         onSignOut = onSignOut
                     )
                 }
+            }
+
+            if (showPermissionsOnboarding) {
+                com.ridesync.ui.permissions.PermissionsOnboardingDialog(
+                    onAllGranted = {
+                        val prefs = context.getSharedPreferences("ridesync_app_prefs", android.content.Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("has_completed_permissions_onboarding", true).apply()
+                        showPermissionsOnboarding = false
+                        LiveLocationEngine.startLiveLocationUpdates(context)
+                    },
+                    onDismiss = {
+                        showPermissionsOnboarding = false
+                    }
+                )
             }
         }
     }

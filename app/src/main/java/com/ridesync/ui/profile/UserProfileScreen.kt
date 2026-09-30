@@ -134,6 +134,17 @@ fun UserProfileScreen(
         }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            imagePickerLauncher.launch("image/*")
+        } else {
+            android.widget.Toast.makeText(context, "Camera & Media permission required to update profile photo", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val backgroundColor = HudColors.ObsidianCanvas
     val cardColor = HudColors.ObsidianSurface
     val accentColor = HudColors.CyanPrimary
@@ -192,7 +203,16 @@ fun UserProfileScreen(
                         .clip(CircleShape)
                         .border(3.dp, accentColor, CircleShape)
                         .background(cardColor)
-                        .clickable { imagePickerLauncher.launch("image/*") }
+                        .clickable {
+                            val hasCam = androidx.core.content.ContextCompat.checkSelfPermission(
+                                context, android.Manifest.permission.CAMERA
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (hasCam) {
+                                imagePickerLauncher.launch("image/*")
+                            } else {
+                                cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                            }
+                        }
                 ) {
                     if (avatarBitmap != null) {
                         Image(
