@@ -196,17 +196,65 @@ fun TripCreationScreen(
 
                     itineraryUploadProgressText = "AI Extracting Multi-Day Schedule & Stops..."
                     val parsedPlan = ItineraryParserEngine.parseTextToTripPlan(rawText, tripTitle)
-                    currentItineraryPlan = parsedPlan.copy(creationMode = TripCreationMode.DOCUMENT)
+                    
+                    itineraryUploadProgressText = "Resolving Coordinates & Mapping Corridors..."
+                    val resolvedDays = withContext(Dispatchers.IO) {
+                        parsedPlan.days.map { day ->
+                            val resolvedStops = day.stops.mapIndexed { sIdx, stop ->
+                                var lat = stop.latitude
+                                var lng = stop.longitude
+                                if (lat == 0.0 && lng == 0.0) {
+                                    val res = DirectionsRepository.resolveLocationNameToLatLng(stop.stopName.ifBlank { stop.rawLocationText }, null)
+                                    if (res.latitude != 17.3753 || res.longitude != 78.4344 || stop.stopName.contains("Attapur", ignoreCase = true)) {
+                                        lat = res.latitude
+                                        lng = res.longitude
+                                    } else {
+                                        try {
+                                            val geocoder = Geocoder(context, Locale.getDefault())
+                                            val addrs = geocoder.getFromLocationName(stop.stopName.ifBlank { stop.rawLocationText }, 1)
+                                            if (!addrs.isNullOrEmpty()) {
+                                                lat = addrs[0].latitude
+                                                lng = addrs[0].longitude
+                                            }
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                                stop.copy(latitude = lat, longitude = lng, orderIndex = sIdx)
+                            }
+                            day.copy(stops = resolvedStops)
+                        }
+                    }
+
+                    val resolvedPlan = parsedPlan.copy(creationMode = TripCreationMode.DOCUMENT, days = resolvedDays)
+                    currentItineraryPlan = resolvedPlan
                     currentCreationMode = TripCreationMode.DOCUMENT
 
-                    itineraryUploadProgressText = "Resolving Coordinates & Mapping Corridors..."
                     if (parsedPlan.tripTitle.isNotBlank()) {
                         tripTitle = parsedPlan.tripTitle
                     }
 
-                    // Populate multi-day segments
+                    // Populate multi-day segments & sync main builder fields
                     multiDaySegments.clear()
-                    parsedPlan.days.forEachIndexed { dayIdx, day ->
+                    waypointNames.clear()
+                    waypointLatLngs.clear()
+
+                    val allStops = resolvedDays.flatMap { it.stops }
+                    if (allStops.isNotEmpty()) {
+                        val firstStop = allStops.first()
+                        val lastStop = allStops.last()
+                        origin = firstStop.stopName
+                        if (firstStop.latitude != 0.0) startLatLng = LatLng(firstStop.latitude, firstStop.longitude)
+                        destination = lastStop.stopName
+                        if (lastStop.latitude != 0.0) destLatLng = LatLng(lastStop.latitude, lastStop.longitude)
+
+                        val middleStops = if (allStops.size > 2) allStops.subList(1, allStops.size - 1) else emptyList()
+                        middleStops.forEach { st ->
+                            waypointNames.add(st.stopName)
+                            waypointLatLngs.add(LatLng(st.latitude, st.longitude))
+                        }
+                    }
+
+                    resolvedDays.forEachIndexed { dayIdx, day ->
                         val dayStops = day.stops
                         val originStop = dayStops.firstOrNull()?.stopName ?: origin
                         val destStop = dayStops.lastOrNull()?.stopName ?: destination
@@ -227,7 +275,7 @@ fun TripCreationScreen(
                         multiDaySegments.add(seg)
                     }
 
-                    Toast.makeText(context, "Extracted ${parsedPlan.days.size} Days & ${parsedPlan.days.sumOf { it.stops.size }} Stops!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Extracted ${resolvedDays.size} Days & ${resolvedDays.sumOf { it.stops.size }} Stops!", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Toast.makeText(context, "Itinerary parsing error: ${e.message}", Toast.LENGTH_SHORT).show()

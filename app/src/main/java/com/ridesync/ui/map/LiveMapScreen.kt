@@ -103,54 +103,118 @@ fun LiveMapScreen(
     // Active Day Number (Default: 1)
     var selectedDayNumber by remember { mutableIntStateOf(1) }
 
-    // Extract all stops for the active day / trip
-    val currentDayStops = remember(currentActiveTrip, selectedDayNumber) {
-        val days = currentActiveTrip?.itineraryPlan?.days
-        if (!days.isNullOrEmpty()) {
-            val matchingDay = days.firstOrNull { it.dayNumber == selectedDayNumber } ?: days.first()
-            matchingDay.stops
-        } else if (currentActiveTrip != null) {
-            listOf(
-                ItineraryStop(
-                    stopId = "stop_0",
-                    stopName = currentActiveTrip.originName,
-                    activityDescription = "Starting Location",
-                    latitude = currentActiveTrip.startLatLng.latitude,
-                    longitude = currentActiveTrip.startLatLng.longitude,
-                    status = ItineraryStopStatus.PENDING,
-                    orderIndex = 0
-                )
-            ) + currentActiveTrip.waypoints.mapIndexed { idx, wp ->
-                val latLng = currentActiveTrip.waypointLatLngs.getOrNull(idx) ?: DirectionsRepository.resolveLocationNameToLatLng(
-                    wp,
-                    LatLng(
-                        currentActiveTrip.startLatLng.latitude + (currentActiveTrip.destLatLng.latitude - currentActiveTrip.startLatLng.latitude) * (idx + 1) / (currentActiveTrip.waypoints.size + 1),
-                        currentActiveTrip.startLatLng.longitude + (currentActiveTrip.destLatLng.longitude - currentActiveTrip.startLatLng.longitude) * (idx + 1) / (currentActiveTrip.waypoints.size + 1)
+    // Dynamic State for Fully Resolved Day Stops (with 100% valid LatLng coordinates)
+    var currentDayStops by remember(currentActiveTrip?.tripId, selectedDayNumber) {
+        mutableStateOf<List<ItineraryStop>>(emptyList())
+    }
+
+    // Extraction and Geo-resolution effect for ALL 3 creation methods: Upload Itinerary, Map Link, Direct Search
+    LaunchedEffect(currentActiveTrip, selectedDayNumber) {
+        val trip = currentActiveTrip ?: return@LaunchedEffect
+        val days = trip.itineraryPlan?.days
+        val segments = trip.routeSegments
+
+        val rawStopsList = when {
+            // Method 1: Upload Itinerary with multi-day breakdown
+            !days.isNullOrEmpty() -> {
+                val matchingDay = days.firstOrNull { it.dayNumber == selectedDayNumber } ?: days.first()
+                val dayStops = matchingDay.stops.toMutableList()
+
+                if (dayStops.isEmpty()) {
+                    listOf(
+                        ItineraryStop(stopId = "stop_orig", stopName = trip.originName, latitude = trip.startLatLng.latitude, longitude = trip.startLatLng.longitude, status = ItineraryStopStatus.PENDING, orderIndex = 0),
+                        ItineraryStop(stopId = "stop_dest", stopName = trip.destinationName, latitude = trip.destLatLng.latitude, longitude = trip.destLatLng.longitude, status = ItineraryStopStatus.PENDING, orderIndex = 1)
                     )
-                )
-                ItineraryStop(
-                    stopId = "stop_${idx + 1}",
-                    stopName = wp,
-                    activityDescription = "Scheduled Milestone",
-                    latitude = latLng.latitude,
-                    longitude = latLng.longitude,
-                    status = ItineraryStopStatus.PENDING,
-                    orderIndex = idx + 1
-                )
-            } + listOf(
-                ItineraryStop(
-                    stopId = "stop_${currentActiveTrip.waypoints.size + 1}",
-                    stopName = currentActiveTrip.destinationName,
-                    activityDescription = "Destination",
-                    latitude = currentActiveTrip.destLatLng.latitude,
-                    longitude = currentActiveTrip.destLatLng.longitude,
-                    status = ItineraryStopStatus.PENDING,
-                    orderIndex = currentActiveTrip.waypoints.size + 1
-                )
-            )
-        } else {
-            emptyList()
+                } else {
+                    // Prepend origin if missing
+                    if (dayStops.none { it.stopName.equals(trip.originName, ignoreCase = true) } && trip.startLatLng.latitude != 0.0) {
+                        dayStops.add(0, ItineraryStop(stopId = "stop_start", stopName = trip.originName, latitude = trip.startLatLng.latitude, longitude = trip.startLatLng.longitude, status = ItineraryStopStatus.PENDING, orderIndex = 0))
+                    }
+                    // Append destination if missing
+                    if (dayStops.none { it.stopName.equals(trip.destinationName, ignoreCase = true) } && trip.destLatLng.latitude != 0.0) {
+                        dayStops.add(ItineraryStop(stopId = "stop_end", stopName = trip.destinationName, latitude = trip.destLatLng.latitude, longitude = trip.destLatLng.longitude, status = ItineraryStopStatus.PENDING, orderIndex = dayStops.size))
+                    }
+                    dayStops
+                }
+            }
+
+            // Method 2: Map Link with multi-day route segments
+            segments.isNotEmpty() -> {
+                val matchingSeg = segments.firstOrNull { it.orderIndex + 1 == selectedDayNumber }
+                    ?: segments.firstOrNull { it.orderIndex == selectedDayNumber - 1 }
+                    ?: segments.first()
+
+                val segStops = mutableListOf<ItineraryStop>()
+                segStops.add(ItineraryStop(stopId = "seg_${matchingSeg.segmentId}_orig", stopName = matchingSeg.originName, status = ItineraryStopStatus.PENDING, orderIndex = 0))
+                matchingSeg.waypoints.forEachIndexed { idx, wp ->
+                    segStops.add(ItineraryStop(stopId = "seg_${matchingSeg.segmentId}_wp_$idx", stopName = wp, status = ItineraryStopStatus.PENDING, orderIndex = idx + 1))
+                }
+                segStops.add(ItineraryStop(stopId = "seg_${matchingSeg.segmentId}_dest", stopName = matchingSeg.destinationName, status = ItineraryStopStatus.PENDING, orderIndex = matchingSeg.waypoints.size + 1))
+                segStops
+            }
+
+            // Method 3: Direct Search Option or Single Leg Trip
+            else -> {
+                val stops = mutableListOf<ItineraryStop>()
+                stops.add(ItineraryStop(stopId = "stop_0", stopName = trip.originName, latitude = trip.startLatLng.latitude, longitude = trip.startLatLng.longitude, activityDescription = "Starting Location", status = ItineraryStopStatus.PENDING, orderIndex = 0))
+                trip.waypoints.forEachIndexed { idx, wpName ->
+                    val knownLatLng = trip.waypointLatLngs.getOrNull(idx)
+                    stops.add(
+                        ItineraryStop(
+                            stopId = "stop_${idx + 1}",
+                            stopName = wpName,
+                            activityDescription = "Scheduled Milestone",
+                            latitude = knownLatLng?.latitude ?: 0.0,
+                            longitude = knownLatLng?.longitude ?: 0.0,
+                            status = ItineraryStopStatus.PENDING,
+                            orderIndex = idx + 1
+                        )
+                    )
+                }
+                stops.add(ItineraryStop(stopId = "stop_${trip.waypoints.size + 1}", stopName = trip.destinationName, latitude = trip.destLatLng.latitude, longitude = trip.destLatLng.longitude, activityDescription = "Destination", status = ItineraryStopStatus.PENDING, orderIndex = trip.waypoints.size + 1))
+                stops
+            }
         }
+
+        // Multi-tier coordinate resolution (DirectionsRepository -> Android Geocoder -> Route Corridor Fallback)
+        val startPt = if (trip.startLatLng.latitude != 0.0) trip.startLatLng else LatLng(17.3753, 78.4344)
+        val destPt = if (trip.destLatLng.latitude != 0.0) trip.destLatLng else LatLng(16.5772, 79.3125)
+
+        val resolvedList = withContext(Dispatchers.IO) {
+            rawStopsList.mapIndexed { idx, stop ->
+                var lat = stop.latitude
+                var lng = stop.longitude
+
+                if (lat == 0.0 && lng == 0.0) {
+                    val resolvedLatLng = DirectionsRepository.resolveLocationNameToLatLng(
+                        stop.stopName.ifBlank { stop.rawLocationText },
+                        null
+                    )
+                    if (resolvedLatLng.latitude != 17.3753 || resolvedLatLng.longitude != 78.4344 || stop.stopName.contains("Attapur", ignoreCase = true)) {
+                        lat = resolvedLatLng.latitude
+                        lng = resolvedLatLng.longitude
+                    } else {
+                        try {
+                            val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                            val addrs = geocoder.getFromLocationName(stop.stopName.ifBlank { stop.rawLocationText }, 1)
+                            if (!addrs.isNullOrEmpty()) {
+                                lat = addrs[0].latitude
+                                lng = addrs[0].longitude
+                            }
+                        } catch (_: Exception) {}
+
+                        if (lat == 0.0 && lng == 0.0) {
+                            val ratio = (idx.toDouble()) / (rawStopsList.size - 1).coerceAtLeast(1)
+                            lat = startPt.latitude + (destPt.latitude - startPt.latitude) * ratio
+                            lng = startPt.longitude + (destPt.longitude - startPt.longitude) * ratio
+                        }
+                    }
+                }
+                stop.copy(latitude = lat, longitude = lng, orderIndex = idx)
+            }
+        }
+
+        currentDayStops = resolvedList
     }
 
     // Filter only PENDING stops to be displayed on the map
@@ -249,7 +313,7 @@ fun LiveMapScreen(
     }
 
     // Dynamic Route Calculation: Planned Trip Details (Preview Mode) OR Current Phone GPS (Live Navigation Mode)
-    LaunchedEffect(isTripStarted, plannedStartPos, plannedDestPos, myPing, pendingStopsOnMap.size, selectedDayNumber) {
+    LaunchedEffect(isTripStarted, plannedStartPos, plannedDestPos, myPing, pendingStopsOnMap.size, selectedDayNumber, currentDayStops) {
         try {
             val origin = if (isTripStarted && myPing != null && myPing.latitude != 0.0 && myPing.longitude != 0.0) {
                 LatLng(myPing.latitude, myPing.longitude)
@@ -264,11 +328,13 @@ fun LiveMapScreen(
             }
 
             val stopsList = if (isTripStarted) pendingStopsOnMap else currentDayStops
-            val intermediateWaypoints = stopsList
-                .drop(1)
-                .dropLast(1)
-                .filter { it.latitude != 0.0 && it.longitude != 0.0 }
-                .map { LatLng(it.latitude, it.longitude) }
+            val intermediateWaypoints = if (stopsList.size > 2) {
+                stopsList.subList(1, stopsList.size - 1)
+                    .filter { it.latitude != 0.0 && it.longitude != 0.0 }
+                    .map { LatLng(it.latitude, it.longitude) }
+            } else {
+                emptyList()
+            }
 
             val details = withContext(Dispatchers.IO) {
                 DirectionsRepository.getDirectionsRoute(
@@ -699,36 +765,7 @@ fun LiveMapScreen(
             }
         }
 
-        // Left Center: Convoy Radar Overlay
-        ConvoyRadarOverlay(
-            myLocation = myPing?.let { LatLng(it.latitude, it.longitude) } ?: dynamicStartPos,
-            myBearing = myPing?.bearing ?: 0f,
-            riderLocations = riderLocations,
-            convoyMembers = convoyMembers,
-            onFocusRider = { targetPos ->
-                coroutineScope.launch {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newCameraPosition(
-                            CameraPosition.Builder()
-                                .target(targetPos)
-                                .zoom(17f)
-                                .tilt(if (is3dTilt) 50f else 0f)
-                                .build()
-                        ),
-                        600
-                    )
-                }
-            },
-            onCallRider = { phone ->
-                try {
-                    val callIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
-                    context.startActivity(callIntent)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            },
-            modifier = Modifier.align(Alignment.TopStart)
-        )
+
 
         // Bottom Expandable Planned Stops Drawer
         AnimatedVisibility(
