@@ -218,7 +218,27 @@ export default {
           const userId = profile.userId || 'unknown';
           const email = (profile.email || '').trim().toLowerCase();
 
-          const profileJson = JSON.stringify(profile);
+          // Smart merge with existing profile in cache if fields are missing
+          let existing: any = null;
+          if (env.CONVOY_CACHE) {
+            let cached = await env.CONVOY_CACHE.get(`profile:${userId}`);
+            if (!cached && email) cached = await env.CONVOY_CACHE.get(`profile_email:${email}`);
+            if (cached) existing = JSON.parse(cached);
+          } else {
+            let cached = memoryCache.get(`profile:${userId}`);
+            if (!cached && email) cached = memoryCache.get(`profile_email:${email}`);
+            if (cached) existing = JSON.parse(cached);
+          }
+
+          const mergedProfile = {
+            ...existing,
+            ...profile,
+            photoUrl: profile.photoUrl || existing?.photoUrl || '',
+            activeVehicleId: profile.activeVehicleId || existing?.activeVehicleId || '',
+            vehicles: (profile.vehicles && profile.vehicles.length > 0) ? profile.vehicles : (existing?.vehicles || [])
+          };
+
+          const profileJson = JSON.stringify(mergedProfile);
           if (env.CONVOY_CACHE) {
             await env.CONVOY_CACHE.put(`profile:${userId}`, profileJson);
             if (email) {
@@ -231,8 +251,38 @@ export default {
             }
           }
 
+          if (env.DB) {
+            try {
+              await env.DB.prepare(`
+                INSERT INTO users (user_id, email, display_name, photo_url, mobile_number, date_of_birth, vehicle_model, tank_capacity_liters, emergency_contact_phone, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                  display_name = excluded.display_name,
+                  photo_url = excluded.photo_url,
+                  mobile_number = excluded.mobile_number,
+                  date_of_birth = excluded.date_of_birth,
+                  vehicle_model = excluded.vehicle_model,
+                  tank_capacity_liters = excluded.tank_capacity_liters,
+                  emergency_contact_phone = excluded.emergency_contact_phone
+              `).bind(
+                userId,
+                email || `${userId}@ridesync.app`,
+                mergedProfile.displayName || 'Rider',
+                mergedProfile.photoUrl || '',
+                mergedProfile.mobileNumber || '',
+                mergedProfile.dateOfBirth || '',
+                mergedProfile.vehicleModel || '',
+                mergedProfile.tankCapacityLiters || 15.0,
+                mergedProfile.privacySettings?.emergencyContactPhone || '',
+                Date.now()
+              ).run();
+            } catch (dbErr) {
+              console.error('D1 user profile upsert error:', dbErr);
+            }
+          }
+
           return new Response(
-            JSON.stringify({ success: true, userId, updated: Date.now() }),
+            JSON.stringify({ success: true, userId, profile: mergedProfile, updated: Date.now() }),
             { status: 200, headers: corsHeaders }
           );
         }

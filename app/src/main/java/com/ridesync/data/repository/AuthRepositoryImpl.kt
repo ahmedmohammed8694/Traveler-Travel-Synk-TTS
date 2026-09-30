@@ -67,12 +67,14 @@ class AuthRepositoryImpl : AuthRepository {
     }
 
     private fun saveUserToPrefs(user: AuthUser) {
-        inMemoryUser = user
+        val existingPhoto = prefs?.getString("saved_photo_url", "") ?: ""
+        val finalPhoto = user.photoUrl.ifBlank { existingPhoto }
+        inMemoryUser = user.copy(photoUrl = finalPhoto)
         prefs?.edit()?.apply {
             putString("saved_uid", user.uid)
             putString("saved_email", user.email)
             putString("saved_display_name", user.displayName)
-            putString("saved_photo_url", user.photoUrl)
+            putString("saved_photo_url", finalPhoto)
             apply()
         }
     }
@@ -390,8 +392,13 @@ class AuthRepositoryImpl : AuthRepository {
             // 2. Fetch from Cloudflare Edge Database (passing both userId and email)
             val cfProfile = fetchCloudflareProfile(userId, inMemoryUser?.email)
             if (cfProfile != null && cfProfile.vehicleModel.isNotBlank()) {
-                saveUserProfileToPrefs(cfProfile)
-                emit(Result.success(cfProfile))
+                val mergedProfile = cfProfile.copy(
+                    photoUrl = cfProfile.photoUrl.ifBlank { cachedProfile?.photoUrl ?: "" },
+                    vehicles = if (cfProfile.vehicles.isNotEmpty()) cfProfile.vehicles else cachedProfile?.vehicles ?: emptyList(),
+                    activeVehicleId = cfProfile.activeVehicleId.ifBlank { cachedProfile?.activeVehicleId ?: "" }
+                )
+                saveUserProfileToPrefs(mergedProfile)
+                emit(Result.success(mergedProfile))
                 return@flow
             }
 

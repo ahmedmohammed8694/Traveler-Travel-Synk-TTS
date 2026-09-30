@@ -327,9 +327,9 @@ fun RouteStopMarker(
                     // Actual Stop Name Displayed on Route Map
                     Text(
                         text = stopName,
-                        color = HudColors.TextCrispWhite,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold
                     )
                 }
             }

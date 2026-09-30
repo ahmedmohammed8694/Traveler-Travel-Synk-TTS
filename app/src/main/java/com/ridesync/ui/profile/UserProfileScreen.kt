@@ -115,6 +115,22 @@ fun UserProfileScreen(
     ) { uri ->
         if (uri != null) {
             photoUrl = uri.toString()
+            val updatedActiveVehicle = vehiclesList.firstOrNull { it.id == activeVehicleId } ?: vehiclesList.firstOrNull()
+            val updated = userProfile.copy(
+                displayName = displayName.trim(),
+                dateOfBirth = dateOfBirth.trim(),
+                mobileNumber = mobileNumber.trim(),
+                email = email.trim(),
+                vehicleModel = updatedActiveVehicle?.fullDisplayName ?: userProfile.vehicleModel,
+                tankCapacityLiters = updatedActiveVehicle?.fuelTankCapacity ?: userProfile.tankCapacityLiters,
+                vehicles = vehiclesList.map { it.copy(isActive = it.id == activeVehicleId) },
+                activeVehicleId = activeVehicleId,
+                photoUrl = uri.toString(),
+                privacySettings = userProfile.privacySettings.copy(
+                    emergencyContactPhone = emergencyContactPhone.trim()
+                )
+            )
+            onSaveProfile(updated)
         }
     }
 
@@ -176,10 +192,7 @@ fun UserProfileScreen(
                         .clip(CircleShape)
                         .border(3.dp, accentColor, CircleShape)
                         .background(cardColor)
-                        .then(
-                            if (isEditing) Modifier.clickable { imagePickerLauncher.launch("image/*") }
-                            else Modifier
-                        )
+                        .clickable { imagePickerLauncher.launch("image/*") }
                 ) {
                     if (avatarBitmap != null) {
                         Image(
@@ -520,10 +533,25 @@ fun UserProfileScreen(
                             isActive = isThisActive,
                             onSelectActive = {
                                 activeVehicleId = vehicle.id
-                                // Update active flags in list
                                 for (i in vehiclesList.indices) {
                                     vehiclesList[i] = vehiclesList[i].copy(isActive = vehiclesList[i].id == vehicle.id)
                                 }
+                                val updatedActiveVehicle = vehiclesList.firstOrNull { it.id == vehicle.id }
+                                val updated = userProfile.copy(
+                                    displayName = displayName.trim(),
+                                    dateOfBirth = dateOfBirth.trim(),
+                                    mobileNumber = mobileNumber.trim(),
+                                    email = email.trim(),
+                                    vehicleModel = updatedActiveVehicle?.fullDisplayName ?: userProfile.vehicleModel,
+                                    tankCapacityLiters = updatedActiveVehicle?.fuelTankCapacity ?: userProfile.tankCapacityLiters,
+                                    vehicles = vehiclesList.map { it.copy(isActive = it.id == vehicle.id) },
+                                    activeVehicleId = vehicle.id,
+                                    photoUrl = photoUrl.trim(),
+                                    privacySettings = userProfile.privacySettings.copy(
+                                        emergencyContactPhone = emergencyContactPhone.trim()
+                                    )
+                                )
+                                onSaveProfile(updated)
                             },
                             onEdit = {
                                 vehicleToEdit = vehicle
@@ -534,6 +562,22 @@ fun UserProfileScreen(
                                 if (activeVehicleId == vehicle.id) {
                                     activeVehicleId = vehiclesList.firstOrNull()?.id ?: ""
                                 }
+                                val updatedActiveVehicle = vehiclesList.firstOrNull { it.id == activeVehicleId }
+                                val updated = userProfile.copy(
+                                    displayName = displayName.trim(),
+                                    dateOfBirth = dateOfBirth.trim(),
+                                    mobileNumber = mobileNumber.trim(),
+                                    email = email.trim(),
+                                    vehicleModel = updatedActiveVehicle?.fullDisplayName ?: "",
+                                    tankCapacityLiters = updatedActiveVehicle?.fuelTankCapacity ?: 15.0,
+                                    vehicles = vehiclesList.map { it.copy(isActive = it.id == activeVehicleId) },
+                                    activeVehicleId = activeVehicleId,
+                                    photoUrl = photoUrl.trim(),
+                                    privacySettings = userProfile.privacySettings.copy(
+                                        emergencyContactPhone = emergencyContactPhone.trim()
+                                    )
+                                )
+                                onSaveProfile(updated)
                             },
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
