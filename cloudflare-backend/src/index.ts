@@ -302,6 +302,25 @@ export default {
             }
           }
 
+          const supabase = getSupabase(env);
+          if (supabase) {
+            try {
+              await supabase.from('users').upsert({
+                uid: userId,
+                email: email || `${userId}@ridesync.app`,
+                display_name: mergedProfile.displayName || 'Rider',
+                photo_url: mergedProfile.photoUrl || '',
+                auth_provider: 'google',
+                vehicle_model: mergedProfile.vehicleModel || '',
+                active_vehicle_id: mergedProfile.activeVehicleId || '',
+                emergency_contact: mergedProfile.privacySettings?.emergencyContactPhone || '',
+                created_at: Date.now()
+              });
+            } catch (sbErr: any) {
+              console.error('Supabase user profile upsert error:', sbErr?.message);
+            }
+          }
+
           return new Response(
             JSON.stringify({ success: true, userId, profile: mergedProfile, updated: Date.now() }),
             { status: 200, headers: corsHeaders }
@@ -368,6 +387,22 @@ export default {
           await env.CONVOY_CACHE.put(`rider:${riderId}`, JSON.stringify(ping), { expirationTtl: 300 });
         }
 
+        const supabase = getSupabase(env);
+        if (supabase) {
+          try {
+            await supabase.from('convoy_telemetry').upsert({
+              session_id: ping.sessionId || ping.tripId || 'active_session',
+              rider_id: riderId,
+              rider_name: ping.riderName || ping.displayName || 'Rider',
+              lat: ping.latitude || ping.lat || 0.0,
+              lng: ping.longitude || ping.lng || 0.0,
+              speed_kmh: ping.speedKmh || ping.speed || 0.0,
+              battery_pct: ping.batteryPct || 100,
+              updated_at: Date.now()
+            });
+          } catch (_e) {}
+        }
+
         return new Response(
           JSON.stringify({ success: true, riderId, syncedAt: Date.now() }),
           { status: 200, headers: corsHeaders }
@@ -378,8 +413,10 @@ export default {
       if (url.pathname === '/api/trip/create' && request.method === 'POST') {
         const tripData = await request.json() as any;
         const tripId = tripData.tripId || `trip_${Date.now().toString(36)}`;
-        const rawLobby = tripData.lobbyCode || '';
-        const lobbyCode = rawLobby ? rawLobby.toUpperCase().trim() : Math.random().toString(36).substring(2, 8).toUpperCase();
+        const rawLobby = (tripData.lobbyCode || '').toUpperCase().trim().replace(/-/g, '');
+        const lobbyCode = (rawLobby.startsWith('RSS') && rawLobby.length === 7 && /^\d+$/.test(rawLobby.substring(3)))
+          ? rawLobby
+          : `RSS${Math.floor(1000 + Math.random() * 9000)}`;
         
         const fullTrip = {
           ...tripData,
@@ -600,6 +637,15 @@ export default {
                 .bind(riders.length, trip.tripId, trip.lobbyCode || '').run();
             } catch (_e) {}
           }
+
+          const supabase = getSupabase(env);
+          if (supabase) {
+            try {
+              await supabase.from('saved_trips').update({
+                active_riders_count: riders.length
+              }).eq('trip_id', trip.tripId);
+            } catch (_e) {}
+          }
         }
 
         return new Response(
@@ -644,6 +690,15 @@ export default {
                 .bind(riders.length, trip.tripId).run();
             } catch (_e) {}
           }
+
+          const supabase = getSupabase(env);
+          if (supabase) {
+            try {
+              await supabase.from('saved_trips').update({
+                active_riders_count: riders.length
+              }).eq('trip_id', trip.tripId);
+            } catch (_e) {}
+          }
         }
 
         return new Response(
@@ -674,6 +729,13 @@ export default {
           if (env.DB) {
             try {
               await env.DB.prepare("DELETE FROM saved_trips WHERE trip_id = ?").bind(tripId).run();
+            } catch (_e) {}
+          }
+
+          const supabase = getSupabase(env);
+          if (supabase) {
+            try {
+              await supabase.from('saved_trips').delete().eq('trip_id', tripId);
             } catch (_e) {}
           }
         }

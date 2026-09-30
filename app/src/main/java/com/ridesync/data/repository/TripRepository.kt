@@ -34,6 +34,8 @@ object TripRepository {
     private const val PREFS_NAME = "ridesync_trips_prefs"
     private const val KEY_TRIPS_JSON = "saved_trips_json"
     private const val CLOUDFLARE_EDGE_URL = "https://ahmedmohammed8694-riders-ride-sync.mdahmed08061994.workers.dev"
+    private const val SUPABASE_URL = "https://oktfyxdrvscmifomtlkp.supabase.co"
+    private const val SUPABASE_ANON_KEY = "sb_publishable_dF8gDIF6Ahw4wWPRfYOH7Q_AaJrBrO8"
 
     private val _tripsFlow = MutableStateFlow<List<SavedTrip>>(emptyList())
     val tripsFlow: StateFlow<List<SavedTrip>> = _tripsFlow.asStateFlow()
@@ -68,36 +70,53 @@ object TripRepository {
         return getAllTrips().firstOrNull { it.tripId == tripId }
     }
 
+    private fun formatLobbyCode(code: String): String {
+        val clean = code.trim().uppercase().replace("-", "").replace(" ", "")
+        if (clean.startsWith("RSS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
+            return clean
+        }
+        return "RSS${(1000..9999).random()}"
+    }
+
     @Synchronized
     fun saveTrip(trip: SavedTrip) {
+        val validCode = formatLobbyCode(trip.lobbyCode)
+        val targetTrip = if (trip.lobbyCode != validCode) trip.copy(lobbyCode = validCode) else trip
+
         val currentList = getAllTrips().toMutableList()
-        val existingIndex = currentList.indexOfFirst { it.tripId == trip.tripId }
+        val existingIndex = currentList.indexOfFirst { it.tripId == targetTrip.tripId }
         if (existingIndex >= 0) {
-            currentList[existingIndex] = trip
+            currentList[existingIndex] = targetTrip
         } else {
             // Add new trip at index 0 or after ongoing
             val firstNonOngoingIndex = currentList.indexOfFirst { it.category != TripCategory.ONGOING }
             if (firstNonOngoingIndex >= 0) {
-                currentList.add(firstNonOngoingIndex, trip)
+                currentList.add(firstNonOngoingIndex, targetTrip)
             } else {
-                currentList.add(0, trip)
+                currentList.add(0, targetTrip)
             }
         }
         updateAndPersistList(currentList)
-        syncTripToCloudflareAsync(trip)
+        syncTripToCloudflareAsync(targetTrip)
+        syncTripToSupabaseAsync(targetTrip)
     }
 
     @Synchronized
     fun updateTrip(trip: SavedTrip) {
+        val validCode = formatLobbyCode(trip.lobbyCode)
+        val targetTrip = if (trip.lobbyCode != validCode) trip.copy(lobbyCode = validCode) else trip
+
         val currentList = getAllTrips().toMutableList()
-        val index = currentList.indexOfFirst { it.tripId == trip.tripId }
+        val index = currentList.indexOfFirst { it.tripId == targetTrip.tripId }
         if (index >= 0) {
-            currentList[index] = trip
+            currentList[index] = targetTrip
             updateAndPersistList(currentList)
         } else {
-            saveTrip(trip)
+            saveTrip(targetTrip)
+            return
         }
-        syncTripToCloudflareAsync(trip)
+        syncTripToCloudflareAsync(targetTrip)
+        syncTripToSupabaseAsync(targetTrip)
     }
 
     @Synchronized
@@ -108,6 +127,7 @@ object TripRepository {
             updateAndPersistList(currentList)
         }
         deleteTripFromCloudflareAsync(tripId)
+        deleteTripFromSupabaseAsync(tripId)
     }
 
     @Synchronized
@@ -600,7 +620,21 @@ object TripRepository {
                         }
                     }
                     if (fetched.isNotEmpty()) {
-                        val merged = (fetched + _tripsFlow.value).distinctBy { it.tripId }
+                        val currentMap = _tripsFlow.value.associateBy { it.tripId }.toMutableMap()
+                        for (onlineTrip in fetched) {
+                            val local = currentMap[onlineTrip.tripId]
+                            if (local == null) {
+                                currentMap[onlineTrip.tripId] = onlineTrip
+                            } else {
+                                val combinedRiders = (local.joinedRiders + onlineTrip.joinedRiders).distinctBy { it.riderId }
+                                val updatedRidersCount = maxOf(local.activeRidersCount, onlineTrip.activeRidersCount, combinedRiders.size)
+                                currentMap[onlineTrip.tripId] = onlineTrip.copy(
+                                    joinedRiders = combinedRiders,
+                                    activeRidersCount = updatedRidersCount
+                                )
+                            }
+                        }
+                        val merged = currentMap.values.toList()
                         updateAndPersistList(merged)
                         onComplete?.invoke(merged)
                         return@launch
@@ -610,6 +644,35 @@ object TripRepository {
                 Log.w(TAG, "Cloudflare fetch trips note: ${e.message}")
             }
             onComplete?.invoke(_tripsFlow.value)
+        }
+    }
+
+    fun fetchTripDetailsOnlineAsync(tripId: String, onComplete: ((SavedTrip?) -> Unit)? = null) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/get?tripId=$tripId")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 4000
+                conn.readTimeout = 4000
+                if (conn.responseCode in 200..299) {
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val json = JSONObject(text)
+                    val tripObj = json.optJSONObject("trip")
+                    if (tripObj != null) {
+                        val onlineTrip = deserializeTrip(tripObj)
+                        if (onlineTrip != null) {
+                            saveTrip(onlineTrip)
+                            onComplete?.invoke(onlineTrip)
+                            return@launch
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error fetching online trip details for $tripId: ${e.message}")
+            }
+            onComplete?.invoke(getTripById(tripId))
         }
     }
 
@@ -642,7 +705,48 @@ object TripRepository {
                 Log.e(TAG, "Error looking up trip code $cleanCode on Cloudflare", e)
             }
 
-            // 2. Fallback to local cache (only if valid matching lobby code exists)
+            // 2. Query Supabase REST Database directly if Cloudflare lookup failed or returned null
+            try {
+                val sbUrl = URL("$SUPABASE_URL/rest/v1/saved_trips?lobby_code=ilike.$cleanCode&select=*")
+                val conn = sbUrl.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("apikey", SUPABASE_ANON_KEY)
+                conn.setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+
+                if (conn.responseCode in 200..299) {
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val array = JSONArray(text)
+                    if (array.length() > 0) {
+                        val obj = array.getJSONObject(0)
+                        val tripId = obj.optString("trip_id", "")
+                        val title = obj.optString("title", "")
+                        if (tripId.isNotBlank() && title.isNotBlank()) {
+                            val parsed = SavedTrip(
+                                tripId = tripId,
+                                plannerId = obj.optString("planner_id", "user_host"),
+                                title = title,
+                                originName = obj.optString("origin_name", ""),
+                                destinationName = obj.optString("destination_name", ""),
+                                startLatLng = LatLng(obj.optDouble("start_lat", 0.0), obj.optDouble("start_lng", 0.0)),
+                                destLatLng = LatLng(obj.optDouble("dest_lat", 0.0), obj.optDouble("dest_lng", 0.0)),
+                                distanceKm = obj.optDouble("distance_km", 0.0),
+                                durationMinutes = obj.optInt("duration_minutes", 0),
+                                category = try { TripCategory.valueOf(obj.optString("category", "UPCOMING")) } catch (_: Exception) { TripCategory.UPCOMING },
+                                lobbyCode = obj.optString("lobby_code", cleanCode),
+                                scheduledDate = obj.optString("scheduled_date", ""),
+                                activeRidersCount = obj.optInt("active_riders_count", 1)
+                            )
+                            return@withContext parsed
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Supabase code lookup note: ${e.message}")
+            }
+
+            // 3. Fallback to local cache (only if valid matching lobby code exists)
             getAllTrips().firstOrNull { 
                 it.lobbyCode.isNotBlank() && it.lobbyCode.equals(cleanCode, ignoreCase = true) 
             }
@@ -775,6 +879,66 @@ object TripRepository {
                 Log.d(TAG, "Cloudflare D1 Stop Status Sync Response: $code")
             } catch (e: Exception) {
                 Log.w(TAG, "Cloudflare D1 Stop Status Sync Note: ${e.message}")
+            }
+        }
+    }
+
+    private fun syncTripToSupabaseAsync(trip: SavedTrip) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$SUPABASE_URL/rest/v1/saved_trips")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("apikey", SUPABASE_ANON_KEY)
+                conn.setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                conn.setRequestProperty("Prefer", "resolution=merge-duplicates")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                conn.doOutput = true
+
+                val payload = JSONObject().apply {
+                    put("trip_id", trip.tripId)
+                    put("planner_id", trip.plannerId.ifBlank { "user_host" })
+                    put("title", trip.title)
+                    put("origin_name", trip.originName)
+                    put("destination_name", trip.destinationName)
+                    put("start_lat", trip.startLatLng.latitude)
+                    put("start_lng", trip.startLatLng.longitude)
+                    put("dest_lat", trip.destLatLng.latitude)
+                    put("dest_lng", trip.destLatLng.longitude)
+                    put("distance_km", trip.distanceKm)
+                    put("duration_minutes", trip.durationMinutes)
+                    put("category", trip.category.name)
+                    put("lobby_code", trip.lobbyCode.uppercase())
+                    put("scheduled_date", trip.scheduledDate)
+                    put("active_riders_count", trip.activeRidersCount)
+                    put("created_at", System.currentTimeMillis())
+                }.toString()
+
+                OutputStreamWriter(conn.outputStream).use { it.write(payload) }
+                val code = conn.responseCode
+                Log.d(TAG, "Supabase Trip Sync Response: $code")
+            } catch (e: Exception) {
+                Log.w(TAG, "Supabase Trip Sync Note: ${e.message}")
+            }
+        }
+    }
+
+    private fun deleteTripFromSupabaseAsync(tripId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$SUPABASE_URL/rest/v1/saved_trips?trip_id=eq.$tripId")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "DELETE"
+                conn.setRequestProperty("apikey", SUPABASE_ANON_KEY)
+                conn.setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                val code = conn.responseCode
+                Log.d(TAG, "Supabase Delete Trip Response: $code")
+            } catch (e: Exception) {
+                Log.w(TAG, "Supabase Delete Trip Note: ${e.message}")
             }
         }
     }

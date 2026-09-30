@@ -12,10 +12,12 @@ import com.ridesync.data.model.AuthRepository
 import com.ridesync.data.model.AuthUser
 import com.ridesync.data.model.PrivacySettings
 import com.ridesync.data.model.UserProfile
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONObject
@@ -210,6 +212,7 @@ class AuthRepositoryImpl : AuthRepository {
             }
             apply()
         }
+        syncUserToSupabaseAsync(profile)
     }
 
     private fun loadUserProfileFromPrefs(userId: String, email: String? = null): UserProfile? {
@@ -655,6 +658,40 @@ class AuthRepositoryImpl : AuthRepository {
             } else null
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun syncUserToSupabaseAsync(profile: UserProfile) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("https://oktfyxdrvscmifomtlkp.supabase.co/rest/v1/users")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("apikey", "sb_publishable_dF8gDIF6Ahw4wWPRfYOH7Q_AaJrBrO8")
+                conn.setRequestProperty("Authorization", "Bearer sb_publishable_dF8gDIF6Ahw4wWPRfYOH7Q_AaJrBrO8")
+                conn.setRequestProperty("Prefer", "resolution=merge-duplicates")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                conn.doOutput = true
+
+                val payload = JSONObject().apply {
+                    put("uid", profile.userId)
+                    put("email", profile.email.ifBlank { "${profile.userId}@ridesync.app" })
+                    put("display_name", profile.displayName.ifBlank { "Rider" })
+                    put("photo_url", profile.photoUrl)
+                    put("auth_provider", "google")
+                    put("vehicle_model", profile.displayVehicleModel)
+                    put("active_vehicle_id", profile.activeVehicleId)
+                    put("emergency_contact", profile.privacySettings.emergencyContactPhone)
+                    put("created_at", if (profile.createdAt > 0) profile.createdAt else System.currentTimeMillis())
+                }.toString()
+
+                OutputStreamWriter(conn.outputStream).use { it.write(payload) }
+                Log.d("AuthRepositoryImpl", "Supabase User Sync Response: ${conn.responseCode}")
+            } catch (e: Exception) {
+                Log.w("AuthRepositoryImpl", "Supabase User Sync Note: ${e.message}")
+            }
         }
     }
 }

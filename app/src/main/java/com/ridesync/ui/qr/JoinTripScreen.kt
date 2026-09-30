@@ -62,9 +62,9 @@ fun JoinTripScreen(
             clean.substringAfter("code=").takeWhile { it != '&' }
         } else {
             clean
-        }.uppercase()
+        }.uppercase().replace("-", "").replace(" ", "")
 
-        // Asynchronously query Cloudflare Edge & D1 database
+        // Asynchronously query Cloudflare Edge & D1 database and Supabase Postgres
         isSearchingCode = true
         scope.launch {
             val remoteTrip = TripRepository.fetchTripByLobbyCode(extractedCode)
@@ -73,7 +73,7 @@ fun JoinTripScreen(
                 selectedPreviewTrip = remoteTrip
             } else {
                 selectedPreviewTrip = null
-                Toast.makeText(context, "⚠️ Trip code '$extractedCode' not found in database. Please verify the code.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "⚠️ Trip code '$extractedCode' not found in database. Please enter a valid trip code (e.g. RSS1041).", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -210,7 +210,7 @@ fun JoinTripScreen(
                                     color = HudColors.TextCrispWhite
                                 )
                                 Text(
-                                    text = "Example: RRS-9921 or https://ridesync.app/join/RRS-9921",
+                                    text = "Example: RSS1041 or https://ridesync.app/join/RSS1041",
                                     fontSize = 12.sp,
                                     color = HudColors.TextCoolSilver,
                                     modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
@@ -219,7 +219,7 @@ fun JoinTripScreen(
                                 OutlinedTextField(
                                     value = tripCodeInput,
                                     onValueChange = { tripCodeInput = it },
-                                    placeholder = { Text("e.g. RRS-9921 or paste trip link", color = HudColors.TextCoolSilver) },
+                                    placeholder = { Text("e.g. RSS1041 or paste trip link", color = HudColors.TextCoolSilver) },
                                     singleLine = true,
                                     leadingIcon = {
                                         Icon(Icons.Default.Key, contentDescription = null, tint = HudColors.CyanPrimary)
@@ -307,7 +307,7 @@ fun JoinTripScreen(
                                                 shape = RoundedCornerShape(6.dp)
                                             ) {
                                                 Text(
-                                                    text = publicTrip.lobbyCode.ifBlank { "RRS-1001" },
+                                                    text = publicTrip.lobbyCode.ifBlank { "RSS1041" },
                                                     color = HudColors.CyanPrimary,
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Black,

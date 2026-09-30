@@ -82,59 +82,132 @@ fun MainContainerScreen(
     }
 
     val isOnline by telemetryRepository.isOnline.collectAsState()
-    val liveTelemetry by firebaseClient.observeLiveConvoyTelemetry("active_trip_101").collectAsState(initial = emptyMap<String, RiderLocationPing>())
-    val liveStops by firebaseClient.observeStopEvents("active_trip_101").collectAsState(initial = emptyList<StopEvent>())
+    val allSavedTrips by com.ridesync.data.repository.TripRepository.tripsFlow.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
     var activeRole by remember { mutableStateOf(ConvoyRole.LEAD) }
     var activeTripId by remember { mutableStateOf<String?>(null) }
 
+    val activeTrip = remember(allSavedTrips, activeTripId) {
+        allSavedTrips.firstOrNull { it.category == TripCategory.ONGOING }
+            ?: allSavedTrips.firstOrNull { it.tripId == activeTripId }
+            ?: allSavedTrips.firstOrNull()
+    }
+
+    // Real-time background poller for online trips and joined rider roster updates
+    LaunchedEffect(activeTrip?.tripId) {
+        while (true) {
+            com.ridesync.data.repository.TripRepository.fetchOnlineTripsAsync()
+            activeTrip?.tripId?.let { tid ->
+                com.ridesync.data.repository.TripRepository.fetchTripDetailsOnlineAsync(tid)
+            }
+            kotlinx.coroutines.delay(3000)
+        }
+    }
+
+    val liveTelemetryChannel = activeTrip?.tripId ?: "active_trip_101"
+    val liveTelemetry by firebaseClient.observeLiveConvoyTelemetry(liveTelemetryChannel).collectAsState(initial = emptyMap<String, RiderLocationPing>())
+    val liveStops by firebaseClient.observeStopEvents(liveTelemetryChannel).collectAsState(initial = emptyList<StopEvent>())
+
     // Active Real Google Maps Road Polyline State
     var activeRoutePolyline by remember { mutableStateOf<List<LatLng>>(emptyList()) }
 
     // Buffer real mobile phone GPS telemetry automatically
-    LaunchedEffect(phoneLocationPing) {
+    LaunchedEffect(phoneLocationPing, activeTrip?.tripId) {
         phoneLocationPing?.let { ping ->
             telemetryRepository.processIncomingPing(
-                tripId = "active_trip_101",
+                tripId = activeTrip?.tripId ?: "active_trip_101",
                 userId = userProfile.userId,
                 ping = ping
             )
         }
     }
 
-    val mergedLocations = remember(liveTelemetry, userProfile, phoneLocationPing) {
+    val activeConvoyMembers = remember(userProfile, activeRole, phoneLocationPing, allSavedTrips, activeTrip) {
+        val map = mutableMapOf<String, ConvoyMember>()
+        map[userProfile.userId] = ConvoyMember(
+            userId = userProfile.userId,
+            displayName = userProfile.displayName.ifBlank { "Rider (You)" },
+            photoUrl = userProfile.photoUrl,
+            vehicleModel = userProfile.displayVehicleModel,
+            role = activeRole,
+            status = if ((phoneLocationPing?.speedKmh ?: 0f) > 3f) RiderStatus.RIDING else RiderStatus.STOPPED,
+            batteryPercent = 100,
+            lastSeenTimestamp = System.currentTimeMillis()
+        )
+
+        val joinedList = activeTrip?.joinedRiders ?: emptyList()
+        for (r in joinedList) {
+            if (r.riderId.isNotBlank() && r.riderId != userProfile.userId) {
+                map[r.riderId] = ConvoyMember(
+                    userId = r.riderId,
+                    displayName = r.displayName.ifBlank { "Rider" },
+                    photoUrl = "",
+                    vehicleModel = r.bikeModel.ifBlank { "Motorcycle" },
+                    role = r.role,
+                    status = if (r.status.contains("Riding", ignoreCase = true)) RiderStatus.RIDING else RiderStatus.STOPPED,
+                    batteryPercent = 100,
+                    lastSeenTimestamp = System.currentTimeMillis()
+                )
+            }
+        }
+        map
+    }
+
+    val mergedLocations = remember(liveTelemetry, userProfile, phoneLocationPing, activeConvoyMembers, activeTrip) {
         val map = liveTelemetry.toMutableMap()
         val myPing = phoneLocationPing ?: RiderLocationPing(
-            latitude = 17.3753,
-            longitude = 78.4344,
+            latitude = activeTrip?.startLatLng?.latitude ?: 17.3753,
+            longitude = activeTrip?.startLatLng?.longitude ?: 78.4344,
             speedKmh = 0f,
             bearing = 0f,
             timestamp = System.currentTimeMillis()
         )
         map[userProfile.userId] = myPing
-        map
-    }
 
-    val activeConvoyMembers = remember(userProfile, activeRole, phoneLocationPing) {
-        mapOf(
-            userProfile.userId to ConvoyMember(
-                userId = userProfile.userId,
-                displayName = userProfile.displayName.ifBlank { "Rider (You)" },
-                photoUrl = userProfile.photoUrl,
-                vehicleModel = userProfile.displayVehicleModel,
-                role = activeRole,
-                status = if ((phoneLocationPing?.speedKmh ?: 0f) > 3f) RiderStatus.RIDING else RiderStatus.STOPPED,
-                batteryPercent = 100,
-                lastSeenTimestamp = System.currentTimeMillis()
-            )
-        )
+        val baseLat = myPing.latitude
+        val baseLng = myPing.longitude
+        var offsetIdx = 1
+        for ((mId, member) in activeConvoyMembers) {
+            if (!map.containsKey(mId) && mId != userProfile.userId) {
+                map[mId] = RiderLocationPing(
+                    latitude = baseLat + (offsetIdx * 0.0004),
+                    longitude = baseLng + (offsetIdx * 0.0004),
+                    speedKmh = 0f,
+                    bearing = 0f,
+                    timestamp = System.currentTimeMillis()
+                )
+                offsetIdx++
+            }
+        }
+        map
     }
 
     val stopEvents = remember { mutableStateListOf<StopEvent>() }
     var alertBannerText by remember { mutableStateOf<String?>(null) }
     var isMapFullScreen by remember { mutableStateOf(false) }
+
+    // Real-Time Member Join Notifications
+    var previousRiderIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(activeConvoyMembers.keys) {
+        val currentIds = activeConvoyMembers.keys.toSet()
+        if (previousRiderIds.isNotEmpty()) {
+            val newlyJoined = currentIds - previousRiderIds
+            for (newId in newlyJoined) {
+                val newMember = activeConvoyMembers[newId]
+                if (newMember != null && newId != userProfile.userId) {
+                    alertBannerText = "🎉 New Convoy Member Joined: ${newMember.displayName} (${newMember.vehicleModel})!"
+                    android.widget.Toast.makeText(
+                        context,
+                        "🚀 ${newMember.displayName} joined the trip! Total Members: ${activeConvoyMembers.size}",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+        previousRiderIds = currentIds
+    }
 
     RideSyncTheme {
         Scaffold(

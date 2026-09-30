@@ -126,7 +126,7 @@ fun TripCreationScreen(
     // Google Maps Search Dialog State
     var searchTargetField by remember { mutableStateOf<String?>(null) } // "START", "DEST", or "STOP"
     var searchQuery by remember { mutableStateOf("") }
-    var generatedLobbyCode by remember { mutableStateOf("RRS-${(1000..9999).random()}") }
+    var generatedLobbyCode by remember { mutableStateOf("RSS${(1000..9999).random()}") }
 
     // Real Google Maps Road Polyline State
     var activeRoutePolyline by remember { mutableStateOf<List<LatLng>>(emptyList()) }
@@ -882,9 +882,17 @@ fun TripCreationScreen(
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
+                                            focusedContainerColor = Color(0xFF0F172A),
+                                            unfocusedContainerColor = Color(0xFF0F172A),
                                             focusedTextColor = Color.White,
                                             unfocusedTextColor = Color.White,
-                                            focusedBorderColor = Color(0xFF10B981)
+                                            focusedLabelColor = Color(0xFF10B981),
+                                            unfocusedLabelColor = Color(0xFF94A3B8),
+                                            focusedPlaceholderColor = Color(0xFF64748B),
+                                            unfocusedPlaceholderColor = Color(0xFF64748B),
+                                            cursorColor = Color(0xFF00F0FF),
+                                            focusedBorderColor = Color(0xFF10B981),
+                                            unfocusedBorderColor = Color(0xFF334155)
                                         )
                                     )
 
@@ -1001,9 +1009,17 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = 10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF0F172A),
+                                        unfocusedContainerColor = Color(0xFF0F172A),
                                         focusedTextColor = Color.White,
                                         unfocusedTextColor = Color.White,
-                                        focusedBorderColor = Color(0xFFF59E0B)
+                                        focusedLabelColor = Color(0xFFF59E0B),
+                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedPlaceholderColor = Color(0xFF64748B),
+                                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                                        cursorColor = Color(0xFF00F0FF),
+                                        focusedBorderColor = Color(0xFFF59E0B),
+                                        unfocusedBorderColor = Color(0xFF334155)
                                     )
                                 )
 
@@ -1018,9 +1034,17 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = 12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF0F172A),
+                                        unfocusedContainerColor = Color(0xFF0F172A),
                                         focusedTextColor = Color.White,
                                         unfocusedTextColor = Color.White,
-                                        focusedBorderColor = Color(0xFFF59E0B)
+                                        focusedLabelColor = Color(0xFFFBBF24),
+                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedPlaceholderColor = Color(0xFF64748B),
+                                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                                        cursorColor = Color(0xFF00F0FF),
+                                        focusedBorderColor = Color(0xFFF59E0B),
+                                        unfocusedBorderColor = Color(0xFF334155)
                                     )
                                 )
 
@@ -1049,10 +1073,17 @@ fun TripCreationScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color(0xFFF59E0B),
-                                        unfocusedBorderColor = Color(0xFF334155),
+                                        focusedContainerColor = Color(0xFF0F172A),
+                                        unfocusedContainerColor = Color(0xFF0F172A),
                                         focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
+                                        unfocusedTextColor = Color.White,
+                                        focusedLabelColor = Color(0xFFFBBF24),
+                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedPlaceholderColor = Color(0xFF64748B),
+                                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                                        cursorColor = Color(0xFF00F0FF),
+                                        focusedBorderColor = Color(0xFFF59E0B),
+                                        unfocusedBorderColor = Color(0xFF334155)
                                     )
                                 )
 
@@ -1246,9 +1277,17 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = 12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF0F172A),
+                                        unfocusedContainerColor = Color(0xFF0F172A),
                                         focusedTextColor = Color.White,
                                         unfocusedTextColor = Color.White,
-                                        focusedBorderColor = accentColor
+                                        focusedLabelColor = accentColor,
+                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedPlaceholderColor = Color(0xFF64748B),
+                                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                                        cursorColor = Color(0xFF00F0FF),
+                                        focusedBorderColor = accentColor,
+                                        unfocusedBorderColor = Color(0xFF334155)
                                     )
                                 )
 
@@ -1294,9 +1333,17 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = 12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF0F172A),
+                                        unfocusedContainerColor = Color(0xFF0F172A),
                                         focusedTextColor = Color.White,
                                         unfocusedTextColor = Color.White,
-                                        focusedBorderColor = Color(0xFF22C55E)
+                                        focusedLabelColor = Color(0xFF22C55E),
+                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedPlaceholderColor = Color(0xFF64748B),
+                                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                                        cursorColor = Color(0xFF00F0FF),
+                                        focusedBorderColor = Color(0xFF22C55E),
+                                        unfocusedBorderColor = Color(0xFF334155)
                                     )
                                 )
 
@@ -1341,9 +1388,17 @@ fun TripCreationScreen(
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFF0F172A),
+                                        unfocusedContainerColor = Color(0xFF0F172A),
                                         focusedTextColor = Color.White,
                                         unfocusedTextColor = Color.White,
-                                        focusedBorderColor = Color(0xFFEF4444)
+                                        focusedLabelColor = Color(0xFFEF4444),
+                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedPlaceholderColor = Color(0xFF64748B),
+                                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                                        cursorColor = Color(0xFF00F0FF),
+                                        focusedBorderColor = Color(0xFFEF4444),
+                                        unfocusedBorderColor = Color(0xFF334155)
                                     )
                                 )
 
@@ -1913,8 +1968,8 @@ fun TripCreationScreen(
                         )
 
                         val totalDistCompleted = savedTripsList.filter { it.category == TripCategory.COMPLETED || it.category == TripCategory.ONGOING }
-                            .sumOf { if (it.category == TripCategory.ONGOING) it.completedKm else it.distanceKm } + 3500.0
-                        val completedCount = savedTripsList.count { it.category == TripCategory.COMPLETED } + 11
+                            .sumOf { if (it.category == TripCategory.ONGOING) it.completedKm else it.distanceKm }
+                        val completedCount = savedTripsList.count { it.category == TripCategory.COMPLETED }
                         val upcomingCount = savedTripsList.count { it.category == TripCategory.UPCOMING }
 
                         Row(
@@ -2148,10 +2203,17 @@ fun TripCreationScreen(
                                 .padding(bottom = 12.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF38BDF8),
-                                unfocusedBorderColor = Color(0xFF334155),
+                                focusedContainerColor = Color(0xFF0F172A),
+                                unfocusedContainerColor = Color(0xFF0F172A),
                                 focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                unfocusedTextColor = Color.White,
+                                focusedLabelColor = Color(0xFF38BDF8),
+                                unfocusedLabelColor = Color(0xFF94A3B8),
+                                focusedPlaceholderColor = Color(0xFF64748B),
+                                unfocusedPlaceholderColor = Color(0xFF64748B),
+                                cursorColor = Color(0xFF00F0FF),
+                                focusedBorderColor = Color(0xFF38BDF8),
+                                unfocusedBorderColor = Color(0xFF334155)
                             )
                         )
 
@@ -3286,9 +3348,17 @@ fun EditTripDialog(
                         .fillMaxWidth()
                         .padding(bottom = 10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A),
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = accentColor
+                        focusedLabelColor = accentColor,
+                        unfocusedLabelColor = Color(0xFF94A3B8),
+                        focusedPlaceholderColor = Color(0xFF64748B),
+                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                        cursorColor = Color(0xFF00F0FF),
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = Color(0xFF334155)
                     )
                 )
 
@@ -3303,9 +3373,17 @@ fun EditTripDialog(
                         .fillMaxWidth()
                         .padding(bottom = 10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A),
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF22C55E)
+                        focusedLabelColor = Color(0xFF22C55E),
+                        unfocusedLabelColor = Color(0xFF94A3B8),
+                        focusedPlaceholderColor = Color(0xFF64748B),
+                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                        cursorColor = Color(0xFF00F0FF),
+                        focusedBorderColor = Color(0xFF22C55E),
+                        unfocusedBorderColor = Color(0xFF334155)
                     )
                 )
 
@@ -3320,9 +3398,17 @@ fun EditTripDialog(
                         .fillMaxWidth()
                         .padding(bottom = 10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A),
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFEF4444)
+                        focusedLabelColor = Color(0xFFEF4444),
+                        unfocusedLabelColor = Color(0xFF94A3B8),
+                        focusedPlaceholderColor = Color(0xFF64748B),
+                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                        cursorColor = Color(0xFF00F0FF),
+                        focusedBorderColor = Color(0xFFEF4444),
+                        unfocusedBorderColor = Color(0xFF334155)
                     )
                 )
 
@@ -3337,9 +3423,17 @@ fun EditTripDialog(
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFF0F172A),
+                        unfocusedContainerColor = Color(0xFF0F172A),
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF38BDF8)
+                        focusedLabelColor = Color(0xFF38BDF8),
+                        unfocusedLabelColor = Color(0xFF94A3B8),
+                        focusedPlaceholderColor = Color(0xFF64748B),
+                        unfocusedPlaceholderColor = Color(0xFF64748B),
+                        cursorColor = Color(0xFF00F0FF),
+                        focusedBorderColor = Color(0xFF38BDF8),
+                        unfocusedBorderColor = Color(0xFF334155)
                     )
                 )
 
@@ -3414,9 +3508,17 @@ fun EditTripDialog(
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF38BDF8)
+                            focusedLabelColor = Color(0xFF38BDF8),
+                            unfocusedLabelColor = Color(0xFF94A3B8),
+                            focusedPlaceholderColor = Color(0xFF64748B),
+                            unfocusedPlaceholderColor = Color(0xFF64748B),
+                            cursorColor = Color(0xFF00F0FF),
+                            focusedBorderColor = Color(0xFF38BDF8),
+                            unfocusedBorderColor = Color(0xFF334155)
                         )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
