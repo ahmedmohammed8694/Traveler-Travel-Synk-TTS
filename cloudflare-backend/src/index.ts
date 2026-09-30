@@ -1,9 +1,30 @@
+import { createClient } from '@supabase/supabase-js';
+
 export interface Env {
   DB: any;
   STORAGE: any;
   CONVOY_CACHE: any;
   USERS_KV?: any;
   TURNSTILE_SECRET_KEY?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_PUBLISHABLE_KEY?: string;
+  SUPABASE_SECRET_KEY?: string;
+  SUPABASE_JWKS_URL?: string;
+}
+
+const DEFAULT_SUPABASE_URL = "https://oktfyxdrvscmifomtlkp.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_dF8gDIF6Ahw4wWPRfYOH7Q_AaJrBrO8";
+
+function getSupabase(env: Env) {
+  try {
+    const url = env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+    const key = env.SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_KEY;
+    if (!url || !key) return null;
+    return createClient(url, key);
+  } catch (e: any) {
+    console.error("Supabase init note: ", e?.message);
+    return null;
+  }
 }
 
 export default {
@@ -413,6 +434,32 @@ export default {
           }
         }
 
+        const supabase = getSupabase(env);
+        if (supabase) {
+          try {
+            await supabase.from('saved_trips').upsert({
+              trip_id: fullTrip.tripId,
+              planner_id: fullTrip.plannerId || 'user_unknown',
+              title: fullTrip.title || 'Untitled Trip',
+              origin_name: fullTrip.originName || '',
+              destination_name: fullTrip.destinationName || '',
+              start_lat: fullTrip.startLatLng?.latitude || fullTrip.startLat || 0,
+              start_lng: fullTrip.startLatLng?.longitude || fullTrip.startLng || 0,
+              dest_lat: fullTrip.destLatLng?.latitude || fullTrip.destLat || 0,
+              dest_lng: fullTrip.destLatLng?.longitude || fullTrip.destLng || 0,
+              distance_km: fullTrip.distanceKm || 0,
+              duration_minutes: fullTrip.durationMinutes || 0,
+              category: fullTrip.category || 'UPCOMING',
+              lobby_code: fullTrip.lobbyCode,
+              scheduled_date: fullTrip.scheduledDate || '',
+              active_riders_count: fullTrip.activeRidersCount || 1,
+              created_at: fullTrip.createdTimestamp
+            });
+          } catch (e: any) {
+            console.error("Supabase Secondary Sync Note: ", e?.message);
+          }
+        }
+
         return new Response(
           JSON.stringify({ success: true, trip: fullTrip }),
           { status: 200, headers: corsHeaders }
@@ -481,6 +528,16 @@ export default {
             if (results && results.length > 0) trip = results[0];
           } catch (e: any) {
             console.error("D1 Code Lookup Error: ", e?.message);
+          }
+        }
+
+        if (!trip) {
+          const supabase = getSupabase(env);
+          if (supabase) {
+            try {
+              const { data } = await supabase.from('saved_trips').select('*').ilike('lobby_code', code).maybeSingle();
+              if (data) trip = data;
+            } catch (_e) {}
           }
         }
 

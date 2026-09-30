@@ -73,6 +73,24 @@
       "skillPath": "skills/firestore-rules-creation/SKILL.md",
       "computedHash": "3388a7f2254fdd5f0f794c7debf198f8007349da4c697e4f5b295c6a42d2edd6"
     },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "2efca3570897e9c22c0788f3a0372a649797c8bd973e4ba5fc1ed1a1c5ef39d5"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "128fac78002d916c8ca908245d398e634f540d8bcf20915b2b2359aeb18eba59"
+    },
+    "supabase-server": {
+      "source": "supabase/server",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-server/SKILL.md",
+      "computedHash": "c4c29a1ac1c1c11da456604fb07127d69524afedbc358e4ac41540db013d0fef"
+    },
     "xcode-project-setup": {
       "source": "firebase/agent-skills",
       "sourceType": "github",
