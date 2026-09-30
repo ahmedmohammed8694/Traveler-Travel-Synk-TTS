@@ -368,15 +368,20 @@ export default {
           status: tripData.status || 'ACTIVE'
         };
 
+        const jsonStr = JSON.stringify(fullTrip);
+
         if (env.CONVOY_CACHE) {
-          await env.CONVOY_CACHE.put(`trip:${tripId}`, JSON.stringify(fullTrip));
-          await env.CONVOY_CACHE.put(`code:${lobbyCode}`, JSON.stringify(fullTrip));
+          await env.CONVOY_CACHE.put(`trip:${tripId}`, jsonStr);
+          await env.CONVOY_CACHE.put(`code:${lobbyCode}`, jsonStr);
           const listRaw = await env.CONVOY_CACHE.get('all_trips_index');
           const list: string[] = listRaw ? JSON.parse(listRaw) : [];
           if (!list.includes(tripId)) {
             list.unshift(tripId);
             await env.CONVOY_CACHE.put('all_trips_index', JSON.stringify(list));
           }
+        } else {
+          memoryCache.set(`trip:${tripId}`, jsonStr);
+          memoryCache.set(`code:${lobbyCode}`, jsonStr);
         }
 
         if (env.DB) {
@@ -417,16 +422,7 @@ export default {
       // 7b. Public Online Trips Listing Endpoint (Fresh Installs Access)
       if (url.pathname === '/api/trips/public' || url.pathname === '/api/trips/all') {
         let trips: any[] = [];
-        if (env.DB) {
-          try {
-            const { results } = await env.DB.prepare("SELECT * FROM saved_trips ORDER BY created_at DESC").all();
-            if (results && results.length > 0) trips = results;
-          } catch (e: any) {
-            console.error("D1 Select Error: ", e?.message);
-          }
-        }
-
-        if (trips.length === 0 && env.CONVOY_CACHE) {
+        if (env.CONVOY_CACHE) {
           const listRaw = await env.CONVOY_CACHE.get('all_trips_index');
           if (listRaw) {
             const tripIds: string[] = JSON.parse(listRaw);
@@ -434,6 +430,21 @@ export default {
               const tRaw = await env.CONVOY_CACHE.get(`trip:${tid}`);
               if (tRaw) trips.push(JSON.parse(tRaw));
             }
+          }
+        } else {
+          for (const [key, val] of memoryCache.entries()) {
+            if (key.startsWith('trip:')) {
+              try { trips.push(JSON.parse(val)); } catch (_e) {}
+            }
+          }
+        }
+
+        if (trips.length === 0 && env.DB) {
+          try {
+            const { results } = await env.DB.prepare("SELECT * FROM saved_trips ORDER BY created_at DESC").all();
+            if (results && results.length > 0) trips = results;
+          } catch (e: any) {
+            console.error("D1 Select Error: ", e?.message);
           }
         }
 
@@ -459,6 +470,9 @@ export default {
         if (env.CONVOY_CACHE) {
           const cached = await env.CONVOY_CACHE.get(`code:${code}`);
           if (cached) trip = JSON.parse(cached);
+        } else {
+          const cached = memoryCache.get(`code:${code}`);
+          if (cached) trip = JSON.parse(cached);
         }
 
         if (!trip && env.DB) {
@@ -476,7 +490,144 @@ export default {
         );
       }
 
-      // 7d. Reset All Online Database Trip Entries
+      // 7d. Join Trip Endpoint (Database Update for Active Riders & Roster)
+      if (url.pathname === '/api/trip/join' && request.method === 'POST') {
+        const body = await request.json() as { tripId?: string; lobbyCode?: string; riderProfile?: any };
+        const { tripId, lobbyCode, riderProfile } = body;
+
+        let trip: any = null;
+        const targetId = tripId || '';
+        const targetCode = (lobbyCode || '').toUpperCase().trim();
+
+        if (env.CONVOY_CACHE) {
+          if (targetId) {
+            const cached = await env.CONVOY_CACHE.get(`trip:${targetId}`);
+            if (cached) trip = JSON.parse(cached);
+          }
+          if (!trip && targetCode) {
+            const cached = await env.CONVOY_CACHE.get(`code:${targetCode}`);
+            if (cached) trip = JSON.parse(cached);
+          }
+        } else {
+          if (targetId) {
+            const cached = memoryCache.get(`trip:${targetId}`);
+            if (cached) trip = JSON.parse(cached);
+          }
+          if (!trip && targetCode) {
+            const cached = memoryCache.get(`code:${targetCode}`);
+            if (cached) trip = JSON.parse(cached);
+          }
+        }
+
+        if (trip && riderProfile) {
+          const riders = trip.joinedRiders || [];
+          const exists = riders.some((r: any) => r.riderId === riderProfile.riderId || r.displayName === riderProfile.displayName);
+          if (!exists) {
+            riders.push(riderProfile);
+          }
+          trip.joinedRiders = riders;
+          trip.activeRidersCount = riders.length;
+
+          const jsonStr = JSON.stringify(trip);
+          if (env.CONVOY_CACHE) {
+            await env.CONVOY_CACHE.put(`trip:${trip.tripId}`, jsonStr);
+            if (trip.lobbyCode) await env.CONVOY_CACHE.put(`code:${trip.lobbyCode.toUpperCase()}`, jsonStr);
+          } else {
+            memoryCache.set(`trip:${trip.tripId}`, jsonStr);
+            if (trip.lobbyCode) memoryCache.set(`code:${trip.lobbyCode.toUpperCase()}`, jsonStr);
+          }
+
+          if (env.DB) {
+            try {
+              await env.DB.prepare("UPDATE saved_trips SET active_riders_count = ? WHERE trip_id = ? OR lobby_code = ?")
+                .bind(riders.length, trip.tripId, trip.lobbyCode || '').run();
+            } catch (_e) {}
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, trip }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // 7e. Leave / Exit Trip Endpoint (Database Update to Remove Rider)
+      if (url.pathname === '/api/trip/leave' && request.method === 'POST') {
+        const body = await request.json() as { tripId?: string; riderId?: string };
+        const { tripId, riderId } = body;
+
+        let trip: any = null;
+        if (env.CONVOY_CACHE) {
+          if (tripId) {
+            const cached = await env.CONVOY_CACHE.get(`trip:${tripId}`);
+            if (cached) trip = JSON.parse(cached);
+          }
+        } else if (tripId) {
+          const cached = memoryCache.get(`trip:${tripId}`);
+          if (cached) trip = JSON.parse(cached);
+        }
+
+        if (trip && riderId) {
+          const riders = (trip.joinedRiders || []).filter((r: any) => r.riderId !== riderId && r.riderId !== 'r1' && r.riderId !== 'user_me');
+          trip.joinedRiders = riders;
+          trip.activeRidersCount = riders.length;
+
+          const jsonStr = JSON.stringify(trip);
+          if (env.CONVOY_CACHE) {
+            await env.CONVOY_CACHE.put(`trip:${trip.tripId}`, jsonStr);
+            if (trip.lobbyCode) await env.CONVOY_CACHE.put(`code:${trip.lobbyCode.toUpperCase()}`, jsonStr);
+          } else {
+            memoryCache.set(`trip:${trip.tripId}`, jsonStr);
+            if (trip.lobbyCode) memoryCache.set(`code:${trip.lobbyCode.toUpperCase()}`, jsonStr);
+          }
+
+          if (env.DB) {
+            try {
+              await env.DB.prepare("UPDATE saved_trips SET active_riders_count = ? WHERE trip_id = ?")
+                .bind(riders.length, trip.tripId).run();
+            } catch (_e) {}
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, trip }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // 7f. Delete Trip Endpoint
+      if (url.pathname === '/api/trip/delete' && request.method === 'POST') {
+        const body = await request.json() as { tripId?: string };
+        const { tripId } = body;
+
+        if (tripId) {
+          if (env.CONVOY_CACHE) {
+            const tRaw = await env.CONVOY_CACHE.get(`trip:${tripId}`);
+            if (tRaw) {
+              try {
+                const tObj = JSON.parse(tRaw);
+                if (tObj.lobbyCode) await env.CONVOY_CACHE.delete(`code:${tObj.lobbyCode.toUpperCase()}`);
+              } catch (_e) {}
+            }
+            await env.CONVOY_CACHE.delete(`trip:${tripId}`);
+          } else {
+            memoryCache.delete(`trip:${tripId}`);
+          }
+
+          if (env.DB) {
+            try {
+              await env.DB.prepare("DELETE FROM saved_trips WHERE trip_id = ?").bind(tripId).run();
+            } catch (_e) {}
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, tripId }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // 7g. Reset All Online Database Trip Entries
       if (url.pathname === '/api/trip/reset' && request.method === 'POST') {
         if (env.CONVOY_CACHE) {
           const listRaw = await env.CONVOY_CACHE.get('all_trips_index');
@@ -518,6 +669,9 @@ export default {
         let trip: any = null;
         if (env.CONVOY_CACHE) {
           const cached = await env.CONVOY_CACHE.get(`trip:${tripId}`);
+          if (cached) trip = JSON.parse(cached);
+        } else {
+          const cached = memoryCache.get(`trip:${tripId}`);
           if (cached) trip = JSON.parse(cached);
         }
 

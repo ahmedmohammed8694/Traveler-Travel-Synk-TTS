@@ -64,18 +64,7 @@ fun JoinTripScreen(
             clean
         }.uppercase()
 
-        // 1. Search existing local state
-        val local = allExistingTrips.firstOrNull {
-            it.lobbyCode.equals(extractedCode, ignoreCase = true) ||
-            it.tripId.equals(extractedCode, ignoreCase = true)
-        }
-
-        if (local != null) {
-            selectedPreviewTrip = local
-            return
-        }
-
-        // 2. Asynchronously query Cloudflare D1 database
+        // Asynchronously query Cloudflare Edge & D1 database
         isSearchingCode = true
         scope.launch {
             val remoteTrip = TripRepository.fetchTripByLobbyCode(extractedCode)
@@ -83,26 +72,7 @@ fun JoinTripScreen(
             if (remoteTrip != null) {
                 selectedPreviewTrip = remoteTrip
             } else {
-                Toast.makeText(context, "Trip code '$extractedCode' not found in online database", Toast.LENGTH_SHORT).show()
-                val fallbackTrip = SavedTrip(
-                    tripId = "TRIP-JOINED-${System.currentTimeMillis()}",
-                    plannerId = "user_host_discovered",
-                    title = "Convoy Ride ($extractedCode)",
-                    originName = "Current Location",
-                    destinationName = "Destination",
-                    startLatLng = LatLng(17.3753, 78.4344),
-                    destLatLng = LatLng(17.4401, 78.3489),
-                    waypoints = emptyList(),
-                    waypointLatLngs = emptyList(),
-                    distanceKm = 0.0,
-                    durationMinutes = 0,
-                    role = ConvoyRole.MEMBER,
-                    category = TripCategory.UPCOMING,
-                    lobbyCode = extractedCode,
-                    scheduledDate = "Upcoming Ride",
-                    joinedRiders = emptyList()
-                )
-                selectedPreviewTrip = fallbackTrip
+                Toast.makeText(context, "Trip code '$extractedCode' not found in online database. Please verify the invite code.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -395,35 +365,8 @@ fun JoinTripScreen(
                 onExitTrip = { selectedPreviewTrip = null },
                 onViewItinerary = {},
                 onJoinTrip = { tripToJoin ->
-                    // Add current user to trip's joined riders roster
-                    val activeVehicle = userProfile.vehicles.firstOrNull { it.id == userProfile.activeVehicleId }
-                        ?: userProfile.vehicles.firstOrNull()
-
-                    val riderProfile = JoinedRiderProfile(
-                        riderId = userProfile.userId.ifBlank { "user_me" },
-                        displayName = userProfile.displayName.ifBlank { "Ahmed (You)" },
-                        bikeModel = activeVehicle?.fullDisplayName ?: userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
-                        role = ConvoyRole.MEMBER,
-                        status = "Joined & Confirmed",
-                        experienceBadge = "Convoy Rider",
-                        emergencyContact = userProfile.privacySettings.emergencyContactPhone.ifBlank { "+91 86868 71994" }
-                    )
-
-                    val updatedRiders = if (tripToJoin.joinedRiders.none { it.riderId == riderProfile.riderId || it.displayName == riderProfile.displayName }) {
-                        tripToJoin.joinedRiders + riderProfile
-                    } else {
-                        tripToJoin.joinedRiders
-                    }
-
-                    val updatedTrip = tripToJoin.copy(
-                        joinedRiders = updatedRiders,
-                        activeRidersCount = updatedRiders.size,
-                        category = if (tripToJoin.category == TripCategory.COMPLETED) TripCategory.UPCOMING else tripToJoin.category
-                    )
-
-                    // Persist joined trip to TripRepository
-                    TripRepository.saveTrip(updatedTrip)
-
+                    TripRepository.joinTripOnline(tripToJoin, userProfile)
+                    val updatedTrip = TripRepository.getAllTrips().find { it.tripId == tripToJoin.tripId } ?: tripToJoin
                     Toast.makeText(context, "🎉 You have joined '${updatedTrip.title}'!", Toast.LENGTH_LONG).show()
                     selectedPreviewTrip = null
                     onTripJoined(updatedTrip)

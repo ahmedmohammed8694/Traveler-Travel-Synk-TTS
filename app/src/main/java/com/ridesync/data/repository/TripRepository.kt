@@ -15,6 +15,7 @@ import com.ridesync.data.model.ItineraryStop
 import com.ridesync.data.model.ItineraryStopStatus
 import com.ridesync.data.model.ItineraryTripPlan
 import com.ridesync.data.model.TripCreationMode
+import com.ridesync.data.model.UserProfile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,6 +107,7 @@ object TripRepository {
         if (removed) {
             updateAndPersistList(currentList)
         }
+        deleteTripFromCloudflareAsync(tripId)
     }
 
     @Synchronized
@@ -117,11 +119,42 @@ object TripRepository {
             val updatedRiders = trip.joinedRiders.filterNot { it.riderId == riderId || it.riderId == "r1" || it.riderId == "user_me" }
             val updatedTrip = trip.copy(
                 joinedRiders = updatedRiders,
-                activeRidersCount = (trip.activeRidersCount - 1).coerceAtLeast(0)
+                activeRidersCount = updatedRiders.size
             )
             currentList[index] = updatedTrip
             updateAndPersistList(currentList)
         }
+        leaveTripOnCloudflareAsync(tripId, riderId)
+    }
+
+    fun joinTripOnline(trip: SavedTrip, userProfile: UserProfile) {
+        val activeVehicle = userProfile.vehicles.firstOrNull { it.id == userProfile.activeVehicleId }
+            ?: userProfile.vehicles.firstOrNull()
+
+        val riderProfile = JoinedRiderProfile(
+            riderId = userProfile.userId.ifBlank { "user_me" },
+            displayName = userProfile.displayName.ifBlank { "Rider" },
+            bikeModel = activeVehicle?.fullDisplayName ?: userProfile.vehicleModel.ifBlank { "Bike" },
+            role = ConvoyRole.MEMBER,
+            status = "Joined & Confirmed",
+            experienceBadge = "Convoy Rider",
+            emergencyContact = userProfile.privacySettings.emergencyContactPhone
+        )
+
+        val updatedRiders = if (trip.joinedRiders.none { it.riderId == riderProfile.riderId || it.displayName == riderProfile.displayName }) {
+            trip.joinedRiders + riderProfile
+        } else {
+            trip.joinedRiders
+        }
+
+        val updatedTrip = trip.copy(
+            joinedRiders = updatedRiders,
+            activeRidersCount = updatedRiders.size,
+            category = if (trip.category == TripCategory.COMPLETED) TripCategory.UPCOMING else trip.category
+        )
+
+        saveTrip(updatedTrip)
+        joinTripOnCloudflareAsync(updatedTrip.tripId, updatedTrip.lobbyCode, riderProfile)
     }
 
     @Synchronized
@@ -590,9 +623,8 @@ object TripRepository {
     suspend fun fetchTripByLobbyCode(code: String): SavedTrip? {
         return kotlinx.coroutines.withContext(Dispatchers.IO) {
             val cleanCode = code.trim().uppercase()
-            val local = getAllTrips().firstOrNull { it.lobbyCode.equals(cleanCode, ignoreCase = true) }
-            if (local != null) return@withContext local
 
+            // 1. Query Cloudflare Edge & D1 Database first
             try {
                 val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/by-code?code=$cleanCode")
                 val conn = url.openConnection() as HttpURLConnection
@@ -607,7 +639,7 @@ object TripRepository {
                     val tripObj = json.optJSONObject("trip")
                     if (tripObj != null) {
                         val parsed = deserializeTrip(tripObj)
-                        if (parsed != null) {
+                        if (parsed != null && parsed.title.isNotBlank()) {
                             saveTrip(parsed)
                             return@withContext parsed
                         }
@@ -616,7 +648,9 @@ object TripRepository {
             } catch (e: Exception) {
                 Log.e(TAG, "Error looking up trip code $cleanCode on Cloudflare", e)
             }
-            null
+
+            // 2. Fallback to local cache
+            getAllTrips().firstOrNull { it.lobbyCode.equals(cleanCode, ignoreCase = true) }
         }
     }
 
@@ -637,6 +671,88 @@ object TripRepository {
                 Log.d(TAG, "Cloudflare D1 Trip Sync Response: $code")
             } catch (e: Exception) {
                 Log.w(TAG, "Cloudflare D1 Trip Sync Note: ${e.message}")
+            }
+        }
+    }
+
+    private fun joinTripOnCloudflareAsync(tripId: String, lobbyCode: String, riderProfile: JoinedRiderProfile) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/join")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                conn.doOutput = true
+
+                val rObj = JSONObject().apply {
+                    put("riderId", riderProfile.riderId)
+                    put("displayName", riderProfile.displayName)
+                    put("bikeModel", riderProfile.bikeModel)
+                    put("role", riderProfile.role.name)
+                    put("status", riderProfile.status)
+                    put("experienceBadge", riderProfile.experienceBadge)
+                    put("emergencyContact", riderProfile.emergencyContact)
+                }
+
+                val payload = JSONObject().apply {
+                    put("tripId", tripId)
+                    put("lobbyCode", lobbyCode)
+                    put("riderProfile", rObj)
+                }.toString()
+
+                OutputStreamWriter(conn.outputStream).use { it.write(payload) }
+                Log.d(TAG, "Cloudflare Join Trip Response: ${conn.responseCode}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Cloudflare Join Trip Note: ${e.message}")
+            }
+        }
+    }
+
+    private fun leaveTripOnCloudflareAsync(tripId: String, riderId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/leave")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                conn.doOutput = true
+
+                val payload = JSONObject().apply {
+                    put("tripId", tripId)
+                    put("riderId", riderId)
+                }.toString()
+
+                OutputStreamWriter(conn.outputStream).use { it.write(payload) }
+                Log.d(TAG, "Cloudflare Leave Trip Response: ${conn.responseCode}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Cloudflare Leave Trip Note: ${e.message}")
+            }
+        }
+    }
+
+    private fun deleteTripFromCloudflareAsync(tripId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/delete")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                conn.doOutput = true
+
+                val payload = JSONObject().apply {
+                    put("tripId", tripId)
+                }.toString()
+
+                OutputStreamWriter(conn.outputStream).use { it.write(payload) }
+                Log.d(TAG, "Cloudflare Delete Trip Response: ${conn.responseCode}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Cloudflare Delete Trip Note: ${e.message}")
             }
         }
     }

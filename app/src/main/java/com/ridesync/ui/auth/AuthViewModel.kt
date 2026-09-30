@@ -198,7 +198,15 @@ class AuthViewModel(
                 result.fold(
                     onSuccess = { profile ->
                         if (profile != null && profile.vehicleModel.isNotBlank()) {
-                            _uiState.value = AuthState.Authenticated(profile)
+                            val finalPhoto = profile.photoUrl.ifBlank { authUser.photoUrl }
+                            val updatedProfile = if (profile.photoUrl.isBlank() && authUser.photoUrl.isNotBlank()) {
+                                val merged = profile.copy(photoUrl = authUser.photoUrl)
+                                repository.saveUserProfile(merged)
+                                merged
+                            } else {
+                                profile.copy(photoUrl = finalPhoto)
+                            }
+                            _uiState.value = AuthState.Authenticated(updatedProfile)
                         } else {
                             _uiState.value = AuthState.ProfileSetupRequired(authUser)
                         }

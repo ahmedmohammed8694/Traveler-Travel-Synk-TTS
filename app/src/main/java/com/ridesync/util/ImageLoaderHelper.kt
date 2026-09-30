@@ -66,6 +66,21 @@ object ImageLoaderHelper {
                         }
                     }
 
+                    // HTTP / HTTPS Web Image URL (e.g. Google profile picture URL or remote image URL)
+                    source.startsWith("http://") || source.startsWith("https://") -> {
+                        val conn = java.net.URL(source).openConnection() as java.net.HttpURLConnection
+                        conn.connectTimeout = 8000
+                        conn.readTimeout = 8000
+                        conn.doInput = true
+                        conn.instanceFollowRedirects = true
+                        conn.connect()
+                        if (conn.responseCode in 200..299) {
+                            conn.inputStream.use { stream ->
+                                BitmapFactory.decodeStream(stream)
+                            }
+                        } else null
+                    }
+
                     // Plain File Path
                     else -> {
                         BitmapFactory.decodeFile(source)
