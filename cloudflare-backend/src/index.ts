@@ -303,23 +303,155 @@ export default {
         );
       }
 
-      // 7. Multi-Segment Trip Planning & Sync Endpoints
+      // 7. Multi-Segment Trip Planning & D1 Database Sync Endpoints
       if (url.pathname === '/api/trip/create' && request.method === 'POST') {
         const tripData = await request.json() as any;
         const tripId = tripData.tripId || `trip_${Date.now().toString(36)}`;
+        const rawLobby = tripData.lobbyCode || '';
+        const lobbyCode = rawLobby ? rawLobby.toUpperCase().trim() : Math.random().toString(36).substring(2, 8).toUpperCase();
+        
         const fullTrip = {
           ...tripData,
           tripId,
+          lobbyCode,
           createdTimestamp: tripData.createdTimestamp || Date.now(),
           status: tripData.status || 'ACTIVE'
         };
 
         if (env.CONVOY_CACHE) {
           await env.CONVOY_CACHE.put(`trip:${tripId}`, JSON.stringify(fullTrip));
+          await env.CONVOY_CACHE.put(`code:${lobbyCode}`, JSON.stringify(fullTrip));
+          const listRaw = await env.CONVOY_CACHE.get('all_trips_index');
+          const list: string[] = listRaw ? JSON.parse(listRaw) : [];
+          if (!list.includes(tripId)) {
+            list.unshift(tripId);
+            await env.CONVOY_CACHE.put('all_trips_index', JSON.stringify(list));
+          }
+        }
+
+        if (env.DB) {
+          try {
+            await env.DB.prepare(
+              `INSERT OR REPLACE INTO saved_trips 
+              (trip_id, planner_id, title, origin_name, destination_name, start_lat, start_lng, dest_lat, dest_lng, distance_km, duration_minutes, category, lobby_code, scheduled_date, active_riders_count, created_at) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).bind(
+              fullTrip.tripId,
+              fullTrip.plannerId || 'user_unknown',
+              fullTrip.title || 'Untitled Trip',
+              fullTrip.originName || '',
+              fullTrip.destinationName || '',
+              fullTrip.startLatLng?.latitude || fullTrip.startLat || 0,
+              fullTrip.startLatLng?.longitude || fullTrip.startLng || 0,
+              fullTrip.destLatLng?.latitude || fullTrip.destLat || 0,
+              fullTrip.destLatLng?.longitude || fullTrip.destLng || 0,
+              fullTrip.distanceKm || 0,
+              fullTrip.durationMinutes || 0,
+              fullTrip.category || 'UPCOMING',
+              fullTrip.lobbyCode,
+              fullTrip.scheduledDate || '',
+              fullTrip.activeRidersCount || 1,
+              fullTrip.createdTimestamp
+            ).run();
+          } catch (e: any) {
+            console.error("D1 Trip Insert Note: ", e?.message);
+          }
         }
 
         return new Response(
           JSON.stringify({ success: true, trip: fullTrip }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // 7b. Public Online Trips Listing Endpoint (Fresh Installs Access)
+      if (url.pathname === '/api/trips/public' || url.pathname === '/api/trips/all') {
+        let trips: any[] = [];
+        if (env.DB) {
+          try {
+            const { results } = await env.DB.prepare("SELECT * FROM saved_trips ORDER BY created_at DESC").all();
+            if (results && results.length > 0) trips = results;
+          } catch (e: any) {
+            console.error("D1 Select Error: ", e?.message);
+          }
+        }
+
+        if (trips.length === 0 && env.CONVOY_CACHE) {
+          const listRaw = await env.CONVOY_CACHE.get('all_trips_index');
+          if (listRaw) {
+            const tripIds: string[] = JSON.parse(listRaw);
+            for (const tid of tripIds) {
+              const tRaw = await env.CONVOY_CACHE.get(`trip:${tid}`);
+              if (tRaw) trips.push(JSON.parse(tRaw));
+            }
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, count: trips.length, trips }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // 7c. Lookup Trip by Lobby Code / QR Code / Deep Link
+      if (url.pathname === '/api/trip/by-code' && request.method === 'GET') {
+        const rawCode = url.searchParams.get('code') || '';
+        const code = rawCode.trim().toUpperCase();
+
+        if (!code) {
+          return new Response(
+            JSON.stringify({ error: 'Missing join code parameter' }),
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        let trip: any = null;
+        if (env.CONVOY_CACHE) {
+          const cached = await env.CONVOY_CACHE.get(`code:${code}`);
+          if (cached) trip = JSON.parse(cached);
+        }
+
+        if (!trip && env.DB) {
+          try {
+            const { results } = await env.DB.prepare("SELECT * FROM saved_trips WHERE UPPER(lobby_code) = ? LIMIT 1").bind(code).all();
+            if (results && results.length > 0) trip = results[0];
+          } catch (e: any) {
+            console.error("D1 Code Lookup Error: ", e?.message);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, code, trip }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // 7d. Reset All Online Database Trip Entries
+      if (url.pathname === '/api/trip/reset' && request.method === 'POST') {
+        if (env.CONVOY_CACHE) {
+          const listRaw = await env.CONVOY_CACHE.get('all_trips_index');
+          if (listRaw) {
+            const tripIds: string[] = JSON.parse(listRaw);
+            for (const tid of tripIds) {
+              await env.CONVOY_CACHE.delete(`trip:${tid}`);
+            }
+          }
+          await env.CONVOY_CACHE.delete('all_trips_index');
+        }
+
+        if (env.DB) {
+          try {
+            await env.DB.prepare("DELETE FROM saved_trips").run();
+            await env.DB.prepare("DELETE FROM itinerary_stops").run();
+            await env.DB.prepare("DELETE FROM trip_route_segments").run();
+            await env.DB.prepare("DELETE FROM convoy_gps_pings").run();
+          } catch (e: any) {
+            console.error("D1 Reset Error: ", e?.message);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'All online database trip records reset successfully.' }),
           { status: 200, headers: corsHeaders }
         );
       }
@@ -337,6 +469,15 @@ export default {
         if (env.CONVOY_CACHE) {
           const cached = await env.CONVOY_CACHE.get(`trip:${tripId}`);
           if (cached) trip = JSON.parse(cached);
+        }
+
+        if (!trip && env.DB) {
+          try {
+            const { results } = await env.DB.prepare("SELECT * FROM saved_trips WHERE trip_id = ? LIMIT 1").bind(tripId).all();
+            if (results && results.length > 0) trip = results[0];
+          } catch (e: any) {
+            console.error("D1 Get Trip Error: ", e?.message);
+          }
         }
 
         return new Response(

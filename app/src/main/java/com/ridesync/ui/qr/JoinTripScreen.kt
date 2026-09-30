@@ -32,6 +32,7 @@ import com.ridesync.data.model.UserProfile
 import com.ridesync.data.repository.TripRepository
 import com.ridesync.ui.theme.HudColors
 import com.ridesync.ui.trip.TripFullDetailsDialog
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +50,12 @@ fun JoinTripScreen(
 
     val allExistingTrips by TripRepository.tripsFlow.collectAsState()
 
-    // Helper to resolve trip from input string (code, full URL, or ID)
-    fun resolveTripFromCodeOrLink(input: String): SavedTrip {
+    val scope = rememberCoroutineScope()
+    var isSearchingCode by remember { mutableStateOf(false) }
+
+    fun searchAndPreviewTrip(input: String) {
         val clean = input.trim()
+        if (clean.isBlank()) return
         val extractedCode = if (clean.contains("/join/")) {
             clean.substringAfter("/join/").takeWhile { it != '?' && it != '/' }
         } else if (clean.contains("code=")) {
@@ -60,35 +64,47 @@ fun JoinTripScreen(
             clean
         }.uppercase()
 
-        // 1. Search existing saved trips by lobbyCode or tripId
-        val existing = allExistingTrips.firstOrNull {
+        // 1. Search existing local state
+        val local = allExistingTrips.firstOrNull {
             it.lobbyCode.equals(extractedCode, ignoreCase = true) ||
             it.tripId.equals(extractedCode, ignoreCase = true)
         }
-        if (existing != null) return existing
 
-        // 2. Fallback: Create dynamic clean trip preview for code
-        val activeVehicle = userProfile.vehicles.firstOrNull { it.id == userProfile.activeVehicleId }
-            ?: userProfile.vehicles.firstOrNull()
-        
-        return SavedTrip(
-            tripId = "TRIP-JOINED-${System.currentTimeMillis()}",
-            plannerId = "user_host_discovered",
-            title = "Convoy Ride ($extractedCode)",
-            originName = "Current Location",
-            destinationName = "Destination",
-            startLatLng = LatLng(17.3753, 78.4344),
-            destLatLng = LatLng(17.4401, 78.3489),
-            waypoints = emptyList(),
-            waypointLatLngs = emptyList(),
-            distanceKm = 0.0,
-            durationMinutes = 0,
-            role = ConvoyRole.MEMBER,
-            category = TripCategory.UPCOMING,
-            lobbyCode = extractedCode,
-            scheduledDate = "Upcoming Ride",
-            joinedRiders = emptyList()
-        )
+        if (local != null) {
+            selectedPreviewTrip = local
+            return
+        }
+
+        // 2. Asynchronously query Cloudflare D1 database
+        isSearchingCode = true
+        scope.launch {
+            val remoteTrip = TripRepository.fetchTripByLobbyCode(extractedCode)
+            isSearchingCode = false
+            if (remoteTrip != null) {
+                selectedPreviewTrip = remoteTrip
+            } else {
+                Toast.makeText(context, "Trip code '$extractedCode' not found in online database", Toast.LENGTH_SHORT).show()
+                val fallbackTrip = SavedTrip(
+                    tripId = "TRIP-JOINED-${System.currentTimeMillis()}",
+                    plannerId = "user_host_discovered",
+                    title = "Convoy Ride ($extractedCode)",
+                    originName = "Current Location",
+                    destinationName = "Destination",
+                    startLatLng = LatLng(17.3753, 78.4344),
+                    destLatLng = LatLng(17.4401, 78.3489),
+                    waypoints = emptyList(),
+                    waypointLatLngs = emptyList(),
+                    distanceKm = 0.0,
+                    durationMinutes = 0,
+                    role = ConvoyRole.MEMBER,
+                    category = TripCategory.UPCOMING,
+                    lobbyCode = extractedCode,
+                    scheduledDate = "Upcoming Ride",
+                    joinedRiders = emptyList()
+                )
+                selectedPreviewTrip = fallbackTrip
+            }
+        }
     }
 
     Box(
@@ -193,8 +209,7 @@ fun JoinTripScreen(
                     Box(modifier = Modifier.fillMaxSize()) {
                         QrCodeScannerScreen(
                             onQrCodeScanned = { scannedCode ->
-                                val targetTrip = resolveTripFromCodeOrLink(scannedCode)
-                                selectedPreviewTrip = targetTrip
+                                searchAndPreviewTrip(scannedCode)
                             },
                             onCancel = onCancel
                         )
@@ -255,13 +270,12 @@ fun JoinTripScreen(
                                 Button(
                                     onClick = {
                                         if (tripCodeInput.isNotBlank()) {
-                                            val targetTrip = resolveTripFromCodeOrLink(tripCodeInput)
-                                            selectedPreviewTrip = targetTrip
+                                            searchAndPreviewTrip(tripCodeInput)
                                         } else {
                                             Toast.makeText(context, "Please enter a valid trip code or join link", Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    enabled = tripCodeInput.isNotBlank(),
+                                    enabled = tripCodeInput.isNotBlank() && !isSearchingCode,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(52.dp),

@@ -48,6 +48,7 @@ object TripRepository {
 
     init {
         loadTripsFromStorage()
+        fetchOnlineTripsAsync()
     }
 
     private var isInitialized = false
@@ -533,8 +534,89 @@ object TripRepository {
             _tripsFlow.value = emptyList()
             isInitialized = true
             Log.i(TAG, "Successfully reset and cleared all stored trip database entries.")
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/reset")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 5000
+                    conn.readTimeout = 5000
+                    Log.d(TAG, "Cloudflare D1 database reset code: ${conn.responseCode}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Cloudflare D1 reset note: ${e.message}")
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to reset trip storage: ${e.message}", e)
+        }
+    }
+
+    fun fetchOnlineTripsAsync(onComplete: ((List<SavedTrip>) -> Unit)? = null) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val url = URL("$CLOUDFLARE_EDGE_URL/api/trips/public")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+
+                if (conn.responseCode in 200..299) {
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val json = JSONObject(text)
+                    val tripsArr = json.optJSONArray("trips")
+                    val fetched = mutableListOf<SavedTrip>()
+                    if (tripsArr != null) {
+                        for (i in 0 until tripsArr.length()) {
+                            val obj = tripsArr.getJSONObject(i)
+                            deserializeTrip(obj)?.let { fetched.add(it) }
+                        }
+                    }
+                    if (fetched.isNotEmpty()) {
+                        val merged = (fetched + _tripsFlow.value).distinctBy { it.tripId }
+                        updateAndPersistList(merged)
+                        onComplete?.invoke(merged)
+                        return@launch
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Cloudflare fetch trips note: ${e.message}")
+            }
+            onComplete?.invoke(_tripsFlow.value)
+        }
+    }
+
+    suspend fun fetchTripByLobbyCode(code: String): SavedTrip? {
+        return kotlinx.coroutines.withContext(Dispatchers.IO) {
+            val cleanCode = code.trim().uppercase()
+            val local = getAllTrips().firstOrNull { it.lobbyCode.equals(cleanCode, ignoreCase = true) }
+            if (local != null) return@withContext local
+
+            try {
+                val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/by-code?code=$cleanCode")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+
+                if (conn.responseCode in 200..299) {
+                    val text = conn.inputStream.bufferedReader().readText()
+                    val json = JSONObject(text)
+                    val tripObj = json.optJSONObject("trip")
+                    if (tripObj != null) {
+                        val parsed = deserializeTrip(tripObj)
+                        if (parsed != null) {
+                            saveTrip(parsed)
+                            return@withContext parsed
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error looking up trip code $cleanCode on Cloudflare", e)
+            }
+            null
         }
     }
 
