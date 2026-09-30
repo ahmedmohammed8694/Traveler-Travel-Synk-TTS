@@ -94,6 +94,10 @@
   - High-Contrast Input Fields: Background: `#0F172A`, Typed Text: `#FFFFFF`, Placeholder Text: `#64748B`, Focused Caret / Cursor: `#00F0FF`
   - Trip Codes: Formatted as uppercase 7-character alphanumeric string (e.g. `RSS1041`).
 
+### 3.9 Null-Safe Application Context & Startup Crash Resolution
+- **Root Cause**: `RideSyncApplication` companion object `lateinit var instance` threw `UninitializedPropertyAccessException` when repository singletons (`AuthRepositoryImpl`, `TripRepository`, `LiveLocationEngine`) accessed `appContext` before `Application.onCreate()` completed.
+- **Fix**: Refactored `RideSyncApplication` to use `@Volatile var instance: RideSyncApplication? = null` and `val appContext: Context? get() = instance?.applicationContext`. Updated all singletons (`AuthRepositoryImpl`, `TripRepository`, `LiveLocationEngine`) to use safe navigation (`appContext?.`) with `Throwable` exception bounds, resolving app launch crashes.
+
 ---
 
 ## 4. Automatic Update Mandate

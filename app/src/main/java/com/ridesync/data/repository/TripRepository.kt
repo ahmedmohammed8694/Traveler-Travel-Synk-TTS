@@ -42,8 +42,8 @@ object TripRepository {
 
     private val prefs: SharedPreferences? by lazy {
         try {
-            RideSyncApplication.appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        } catch (e: Exception) {
+            RideSyncApplication.appContext?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to get SharedPreferences: ${e.message}")
             null
         }

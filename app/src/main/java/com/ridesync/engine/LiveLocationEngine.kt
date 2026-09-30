@@ -33,16 +33,17 @@ object LiveLocationEngine {
     private var locationCallback: LocationCallback? = null
     private var isListening = false
 
-    fun hasLocationPermission(context: Context = RideSyncApplication.appContext): Boolean {
+    fun hasLocationPermission(context: Context? = RideSyncApplication.appContext): Boolean {
+        if (context == null) return false
         val fine = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarse = ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         return fine || coarse
     }
 
     @SuppressLint("MissingPermission")
-    fun startLiveLocationUpdates(context: Context = RideSyncApplication.appContext) {
-        if (!hasLocationPermission(context)) {
-            Log.w(TAG, "Location permission not granted. Cannot start LiveLocationEngine.")
+    fun startLiveLocationUpdates(context: Context? = RideSyncApplication.appContext) {
+        if (context == null || !hasLocationPermission(context)) {
+            Log.w(TAG, "Location permission not granted or null context. Cannot start LiveLocationEngine.")
             return
         }
 
@@ -131,8 +132,8 @@ object LiveLocationEngine {
         }
     }
 
-    suspend fun getCurrentPhoneLocation(context: Context = RideSyncApplication.appContext, forceFresh: Boolean = false): LatLng? {
-        if (!hasLocationPermission(context)) return null
+    suspend fun getCurrentPhoneLocation(context: Context? = RideSyncApplication.appContext, forceFresh: Boolean = false): LatLng? {
+        if (context == null || !hasLocationPermission(context)) return null
 
         if (!forceFresh && _liveLatLng.value != null) {
             return _liveLatLng.value
