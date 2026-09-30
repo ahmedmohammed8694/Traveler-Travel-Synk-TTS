@@ -40,6 +40,7 @@ fun RideSyncTheme(
 ) {
     MaterialTheme(
         colorScheme = DarkHudColorScheme,
+        typography = HudTypography,
         content = content
     )
 }

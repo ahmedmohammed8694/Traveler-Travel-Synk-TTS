@@ -65,6 +65,35 @@
 - **Dynamic Leaderboard & Map Marker Integration**: Dynamically mapped all `joinedRiders` into `activeConvoyMembers` and `mergedLocations`. `ConvoyRadarEngine` processes every joined member so they appear on Google Maps markers, top position leaderboard overlay (`TopConvoyLeaderboardOverlay`), radar (`ConvoyRadarOverlay`), and roster bottom sheet (`ConvoyStatusBottomSheet`).
 - **Real-Time Join Notifications**: Added automatic detection for newly joined riders in `MainContainerScreen.kt`. Whenever a new rider joins the trip, a real-time broadcast notification banner (`"🎉 New Convoy Member Joined: [Name] ([Bike])!"`) and Toast alert are triggered automatically for all other members on that trip.
 
+### 3.8 Exact Design System Color Tokens, Typography Scale & Tactical Microcopy
+- **Color Palette Tokens (`HudColors` in `Color.kt`)**:
+  - Primary Accent (Cyan): `#00F0FF` (Active cockpit rider tag, interactive buttons, focus rings, cursors, waypoint links)
+  - Success / Connected: `#10B981` (GPS synced dot, connected status, verified route badges, online mesh health)
+  - Warning / Caution: `#F59E0B` (Sweeper role badges, gap alerts, telemetry pace highlight)
+  - SOS / Hazard Alert: `#EF4444` (Header emergency SOS trigger button, crash beacons, dropout warnings)
+  - Base Surface (Deep Dark): `#0A0F1D` (Global canvas, outer app frame, top app bar & bottom navigation bar background)
+  - Elevated Container: `#0F172A` (Cards, search input box, roster sheets)
+  - Subtle Container / High: `#161B2A` (Inner cards, table rows, convoy roll call list items, input fields)
+  - Structural Border: `#1E293B` (Card outlines, tab dividers, input field borders)
+  - Primary Text: `#FFFFFF` (Main trip titles, rider names, live speed & distance figures, primary button labels)
+  - Secondary Text: `#94A3B8` (Field labels, bike models, host names, telemetry metadata headers)
+  - Muted / Placeholder Text: `#64748B` (Search input placeholder `RSS1041`, inactive bottom nav tabs, timestamps)
+- **Font & Typography Scale (`HudTypographyTokens` & `Type.kt`)**:
+  - Primary Font Family: Chivo / Roboto (`FontFamily.SansSerif`)
+  - Numbers / Telemetry Font: Tabular Monospace (`FontFamily.Monospace`)
+  - App Title (RIDERSYNK): 18px - 20px, Bold (700), `+0.05em`, uppercase, `#FFFFFF`
+  - Section Eyebrow Tags ([ACTIVE.SESSION_LIVE]): 11px - 12px, SemiBold (600), `+0.08em`, uppercase monospace, `#94A3B8` / `#00F0FF`
+  - Trip Headings (Western Ghats Alpine Rally): 18px - 20px, Bold (700), Normal, `#FFFFFF`
+  - Metric Figures (266 KM, 420 KM, 84 KPH): 20px - 24px, ExtraBold (800), Monospace / Tabular, `#FFFFFF` / `#00F0FF` / `#F59E0B`
+  - Convoy Roster Names (Marcus Vance, Alex Rivera): 14px - 15px, Medium (500) / SemiBold, Normal, `#FFFFFF`
+  - Subtitles / Bike Specs (Yamaha Ténéré 700, BMW R1250GS): 12px, Regular (400), Normal, `#94A3B8`
+  - Badges / Roles (LEAD, SWEEPER, SLOT #2): 10px - 11px, Bold (700), `+0.05em`, uppercase
+  - Bottom Navigation Tabs: 10px - 11px, SemiBold (600), `+0.04em`, uppercase, Active: `#00F0FF` / Inactive: `#64748B`
+- **Text Formatting & UI Microcopy Conventions**:
+  - System & Tactical Brackets: All technical section headers use tactical bracket syntax: `[SYS.CONVOY.ACCESS]`, `[ACTIVE.SESSION_LIVE]`, `[ICE // EMERGENCY MATRIX]`
+  - High-Contrast Input Fields: Background: `#0F172A`, Typed Text: `#FFFFFF`, Placeholder Text: `#64748B`, Focused Caret / Cursor: `#00F0FF`
+  - Trip Codes: Formatted as uppercase 7-character alphanumeric string (e.g. `RSS1041`).
+
 ---
 
 ## 4. Automatic Update Mandate
