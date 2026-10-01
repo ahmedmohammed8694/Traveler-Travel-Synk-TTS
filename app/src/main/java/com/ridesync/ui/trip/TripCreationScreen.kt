@@ -89,20 +89,76 @@ private val POPULAR_MAP_LOCATIONS = listOf(
 )
 
 @Composable
+fun TripDatePickerField(
+    value: String,
+    onDateSelected: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val calendar = java.util.Calendar.getInstance()
+
+    val datePickerDialog = android.app.DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            val months = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+            val formatted = String.format("%02d %s %04d", dayOfMonth, months[month.coerceIn(0, 11)], year)
+            onDateSelected(formatted)
+        },
+        calendar.get(java.util.Calendar.YEAR),
+        calendar.get(java.util.Calendar.MONTH),
+        calendar.get(java.util.Calendar.DAY_OF_MONTH)
+    )
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        placeholder = { Text("Select date from calendar") },
+        leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFD97706)) },
+        trailingIcon = {
+            IconButton(onClick = { datePickerDialog.show() }) {
+                Icon(Icons.Default.CalendarToday, contentDescription = "Open Calendar", tint = Color(0xFF0052CC))
+            }
+        },
+        singleLine = true,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { datePickerDialog.show() },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color(0xFFFFFFFF),
+            unfocusedContainerColor = Color(0xFFFFFFFF),
+            focusedTextColor = Color(0xFF0F172A),
+            unfocusedTextColor = Color(0xFF0F172A),
+            focusedLabelColor = Color(0xFFD97706),
+            unfocusedLabelColor = Color(0xFF64748B),
+            focusedPlaceholderColor = Color(0xFF64748B),
+            unfocusedPlaceholderColor = Color(0xFF64748B),
+            cursorColor = Color(0xFF0052CC),
+            focusedBorderColor = Color(0xFF0052CC),
+            unfocusedBorderColor = Color(0xFFCBD5E1)
+        )
+    )
+}
+
+@Composable
 fun TripCreationScreen(
     onStartTripClick: (tripTitle: String, role: ConvoyRole, origin: String, destination: String, waypoints: List<String>, routePolyline: List<LatLng>) -> Unit,
     onShareLobbyClick: (lobbyCode: String) -> Unit,
     userProfile: UserProfile = UserProfile(userId = "user_me", displayName = "Ahmed (You)"),
+    initialTab: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    var selectedScreenTab by remember { mutableIntStateOf(0) } // 0: Plan & Route Builder, 1: Saved Trips & History
+    var selectedScreenTab by remember(initialTab) { mutableIntStateOf(initialTab) } // 0: Plan & Route Builder, 1: Saved Trips & History
 
     // Core Route Builder States
     var tripTitle by remember { mutableStateOf("") }
     var tripStartDate by remember { mutableStateOf("15 Oct 2026") }
+    var tripEndDate by remember { mutableStateOf("18 Oct 2026") }
     var origin by remember { mutableStateOf("") }
     var destination by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(ConvoyRole.LEAD) }
@@ -477,9 +533,9 @@ fun TripCreationScreen(
         }
     }
 
-    val backgroundColor = com.ridesync.ui.theme.HudColors.ObsidianCanvas
-    val cardBg = com.ridesync.ui.theme.HudColors.ObsidianSurface
-    val accentColor = com.ridesync.ui.theme.HudColors.CyanPrimary
+    val backgroundColor = Color(0xFFF1F5F9)
+    val cardBg = Color(0xFFFFFFFF)
+    val accentColor = Color(0xFF0052CC)
 
     Box(
         modifier = modifier
@@ -497,63 +553,25 @@ fun TripCreationScreen(
         ) {
             // Screen Header
             Text(
-                text = "Trip & Route Planner",
+                text = "Create New Trip",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Black,
-                color = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                color = Color(0xFF0F172A)
             )
             Text(
-                text = "Route Builder, Saved Rides & Convoy History",
+                text = "Build multi-day itinerary routes, import map links & setup convoy",
                 fontSize = 14.sp,
-                color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
-                modifier = Modifier.padding(bottom = 12.dp)
+                color = Color(0xFF475569),
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
-
-            // Navigation Tab Bar (Create Trip vs Saved Trips & History)
-            TabRow(
-                selectedTabIndex = selectedScreenTab,
-                containerColor = com.ridesync.ui.theme.HudColors.ObsidianSurface,
-                contentColor = accentColor,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.dp, com.ridesync.ui.theme.HudColors.ObsidianBorder, RoundedCornerShape(14.dp))
-                    .padding(bottom = 20.dp)
-            ) {
-                Tab(
-                    selected = selectedScreenTab == 0,
-                    onClick = { selectedScreenTab = 0 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Route, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Create Trip", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
-                )
-                Tab(
-                    selected = selectedScreenTab == 1,
-                    onClick = { selectedScreenTab = 1 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            val upcomingCount = savedTripsList.count { it.category == TripCategory.UPCOMING }
-                            Text("Saved & History ($upcomingCount)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    }
-                )
-            }
-
-            if (selectedScreenTab == 0) {
-                // TAB 0: CREATE TRIP & ROUTE BUILDER (3 DEDICATED SETUP METHODS)
+            // TAB 0: CREATE TRIP & ROUTE BUILDER (3 DEDICATED SETUP METHODS)
                 // 1. Setup Method Selector
                 Text(
                     text = "Choose Trip Creation Method",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = Color(0xFF0F172A),
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
 
@@ -567,7 +585,7 @@ fun TripCreationScreen(
                         title = "📄 Itinerary File",
                         subtitle = "AI Document",
                         isSelected = currentCreationMode == TripCreationMode.DOCUMENT,
-                        accentColor = Color(0xFF0284C7),
+                        accentColor = Color(0xFF0052CC),
                         modifier = Modifier.weight(1f),
                         onClick = { currentCreationMode = TripCreationMode.DOCUMENT }
                     )
@@ -575,7 +593,7 @@ fun TripCreationScreen(
                         title = "🗺️ Map Links",
                         subtitle = "Day-by-Day URLs",
                         isSelected = currentCreationMode == TripCreationMode.MAP_LINKS,
-                        accentColor = Color(0xFFF59E0B),
+                        accentColor = Color(0xFF0052CC),
                         modifier = Modifier.weight(1f),
                         onClick = { currentCreationMode = TripCreationMode.MAP_LINKS }
                     )
@@ -583,7 +601,7 @@ fun TripCreationScreen(
                         title = "📍 Direct Route",
                         subtitle = "Search & Pins",
                         isSelected = currentCreationMode == TripCreationMode.MANUAL_SEARCH,
-                        accentColor = Color(0xFF10B981),
+                        accentColor = Color(0xFF0052CC),
                         modifier = Modifier.weight(1f),
                         onClick = { currentCreationMode = TripCreationMode.MANUAL_SEARCH }
                     )
@@ -594,7 +612,7 @@ fun TripCreationScreen(
                     text = "Select Convoy Role",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = Color(0xFF0F172A),
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
 
@@ -618,7 +636,7 @@ fun TripCreationScreen(
                         title = "Sweep Safety",
                         icon = Icons.Default.Shield,
                         isSelected = selectedRole == ConvoyRole.SWEEP,
-                        accentColor = Color(0xFF38BDF8),
+                        accentColor = accentColor,
                         modifier = Modifier.weight(1f),
                         onClick = { selectedRole = ConvoyRole.SWEEP }
                     )
@@ -627,7 +645,7 @@ fun TripCreationScreen(
                         title = "Pack Rider",
                         icon = Icons.Default.CheckCircle,
                         isSelected = selectedRole == ConvoyRole.MEMBER,
-                        accentColor = Color(0xFF22C55E),
+                        accentColor = accentColor,
                         modifier = Modifier.weight(1f),
                         onClick = { selectedRole = ConvoyRole.MEMBER }
                     )
@@ -637,9 +655,10 @@ fun TripCreationScreen(
                 var showVehicleDropdown by remember { mutableStateOf(false) }
 
                 Surface(
-                    color = Color(0xFF0F172A),
+                    color = Color(0xFFFFFFFF),
                     shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                    shadowElevation = 2.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp)
@@ -661,19 +680,19 @@ fun TripCreationScreen(
                                         Text(
                                             text = "Trip Vehicle",
                                             fontSize = 12.sp,
-                                            color = Color(0xFF94A3B8)
+                                            color = Color(0xFF64748B)
                                         )
                                         if (selectedTripVehicle?.id == userProfile.activeVehicleId) {
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Surface(
-                                                color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                                                color = Color(0xFFEFF6FF),
                                                 shape = RoundedCornerShape(4.dp)
                                             ) {
                                                 Text(
                                                     text = "★ DEFAULT",
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Black,
-                                                    color = Color(0xFF38BDF8),
+                                                    color = Color(0xFF0052CC),
                                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                                 )
                                             }
@@ -683,7 +702,7 @@ fun TripCreationScreen(
                                         text = selectedTripVehicle?.fullDisplayName ?: userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = Color(0xFF0F172A)
                                     )
                                 }
                             }
@@ -692,7 +711,7 @@ fun TripCreationScreen(
                                 TextButton(onClick = { showVehicleDropdown = !showVehicleDropdown }) {
                                     Text(
                                         text = if (showVehicleDropdown) "Close" else "Change",
-                                        color = Color(0xFF38BDF8),
+                                        color = Color(0xFF0052CC),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -700,7 +719,7 @@ fun TripCreationScreen(
                             } else {
                                 Text(
                                     text = "${selectedTripVehicle?.estimatedRangeKm ?: 350.0} km range",
-                                    color = Color(0xFF10B981),
+                                    color = Color(0xFF059669),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -710,12 +729,12 @@ fun TripCreationScreen(
                         // Vehicle picker dropdown if user has multiple vehicles
                         if (showVehicleDropdown && userProfile.vehicles.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(10.dp))
-                            Divider(color = Color(0xFF334155))
+                            Divider(color = Color(0xFFE2E8F0))
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "Select vehicle for this trip:",
                                 fontSize = 11.sp,
-                                color = Color(0xFF94A3B8),
+                                color = Color(0xFF64748B),
                                 modifier = Modifier.padding(bottom = 6.dp)
                             )
                             userProfile.vehicles.forEach { v ->
@@ -725,7 +744,7 @@ fun TripCreationScreen(
                                         selectedTripVehicle = v
                                         showVehicleDropdown = false
                                     },
-                                    color = if (isSelected) Color(0xFF1E293B) else Color.Transparent,
+                                    color = if (isSelected) Color(0xFFEFF6FF) else Color.Transparent,
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -738,12 +757,12 @@ fun TripCreationScreen(
                                     ) {
                                         Text(
                                             text = "${v.vehicleTypeEnum.iconEmoji} ${v.fullDisplayName}",
-                                            color = if (isSelected) Color(0xFF38BDF8) else Color.White,
+                                            color = if (isSelected) Color(0xFF0052CC) else Color(0xFF0F172A),
                                             fontSize = 13.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                         if (v.id == userProfile.activeVehicleId) {
-                                            Text("★ Default", fontSize = 10.sp, color = Color(0xFFFBBF24), fontWeight = FontWeight.Bold)
+                                            Text("★ Default", fontSize = 10.sp, color = Color(0xFFD97706), fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -757,9 +776,10 @@ fun TripCreationScreen(
                     TripCreationMode.DOCUMENT -> {
                         // 📄 METHOD 1: DEDICATED ITINERARY DOCUMENT UPLOAD VIEW
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0284C7)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 16.dp)
@@ -771,22 +791,22 @@ fun TripCreationScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.UploadFile, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(22.dp))
+                                        Icon(Icons.Default.UploadFile, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(22.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "Upload Itinerary Document",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            color = Color(0xFF0F172A)
                                         )
                                     }
                                     Surface(
-                                        color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                                        color = Color(0xFFEFF6FF),
                                         shape = RoundedCornerShape(6.dp)
                                     ) {
                                         Text(
                                             text = "AI AUTO-PLAN",
-                                            color = Color(0xFF38BDF8),
+                                            color = Color(0xFF0052CC),
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Black,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -797,7 +817,7 @@ fun TripCreationScreen(
                                 Text(
                                     text = "Upload your trip document (.pdf, .docx, .txt, .png, .jpg <= 10MB). AI will automatically parse the multi-day schedule, geocode coordinates, and organize stops.",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF94A3B8),
+                                    color = Color(0xFF475569),
                                     modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
                                 )
 
@@ -807,13 +827,13 @@ fun TripCreationScreen(
                                 ) {
                                     listOf("PDF", "DOCX", "TXT", "PNG", "JPG").forEach { ext ->
                                         Surface(
-                                            color = Color(0xFF1E293B),
+                                            color = Color(0xFFF8FAFC),
                                             shape = RoundedCornerShape(6.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1))
                                         ) {
                                             Text(
                                                 text = ext,
-                                                color = Color(0xFFCBD5E1),
+                                                color = Color(0xFF0F172A),
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -824,15 +844,21 @@ fun TripCreationScreen(
 
                                 Button(
                                     onClick = { documentPickerLauncher.launch("*/*") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(48.dp)
+                                        .background(
+                                            brush = Brush.horizontalGradient(
+                                                colors = listOf(Color(0xFF0052CC), Color(0xFF003399))
+                                            ),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
                                 ) {
-                                    Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Select Itinerary Document / Photo", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("Select Itinerary Document / Photo", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                                 }
                             }
                         }
@@ -840,9 +866,10 @@ fun TripCreationScreen(
                         // Extracted Itinerary Breakdown (if document parsed)
                         currentItineraryPlan?.let { plan ->
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                                 shape = RoundedCornerShape(16.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF059669)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 16.dp)
@@ -855,17 +882,17 @@ fun TripCreationScreen(
                                     ) {
                                         Text(
                                             text = "Extracted Trip Itinerary",
-                                            color = Color(0xFF10B981),
+                                            color = Color(0xFF059669),
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Surface(
-                                            color = Color(0xFF10B981).copy(alpha = 0.2f),
+                                            color = Color(0xFFECFDF5),
                                             shape = RoundedCornerShape(6.dp)
                                         ) {
                                             Text(
                                                 text = "${plan.days.size} Days • ${plan.days.sumOf { it.stops.size }} Stops",
-                                                color = Color(0xFF10B981),
+                                                color = Color(0xFF059669),
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Black,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -882,25 +909,25 @@ fun TripCreationScreen(
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF0F172A),
-                                            unfocusedContainerColor = Color(0xFF0F172A),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
-                                            focusedLabelColor = Color(0xFF10B981),
-                                            unfocusedLabelColor = Color(0xFF94A3B8),
+                                            focusedContainerColor = Color(0xFFFFFFFF),
+                                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                                            focusedTextColor = Color(0xFF0F172A),
+                                            unfocusedTextColor = Color(0xFF0F172A),
+                                            focusedLabelColor = Color(0xFF0052CC),
+                                            unfocusedLabelColor = Color(0xFF64748B),
                                             focusedPlaceholderColor = Color(0xFF64748B),
                                             unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF00F0FF),
-                                            focusedBorderColor = Color(0xFF10B981),
-                                            unfocusedBorderColor = Color(0xFF334155)
+                                            cursorColor = Color(0xFF0052CC),
+                                            focusedBorderColor = Color(0xFF0052CC),
+                                            unfocusedBorderColor = Color(0xFFCBD5E1)
                                         )
                                     )
 
                                     plan.days.forEachIndexed { dIdx, day ->
                                         Surface(
-                                            color = Color(0xFF020617),
+                                            color = Color(0xFFF8FAFC),
                                             shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(vertical = 4.dp)
@@ -908,16 +935,16 @@ fun TripCreationScreen(
                                             Column(modifier = Modifier.padding(12.dp)) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Surface(
-                                                        color = Color(0xFF10B981),
+                                                        color = Color(0xFF059669),
                                                         shape = RoundedCornerShape(6.dp),
                                                         modifier = Modifier.size(24.dp)
                                                     ) {
                                                         Box(contentAlignment = Alignment.Center) {
-                                                            Text("${day.dayNumber}", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                                            Text("${day.dayNumber}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
                                                         }
                                                     }
                                                     Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(day.dayTitle, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                    Text(day.dayTitle, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                                 }
 
                                                 Spacer(modifier = Modifier.height(6.dp))
@@ -926,9 +953,9 @@ fun TripCreationScreen(
                                                         verticalAlignment = Alignment.CenterVertically,
                                                         modifier = Modifier.padding(vertical = 2.dp)
                                                     ) {
-                                                        Text("• Stop ${sIdx + 1}: ${stop.stopName}", color = Color(0xFFE2E8F0), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                                        Text("• Stop ${sIdx + 1}: ${stop.stopName}", color = Color(0xFF1E293B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                                         if (stop.estimatedVisitTime.isNotBlank()) {
-                                                            Text(" (${stop.estimatedVisitTime})", color = Color(0xFF38BDF8), fontSize = 11.sp)
+                                                            Text(" (${stop.estimatedVisitTime})", color = Color(0xFF0052CC), fontSize = 11.sp)
                                                         }
                                                     }
                                                 }
@@ -944,7 +971,7 @@ fun TripCreationScreen(
                                         },
                                         modifier = Modifier.align(Alignment.End)
                                     ) {
-                                        Text("Clear & Re-Upload", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("Clear & Re-Upload", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -954,9 +981,10 @@ fun TripCreationScreen(
                     TripCreationMode.MAP_LINKS -> {
                         // 🗺️ METHOD 2: DEDICATED DAY-BY-DAY GOOGLE MAPS LINKS VIEW
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 16.dp)
@@ -968,22 +996,22 @@ fun TripCreationScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFFFBBF24), modifier = Modifier.size(22.dp))
+                                        Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(22.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "Day-by-Day Google Maps Links",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            color = Color(0xFF0F172A)
                                         )
                                     }
                                     Surface(
-                                        color = Color(0xFFF59E0B).copy(alpha = 0.2f),
+                                        color = Color(0xFFEFF6FF),
                                         shape = RoundedCornerShape(6.dp)
                                     ) {
                                         Text(
                                             text = "${multiDaySegments.size} DAYS",
-                                            color = Color(0xFFFBBF24),
+                                            color = Color(0xFF0052CC),
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Black,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -994,7 +1022,7 @@ fun TripCreationScreen(
                                 Text(
                                     text = "Paste Google Maps links for multi-day itineraries (Day 1, Day 2, etc.). Shortened maps.app.goo.gl and full URLs are auto-analyzed to extract stops.",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF94A3B8),
+                                    color = Color(0xFF475569),
                                     modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
                                 )
 
@@ -1003,50 +1031,45 @@ fun TripCreationScreen(
                                     onValueChange = { tripTitle = it },
                                     label = { Text("Trip Title") },
                                     placeholder = { Text("Enter multi-day tour title") },
-                                    leadingIcon = { Icon(Icons.Default.Route, contentDescription = null, tint = Color(0xFFF59E0B)) },
+                                    leadingIcon = { Icon(Icons.Default.Route, contentDescription = null, tint = Color(0xFF0052CC)) },
                                     singleLine = true,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(bottom = 10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFFF59E0B),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFF0052CC),
+                                        unfocusedLabelColor = Color(0xFF64748B),
                                         focusedPlaceholderColor = Color(0xFF64748B),
                                         unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFFF59E0B),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        cursorColor = Color(0xFF0052CC),
+                                        focusedBorderColor = Color(0xFF0052CC),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     )
                                 )
 
-                                OutlinedTextField(
-                                    value = tripStartDate,
-                                    onValueChange = { tripStartDate = it },
-                                    label = { Text("Start Date") },
-                                    placeholder = { Text("e.g. 15 Oct 2026") },
-                                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFFBBF24)) },
-                                    singleLine = true,
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(bottom = 12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFFFBBF24),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFFF59E0B),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    TripDatePickerField(
+                                        value = tripStartDate,
+                                        onDateSelected = { tripStartDate = it },
+                                        label = "Trip Start Date",
+                                        modifier = Modifier.weight(1f)
                                     )
-                                )
+                                    TripDatePickerField(
+                                        value = tripEndDate,
+                                        onDateSelected = { tripEndDate = it },
+                                        label = "Trip End Date",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
 
                                 // Day Route Link Quick Paste Input
                                 OutlinedTextField(
@@ -1059,13 +1082,13 @@ fun TripCreationScreen(
                                     },
                                     label = { Text("Paste Google Maps Route Link (Day ${multiDaySegments.size + 1})") },
                                     placeholder = { Text("https://maps.app.goo.gl/... or /dir/...") },
-                                    leadingIcon = { Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFFFBBF24)) },
+                                    leadingIcon = { Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC)) },
                                     trailingIcon = {
                                         if (isImportingRouteLink) {
-                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFFFBBF24), strokeWidth = 2.dp)
+                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF0052CC), strokeWidth = 2.dp)
                                         } else if (mainGoogleMapsUrlInput.isNotBlank()) {
                                             IconButton(onClick = { importRouteFromGoogleMapsUrl(mainGoogleMapsUrlInput) }) {
-                                                Icon(Icons.Default.Refresh, contentDescription = "Re-analyze", tint = Color(0xFFFBBF24))
+                                                Icon(Icons.Default.Refresh, contentDescription = "Re-analyze", tint = Color(0xFF0052CC))
                                             }
                                         }
                                     },
@@ -1073,17 +1096,17 @@ fun TripCreationScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFFFBBF24),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFF0052CC),
+                                        unfocusedLabelColor = Color(0xFF64748B),
                                         focusedPlaceholderColor = Color(0xFF64748B),
                                         unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFFF59E0B),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        cursorColor = Color(0xFF0052CC),
+                                        focusedBorderColor = Color(0xFF0052CC),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     )
                                 )
 
@@ -1091,8 +1114,9 @@ fun TripCreationScreen(
 
                                  Button(
                                      onClick = { showAddSegmentDialog = true },
-                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = Color(0xFF38BDF8)),
+                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
                                      shape = RoundedCornerShape(10.dp),
+                                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
                                      modifier = Modifier.fillMaxWidth().height(42.dp)
                                  ) {
                                      Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -1104,7 +1128,7 @@ fun TripCreationScreen(
                                     Spacer(modifier = Modifier.height(14.dp))
                                     Text(
                                         text = "Configured Day Routes (${multiDaySegments.size}):",
-                                        color = Color.White,
+                                        color = Color(0xFF0F172A),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(bottom = 6.dp)
@@ -1112,9 +1136,9 @@ fun TripCreationScreen(
 
                                     multiDaySegments.forEachIndexed { index, segment ->
                                         Surface(
-                                            color = Color(0xFF020617),
+                                            color = Color(0xFFF8FAFC),
                                             shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(vertical = 4.dp)
@@ -1124,12 +1148,12 @@ fun TripCreationScreen(
                                                 modifier = Modifier.padding(12.dp)
                                             ) {
                                                 Surface(
-                                                    color = Color(0xFFF59E0B),
+                                                    color = Color(0xFF0052CC),
                                                     shape = RoundedCornerShape(6.dp),
                                                     modifier = Modifier.size(26.dp)
                                                 ) {
                                                     Box(contentAlignment = Alignment.Center) {
-                                                        Text("${index + 1}", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                                        Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
                                                     }
                                                 }
                                                 Spacer(modifier = Modifier.width(10.dp))
@@ -1251,8 +1275,10 @@ fun TripCreationScreen(
                     TripCreationMode.MANUAL_SEARCH -> {
                         // 📍 METHOD 3: DEDICATED DIRECT IN-APP ROUTE BUILDER VIEW
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 16.dp)
@@ -1262,7 +1288,7 @@ fun TripCreationScreen(
                                     text = "Origin & Destination Search",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White,
+                                    color = Color(0xFF0F172A),
                                     modifier = Modifier.padding(bottom = 10.dp)
                                 )
 
@@ -1277,25 +1303,45 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = 12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
                                         focusedLabelColor = accentColor,
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        unfocusedLabelColor = Color(0xFF64748B),
                                         focusedPlaceholderColor = Color(0xFF64748B),
                                         unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
+                                        cursorColor = accentColor,
                                         focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     )
                                 )
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    TripDatePickerField(
+                                        value = tripStartDate,
+                                        onDateSelected = { tripStartDate = it },
+                                        label = "Trip Start Date",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TripDatePickerField(
+                                        value = tripEndDate,
+                                        onDateSelected = { tripEndDate = it },
+                                        label = "Trip End Date",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
 
                                 OutlinedTextField(
                                     value = origin,
                                     onValueChange = { origin = it },
                                     label = { Text("Start Location (Origin)") },
-                                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF22C55E)) },
+                                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF059669)) },
                                     trailingIcon = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             IconButton(
@@ -1304,7 +1350,7 @@ fun TripCreationScreen(
                                                     searchQuery = ""
                                                 }
                                             ) {
-                                                Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF38BDF8))
+                                                Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF0052CC))
                                             }
                                             IconButton(
                                                 onClick = {
@@ -1324,7 +1370,7 @@ fun TripCreationScreen(
                                                     }
                                                 }
                                             ) {
-                                                Icon(Icons.Default.MyLocation, contentDescription = "Use Real Mobile GPS", tint = Color(0xFF22C55E))
+                                                Icon(Icons.Default.MyLocation, contentDescription = "Use Real Mobile GPS", tint = Color(0xFF059669))
                                             }
                                         }
                                     },
@@ -1333,17 +1379,17 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = 12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFF22C55E),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFF059669),
+                                        unfocusedLabelColor = Color(0xFF64748B),
                                         focusedPlaceholderColor = Color(0xFF64748B),
                                         unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFF22C55E),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        cursorColor = accentColor,
+                                        focusedBorderColor = Color(0xFF059669),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     )
                                 )
 
@@ -1374,7 +1420,7 @@ fun TripCreationScreen(
                                     value = destination,
                                     onValueChange = { destination = it },
                                     label = { Text("Destination Location") },
-                                    leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFFEF4444)) },
+                                    leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFFDC2626)) },
                                     trailingIcon = {
                                         IconButton(
                                             onClick = {
@@ -1382,30 +1428,31 @@ fun TripCreationScreen(
                                                 searchQuery = ""
                                             }
                                         ) {
-                                            Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF38BDF8))
+                                            Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF0052CC))
                                         }
                                     },
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFFEF4444),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFFDC2626),
+                                        unfocusedLabelColor = Color(0xFF64748B),
                                         focusedPlaceholderColor = Color(0xFF64748B),
                                         unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFFEF4444),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        cursorColor = accentColor,
+                                        focusedBorderColor = Color(0xFFDC2626),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     )
                                 )
 
                                 Button(
                                     onClick = { syncAndRecalculateManualRoute() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = Color(0xFF38BDF8)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
                                     shape = RoundedCornerShape(10.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 12.dp)
@@ -1422,13 +1469,15 @@ fun TripCreationScreen(
                             text = "Interactive Google Map Route Preview",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = Color(0xFF0F172A),
                             modifier = Modifier.padding(bottom = 10.dp)
                         )
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 20.dp)
@@ -1446,10 +1495,10 @@ fun TripCreationScreen(
                                         onClick = { mapPinSelectionMode = "START" },
                                         label = { Text("📍 Set Start", fontSize = 12.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Color(0xFF166534),
+                                            selectedContainerColor = Color(0xFF059669),
                                             selectedLabelColor = Color.White,
-                                            containerColor = Color(0xFF0F172A),
-                                            labelColor = Color(0xFF94A3B8)
+                                            containerColor = Color(0xFFF8FAFC),
+                                            labelColor = Color(0xFF475569)
                                         )
                                     )
 
@@ -1458,10 +1507,10 @@ fun TripCreationScreen(
                                         onClick = { mapPinSelectionMode = "DEST" },
                                         label = { Text("🏁 Set Dest", fontSize = 12.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Color(0xFF991B1B),
+                                            selectedContainerColor = Color(0xFFDC2626),
                                             selectedLabelColor = Color.White,
-                                            containerColor = Color(0xFF0F172A),
-                                            labelColor = Color(0xFF94A3B8)
+                                            containerColor = Color(0xFFF8FAFC),
+                                            labelColor = Color(0xFF475569)
                                         )
                                     )
 
@@ -1483,7 +1532,7 @@ fun TripCreationScreen(
                                         .fillMaxWidth()
                                         .height(240.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
+                                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
                                 ) {
                                     GoogleMap(
                                         modifier = Modifier.fillMaxSize(),
@@ -1535,7 +1584,7 @@ fun TripCreationScreen(
                                                 title = "Stop ${index + 1}: $stopTitle",
                                                 snippet = "Highway Rest / Regroup Point",
                                                 icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
-                                                    com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_CYAN
+                                                    com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
                                                 )
                                             )
                                         }
@@ -1543,7 +1592,7 @@ fun TripCreationScreen(
                                         if (activeRoutePolyline.isNotEmpty()) {
                                             Polyline(
                                                 points = activeRoutePolyline,
-                                                color = Color(0xFF00E5FF),
+                                                color = Color(0xFF0052CC),
                                                 width = 12f
                                             )
                                         }
@@ -1551,8 +1600,9 @@ fun TripCreationScreen(
 
                                     if (isFetchingRoute) {
                                         Surface(
-                                            color = Color.Black.copy(alpha = 0.6f),
+                                            color = Color.White.copy(alpha = 0.9f),
                                             shape = RoundedCornerShape(8.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
                                             modifier = Modifier
                                                 .align(Alignment.TopCenter)
                                                 .padding(top = 10.dp)
@@ -1563,7 +1613,7 @@ fun TripCreationScreen(
                                             ) {
                                                 CircularProgressIndicator(modifier = Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text("Calculating Road Route...", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                Text("Calculating Road Route...", color = Color(0xFF0F172A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -1578,7 +1628,7 @@ fun TripCreationScreen(
                                 ) {
                                     Text(
                                         text = "📏 Route: ${"%.1f".format(estimatedDistanceKm)} KM",
-                                        color = Color.White,
+                                        color = Color(0xFF0F172A),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1604,7 +1654,7 @@ fun TripCreationScreen(
                                 text = "Intermediate Stops (${waypointNames.size})",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color(0xFF0F172A)
                             )
 
                             Button(
@@ -1612,8 +1662,9 @@ fun TripCreationScreen(
                                     searchTargetField = "STOP"
                                     searchQuery = ""
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = Color(0xFF38BDF8)),
-                                shape = RoundedCornerShape(12.dp)
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
                             ) {
                                 Icon(Icons.Default.AddLocation, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -1622,8 +1673,10 @@ fun TripCreationScreen(
                         }
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 20.dp)
@@ -1632,7 +1685,7 @@ fun TripCreationScreen(
                                 if (waypointNames.isEmpty()) {
                                     Text(
                                         text = "No intermediate stops added yet. Tap '+ Add Stop' above to search places on Google Maps.",
-                                        color = Color(0xFF94A3B8),
+                                        color = Color(0xFF64748B),
                                         fontSize = 13.sp,
                                         modifier = Modifier.padding(vertical = 8.dp)
                                     )
@@ -1643,16 +1696,17 @@ fun TripCreationScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(vertical = 6.dp)
-                                                .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
+                                                .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
+                                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
                                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
                                             Surface(
-                                                color = Color(0xFF38BDF8).copy(alpha = 0.2f),
+                                                color = Color(0xFFEFF6FF),
                                                 shape = RoundedCornerShape(8.dp)
                                             ) {
                                                 Text(
                                                     text = "STOP ${index + 1}",
-                                                    color = Color(0xFF38BDF8),
+                                                    color = Color(0xFF0052CC),
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -1661,7 +1715,7 @@ fun TripCreationScreen(
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Text(
                                                 text = wpName,
-                                                color = Color.White,
+                                                color = Color(0xFF0F172A),
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Medium,
                                                 modifier = Modifier.weight(1f)
@@ -1674,7 +1728,7 @@ fun TripCreationScreen(
                                                     }
                                                 }
                                             ) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Delete Stop", tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                                Icon(Icons.Default.Delete, contentDescription = "Delete Stop", tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
                                             }
                                         }
                                     }
@@ -1688,8 +1742,8 @@ fun TripCreationScreen(
                 OutlinedButton(
                     onClick = { showPermissionsDialog = true },
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF10B981)),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF059669)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFECFDF5), contentColor = Color(0xFF059669)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -1703,397 +1757,145 @@ fun TripCreationScreen(
                     )
                 }
 
-                // Convoy Lobby Code & QR Share Card
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF020617)),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(16.dp))
-                        .padding(bottom = 24.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Lobby Join Code", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                            Text(text = generatedLobbyCode, color = accentColor, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                // Single Prominent "Save Trip" Button across all 3 Trip Creation modes
+                Button(
+                    onClick = {
+                        val finalTitle = tripTitle.ifBlank {
+                            if (origin.isNotBlank() && destination.isNotBlank()) "$origin to $destination Ride"
+                            else "Multi-Day Convoy Tour"
                         }
-                        Button(
-                            onClick = { showShareQrDialogForCreation = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155), contentColor = Color.White),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Share QR")
-                        }
-                    }
-                }
-
-                // Action Buttons Row: "Save Trip" & "Launch Convoy Ride"
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Save Trip Option Button (Persists permanently via TripRepository)
-                    OutlinedButton(
-                        onClick = {
-                            val finalTitle = tripTitle.ifBlank { "$origin to $destination Ride" }
-                            val finalPlan = currentItineraryPlan ?: run {
-                                val dayStops = mutableListOf<ItineraryStop>()
+                        val freshLobbyCode = "RSS${(1000..9999).random()}"
+                        val finalPlan = currentItineraryPlan ?: run {
+                            val dayStops = mutableListOf<ItineraryStop>()
+                            dayStops.add(
+                                ItineraryStop(
+                                    stopId = "stop_0",
+                                    stopName = origin.ifBlank { "Start Point" },
+                                    activityDescription = "Starting Point (Origin)",
+                                    latitude = startLatLng.latitude,
+                                    longitude = startLatLng.longitude,
+                                    status = ItineraryStopStatus.PENDING,
+                                    orderIndex = 0
+                                )
+                            )
+                            waypointNames.forEachIndexed { idx, wpName ->
+                                val latLng = waypointLatLngs.getOrNull(idx) ?: LatLng(0.0, 0.0)
                                 dayStops.add(
                                     ItineraryStop(
-                                        stopId = "stop_0",
-                                        stopName = origin,
-                                        activityDescription = "Starting Point (Origin)",
-                                        latitude = startLatLng.latitude,
-                                        longitude = startLatLng.longitude,
+                                        stopId = "stop_${idx + 1}",
+                                        stopName = wpName,
+                                        activityDescription = "Intermediate Stop / Route Point",
+                                        latitude = latLng.latitude,
+                                        longitude = latLng.longitude,
                                         status = ItineraryStopStatus.PENDING,
-                                        orderIndex = 0
+                                        orderIndex = idx + 1
                                     )
                                 )
-                                waypointNames.forEachIndexed { idx, wpName ->
-                                    val latLng = waypointLatLngs.getOrNull(idx) ?: LatLng(0.0, 0.0)
-                                    dayStops.add(
-                                        ItineraryStop(
-                                            stopId = "stop_${idx + 1}",
-                                            stopName = wpName,
-                                            activityDescription = "Intermediate Stop / Attraction",
-                                            latitude = latLng.latitude,
-                                            longitude = latLng.longitude,
-                                            status = ItineraryStopStatus.PENDING,
-                                            orderIndex = idx + 1
-                                        )
-                                    )
-                                }
-                                dayStops.add(
-                                    ItineraryStop(
-                                        stopId = "stop_${dayStops.size}",
-                                        stopName = destination,
-                                        activityDescription = "Ending Point (Destination)",
-                                        latitude = destLatLng.latitude,
-                                        longitude = destLatLng.longitude,
-                                        status = ItineraryStopStatus.PENDING,
-                                        orderIndex = dayStops.size
-                                    )
+                            }
+                            dayStops.add(
+                                ItineraryStop(
+                                    stopId = "stop_${dayStops.size}",
+                                    stopName = destination.ifBlank { "Destination" },
+                                    activityDescription = "Ending Point (Destination)",
+                                    latitude = destLatLng.latitude,
+                                    longitude = destLatLng.longitude,
+                                    status = ItineraryStopStatus.PENDING,
+                                    orderIndex = dayStops.size
                                 )
-                                ItineraryTripPlan(
-                                    planId = "plan_${System.currentTimeMillis()}",
-                                    creationMode = currentCreationMode,
-                                    tripTitle = finalTitle,
-                                    totalDuration = if (estimatedDurationMin > 0) "${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m" else "1 Day",
-                                    days = listOf(
+                            )
+                            ItineraryTripPlan(
+                                planId = "plan_${System.currentTimeMillis()}",
+                                creationMode = currentCreationMode,
+                                tripTitle = finalTitle,
+                                startDate = tripStartDate,
+                                totalDuration = if (multiDaySegments.isNotEmpty()) "${multiDaySegments.size} Days"
+                                                else if (estimatedDurationMin > 0) "${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m"
+                                                else "1 Day",
+                                days = if (multiDaySegments.isNotEmpty()) {
+                                    multiDaySegments.mapIndexed { idx, seg ->
                                         ItineraryDay(
-                                            dayNumber = 1,
-                                            dayTitle = "Day 1: $origin to $destination",
-                                            stops = dayStops
+                                            dayNumber = idx + 1,
+                                            dayTitle = seg.segmentName.ifBlank { "Day ${idx + 1}" },
+                                            date = tripStartDate,
+                                            stops = listOf(
+                                                ItineraryStop(stopId = "stop_${idx}_0", stopName = seg.originName.ifBlank { "Start" }, orderIndex = 0)
+                                            ) + seg.waypoints.mapIndexed { wIdx, wp ->
+                                                ItineraryStop(stopId = "stop_${idx}_${wIdx + 1}", stopName = wp, orderIndex = wIdx + 1)
+                                            } + listOf(
+                                                ItineraryStop(stopId = "stop_${idx}_${seg.waypoints.size + 1}", stopName = seg.destinationName.ifBlank { "End" }, orderIndex = seg.waypoints.size + 1)
+                                            )
                                         )
-                                    )
-                                )
-                            }
-                            val newSavedTrip = SavedTrip(
-                                tripId = "TRIP-SAVED-${System.currentTimeMillis()}",
-                                plannerId = userProfile.userId.ifBlank { "user_host" },
-                                title = finalTitle,
-                                originName = origin,
-                                destinationName = destination,
-                                startLatLng = startLatLng,
-                                destLatLng = destLatLng,
-                                waypoints = waypointNames.toList(),
-                                waypointLatLngs = waypointLatLngs.toList(),
-                                distanceKm = if (estimatedDistanceKm > 0) estimatedDistanceKm else 159.0,
-                                durationMinutes = if (estimatedDurationMin > 0) estimatedDurationMin else 214,
-                                role = selectedRole,
-                                category = TripCategory.UPCOMING,
-                                lobbyCode = generatedLobbyCode,
-                                scheduledDate = "Planned Upcoming Ride",
-                                joinedRiders = listOf(
-                                    JoinedRiderProfile(
-                                        riderId = userProfile.userId.ifBlank { "rider_me" },
-                                        displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                        bikeModel = userProfile.displayVehicleModel,
-                                        role = selectedRole,
-                                        status = "Lead Navigator",
-                                        experienceBadge = "Trip Host",
-                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone
-                                    )
-                                ),
-                                routeSegments = multiDaySegments.toList(),
-                                itineraryPlan = finalPlan
-                            )
-                            TripRepository.saveTrip(newSavedTrip)
-                            Toast.makeText(context, "Trip '$finalTitle' saved to your trips!", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, accentColor),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor)
-                    ) {
-                        Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Save Trip", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    // Launch Convoy Ride Button (Persists as ONGOING so it's never deleted!)
-                    Button(
-                        onClick = {
-                            val finalTitle = tripTitle.ifBlank { "$origin to $destination Ride" }
-                            val finalPlan = currentItineraryPlan ?: run {
-                                val dayStops = mutableListOf<ItineraryStop>()
-                                dayStops.add(
-                                    ItineraryStop(
-                                        stopId = "stop_0",
-                                        stopName = origin,
-                                        activityDescription = "Starting Point (Origin)",
-                                        latitude = startLatLng.latitude,
-                                        longitude = startLatLng.longitude,
-                                        status = ItineraryStopStatus.PENDING,
-                                        orderIndex = 0
-                                    )
-                                )
-                                waypointNames.forEachIndexed { idx, wpName ->
-                                    val latLng = waypointLatLngs.getOrNull(idx) ?: LatLng(0.0, 0.0)
-                                    dayStops.add(
-                                        ItineraryStop(
-                                            stopId = "stop_${idx + 1}",
-                                            stopName = wpName,
-                                            activityDescription = "Intermediate Stop / Attraction",
-                                            latitude = latLng.latitude,
-                                            longitude = latLng.longitude,
-                                            status = ItineraryStopStatus.PENDING,
-                                            orderIndex = idx + 1
-                                        )
-                                    )
-                                }
-                                dayStops.add(
-                                    ItineraryStop(
-                                        stopId = "stop_${dayStops.size}",
-                                        stopName = destination,
-                                        activityDescription = "Ending Point (Destination)",
-                                        latitude = destLatLng.latitude,
-                                        longitude = destLatLng.longitude,
-                                        status = ItineraryStopStatus.PENDING,
-                                        orderIndex = dayStops.size
-                                    )
-                                )
-                                ItineraryTripPlan(
-                                    planId = "plan_${System.currentTimeMillis()}",
-                                    creationMode = currentCreationMode,
-                                    tripTitle = finalTitle,
-                                    totalDuration = if (estimatedDurationMin > 0) "${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m" else "1 Day",
-                                    days = listOf(
-                                        ItineraryDay(
-                                            dayNumber = 1,
-                                            dayTitle = "Day 1: $origin to $destination",
-                                            stops = dayStops
-                                        )
-                                    )
-                                )
-                            }
-                            val newOngoingTrip = SavedTrip(
-                                tripId = "TRIP-ONGOING-${System.currentTimeMillis()}",
-                                plannerId = userProfile.userId.ifBlank { "user_host" },
-                                title = finalTitle,
-                                originName = origin,
-                                destinationName = destination,
-                                startLatLng = startLatLng,
-                                destLatLng = destLatLng,
-                                waypoints = waypointNames.toList(),
-                                waypointLatLngs = waypointLatLngs.toList(),
-                                distanceKm = if (estimatedDistanceKm > 0) estimatedDistanceKm else 159.0,
-                                durationMinutes = if (estimatedDurationMin > 0) estimatedDurationMin else 214,
-                                role = selectedRole,
-                                category = TripCategory.ONGOING,
-                                lobbyCode = generatedLobbyCode,
-                                scheduledDate = "Active Live Convoy",
-                                joinedRiders = listOf(
-                                    JoinedRiderProfile(
-                                        riderId = userProfile.userId.ifBlank { "rider_me" },
-                                        displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                        bikeModel = userProfile.displayVehicleModel,
-                                        role = selectedRole,
-                                        status = "Active Live Convoy",
-                                        experienceBadge = "Lead Navigator",
-                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone
-                                    )
-                                ),
-                                routeSegments = multiDaySegments.toList(),
-                                itineraryPlan = finalPlan
-                            )
-                            TripRepository.saveTrip(newOngoingTrip)
-                            TripRepository.setOngoingTrip(newOngoingTrip.tripId)
-
-                            if (multiDaySegments.isNotEmpty()) {
-                                pendingTripForDaySelection = newOngoingTrip
-                            } else {
-                                val currentPolyline = if (activeRoutePolyline.isNotEmpty()) activeRoutePolyline else listOf(startLatLng) + waypointLatLngs + listOf(destLatLng)
-                                onStartTripClick(finalTitle, selectedRole, origin, destination, waypointNames.toList(), currentPolyline)
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1.3f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.Black),
-                        elevation = ButtonDefaults.buttonElevation(6.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Launch Convoy", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            } else {
-                // TAB 1: SAVED TRIPS, ONGOING CONVOY & HISTORY DASHBOARD
-                // 1. Overall Rider Lifetime Stats Header
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = cardBg),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Rider Activity Summary",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-
-                        val totalDistCompleted = savedTripsList.filter { it.category == TripCategory.COMPLETED || it.category == TripCategory.ONGOING }
-                            .sumOf { if (it.category == TripCategory.ONGOING) it.completedKm else it.distanceKm }
-                        val completedCount = savedTripsList.count { it.category == TripCategory.COMPLETED }
-                        val upcomingCount = savedTripsList.count { it.category == TripCategory.UPCOMING }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            StatBox(title = "Total Distance", value = "${totalDistCompleted.toInt()} KM", accentColor = Color(0xFF38BDF8), modifier = Modifier.weight(1f))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            StatBox(title = "Completed Trips", value = "$completedCount Rides", accentColor = Color(0xFF22C55E), modifier = Modifier.weight(1f))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            StatBox(title = "Upcoming Saved", value = "$upcomingCount Trips", accentColor = accentColor, modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-
-                // 2. Ongoing Trip Section (Live Running Ride)
-                val ongoingTrip = savedTripsList.firstOrNull { it.category == TripCategory.ONGOING }
-                if (ongoingTrip != null) {
-                    Text(
-                        text = "Live Ongoing Ride (In Progress)",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(bottom = 10.dp)
-                    )
-
-                    TripSummaryCard(
-                        trip = ongoingTrip,
-                        onViewDetails = { selectedTripForDetails = ongoingTrip },
-                        onLaunchTrip = {
-                            TripRepository.setOngoingTrip(ongoingTrip.tripId)
-                            onStartTripClick(
-                                ongoingTrip.title,
-                                ongoingTrip.role,
-                                ongoingTrip.originName,
-                                ongoingTrip.destinationName,
-                                ongoingTrip.waypoints,
-                                if (activeRoutePolyline.isNotEmpty()) activeRoutePolyline else listOf(ongoingTrip.startLatLng, ongoingTrip.destLatLng)
-                            )
-                        },
-                        onEditTrip = { tripToEdit = ongoingTrip },
-                        onDeleteTrip = { tripToDelete = ongoingTrip },
-                        modifier = Modifier.padding(bottom = 20.dp)
-                    )
-                }
-
-                // 3. Saved & Upcoming Trips Section
-                val upcomingTrips = savedTripsList.filter { it.category == TripCategory.UPCOMING }
-                Text(
-                    text = "Upcoming & Saved Trips (${upcomingTrips.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
-
-                if (upcomingTrips.isEmpty()) {
-                    Text(
-                        text = "No saved upcoming trips yet. Go to 'Plan & Route' tab and tap 'Save Trip'.",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(bottom = 20.dp)
-                    )
-                } else {
-                    upcomingTrips.forEach { trip ->
-                        TripSummaryCard(
-                            trip = trip,
-                            onViewDetails = { selectedTripForDetails = trip },
-                            onLaunchTrip = {
-                                TripRepository.setOngoingTrip(trip.tripId)
-                                if (trip.routeSegments.isNotEmpty()) {
-                                    pendingTripForDaySelection = trip
+                                    }
                                 } else {
-                                    onStartTripClick(
-                                        trip.title,
-                                        trip.role,
-                                        trip.originName,
-                                        trip.destinationName,
-                                        trip.waypoints,
-                                        if (trip.waypointLatLngs.isNotEmpty()) listOf(trip.startLatLng) + trip.waypointLatLngs + listOf(trip.destLatLng) else listOf(trip.startLatLng, trip.destLatLng)
+                                    listOf(
+                                        ItineraryDay(
+                                            dayNumber = 1,
+                                            dayTitle = "Day 1: ${origin.ifBlank { "Start" }} to ${destination.ifBlank { "Destination" }}",
+                                            date = tripStartDate,
+                                            stops = dayStops
+                                        )
                                     )
                                 }
-                            },
-                            onEditTrip = { tripToEdit = trip },
-                            onDeleteTrip = { tripToDelete = trip },
-                            modifier = Modifier.padding(bottom = 14.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 4. Completed Trips History Section
-                val completedTrips = savedTripsList.filter { it.category == TripCategory.COMPLETED }
-                Text(
-                    text = "Completed Trips History (${completedTrips.size})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
-
-                completedTrips.forEach { trip ->
-                    TripSummaryCard(
-                        trip = trip,
-                        onViewDetails = { selectedTripForDetails = trip },
-                        onLaunchTrip = {
-                            TripRepository.setOngoingTrip(trip.tripId)
-                            onStartTripClick(
-                                trip.title,
-                                trip.role,
-                                trip.originName,
-                                trip.destinationName,
-                                trip.waypoints,
-                                listOf(trip.startLatLng, trip.destLatLng)
                             )
-                        },
-                        onEditTrip = { tripToEdit = trip },
-                        onDeleteTrip = { tripToDelete = trip },
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
+                        }
+
+                        val formattedDateRange = if (tripStartDate.isNotBlank() && tripEndDate.isNotBlank() && tripStartDate != tripEndDate) {
+                            "$tripStartDate - $tripEndDate"
+                        } else tripStartDate.ifBlank { "Planned Upcoming Ride" }
+
+                        val newSavedTrip = SavedTrip(
+                            tripId = "TRIP-SAVED-${System.currentTimeMillis()}",
+                            plannerId = userProfile.userId.ifBlank { "user_host" },
+                            title = finalTitle,
+                            originName = origin.ifBlank { "Start Point" },
+                            destinationName = destination.ifBlank { "Destination" },
+                            startLatLng = startLatLng,
+                            destLatLng = destLatLng,
+                            waypoints = waypointNames.toList(),
+                            waypointLatLngs = waypointLatLngs.toList(),
+                            distanceKm = if (estimatedDistanceKm > 0) estimatedDistanceKm else (multiDaySegments.sumOf { it.distanceKm }.let { if (it > 0) it else 159.0 }),
+                            durationMinutes = if (estimatedDurationMin > 0) estimatedDurationMin else (multiDaySegments.sumOf { it.estimatedDurationMinutes }.let { if (it > 0) it else 214 }),
+                            role = selectedRole,
+                            category = TripCategory.UPCOMING,
+                            lobbyCode = freshLobbyCode,
+                            scheduledDate = formattedDateRange,
+                            joinedRiders = listOf(
+                                JoinedRiderProfile(
+                                    riderId = userProfile.userId.ifBlank { "rider_me" },
+                                    displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
+                                    bikeModel = selectedTripVehicle?.fullDisplayName ?: userProfile.displayVehicleModel,
+                                    role = selectedRole,
+                                    status = "Lead Navigator",
+                                    experienceBadge = "Trip Host",
+                                    emergencyContact = userProfile.privacySettings.emergencyContactPhone
+                                )
+                            ),
+                            routeSegments = multiDaySegments.toList(),
+                            itineraryPlan = finalPlan
+                        )
+                        TripRepository.saveTrip(newSavedTrip)
+                        Toast.makeText(context, "Trip '$finalTitle' saved! Code: $freshLobbyCode", Toast.LENGTH_LONG).show()
+                        selectedScreenTab = 1
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(bottom = 8.dp)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Color(0xFF0052CC), Color(0xFF003399))
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                    elevation = ButtonDefaults.buttonElevation(6.dp)
+                ) {
+                    Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save Trip", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
                 }
             }
-        }
 
         var geocoderResults by remember { mutableStateOf<List<PlaceSearchResult>>(emptyList()) }
         var isGeocoding by remember { mutableStateOf(false) }
@@ -2159,8 +1961,13 @@ fun TripCreationScreen(
 
             AlertDialog(
                 onDismissRequest = { searchTargetField = null },
-                containerColor = Color(0xFF0F172A),
-                shape = RoundedCornerShape(20.dp),
+                containerColor = Color(0xF0090D16),
+                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier.border(
+                    width = 1.5.dp,
+                    brush = Brush.horizontalGradient(listOf(Color(0xFF38BDF8), Color(0xFF00E5FF), Color(0xFF0284C7))),
+                    shape = RoundedCornerShape(22.dp)
+                ),
                 title = {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2665,10 +2472,11 @@ private fun CreationMethodTabChip(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
-        color = if (isSelected) accentColor.copy(alpha = 0.2f) else Color(0xFF1E293B),
+        color = if (isSelected) Color(0xFFEFF6FF) else Color(0xFFFFFFFF),
+        shadowElevation = if (isSelected) 4.dp else 1.dp,
         border = androidx.compose.foundation.BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) accentColor else Color(0xFF334155)
+            color = if (isSelected) Color(0xFF0052CC) else Color(0xFFCBD5E1)
         ),
         modifier = modifier
     ) {
@@ -2680,7 +2488,7 @@ private fun CreationMethodTabChip(
                 text = title,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                color = if (isSelected) Color(0xFF0052CC) else Color(0xFF0F172A),
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
@@ -2688,8 +2496,8 @@ private fun CreationMethodTabChip(
             Text(
                 text = subtitle,
                 fontSize = 9.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isSelected) accentColor else Color(0xFF94A3B8),
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) Color(0xFF0284C7) else Color(0xFF64748B),
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
@@ -2710,10 +2518,11 @@ private fun RoleChip(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
-        color = if (isSelected) accentColor.copy(alpha = 0.2f) else Color(0xFF1E293B),
+        color = if (isSelected) Color(0xFFEFF6FF) else Color(0xFFFFFFFF),
+        shadowElevation = if (isSelected) 4.dp else 1.dp,
         border = androidx.compose.foundation.BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) accentColor else Color(0xFF334155)
+            color = if (isSelected) Color(0xFF0052CC) else Color(0xFFCBD5E1)
         ),
         modifier = modifier
     ) {
@@ -2721,9 +2530,20 @@ private fun RoleChip(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp)
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = if (isSelected) accentColor else Color(0xFF94A3B8), modifier = Modifier.size(24.dp))
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) Color(0xFF0052CC) else Color(0xFF475569),
+                modifier = Modifier.size(24.dp)
+            )
             Spacer(modifier = Modifier.height(6.dp))
-            Text(text = title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else Color(0xFF94A3B8), textAlign = TextAlign.Center)
+            Text(
+                text = title,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) Color(0xFF0052CC) else Color(0xFF0F172A),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -2736,18 +2556,18 @@ private fun StatBox(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = Color(0xFF0F172A),
+        color = Color(0xFFF8FAFC),
         shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
         modifier = modifier
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
         ) {
-            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Black, color = accentColor)
+            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color(0xFF0052CC))
             Spacer(modifier = Modifier.height(2.dp))
-            Text(text = title, fontSize = 10.sp, color = Color(0xFF94A3B8), textAlign = TextAlign.Center)
+            Text(text = title, fontSize = 10.sp, color = Color(0xFF475569), textAlign = TextAlign.Center)
         }
     }
 }
@@ -3830,3 +3650,412 @@ fun SelectDayRouteDialog(
         }
     )
 }
+
+/**
+ * Dedicated Trip History & Saved Rides Page.
+ * Displays Saved Trips, Ongoing Convoy, Completed Tours & Lifetime Stats.
+ */
+/**
+ * Dedicated Trip History & Saved Rides Dashboard Screen.
+ * Displays all trips user joined, created, upcoming, and completed with full details & stats.
+ */
+@Composable
+fun SavedTripsHistoryScreen(
+    onStartTripClick: (tripTitle: String, role: ConvoyRole, origin: String, destination: String, waypoints: List<String>, routePolyline: List<LatLng>) -> Unit,
+    onShareLobbyClick: (lobbyCode: String) -> Unit,
+    userProfile: UserProfile = UserProfile(userId = "user_me", displayName = "Ahmed (You)"),
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val savedTripsList by TripRepository.tripsFlow.collectAsState()
+
+    var activeCategoryFilter by remember { mutableStateOf("ALL") } // ALL, CREATED, JOINED, UPCOMING, COMPLETED
+    var selectedTripForDetails by remember { mutableStateOf<SavedTrip?>(null) }
+    var tripToEdit by remember { mutableStateOf<SavedTrip?>(null) }
+    var tripToDelete by remember { mutableStateOf<SavedTrip?>(null) }
+    var pendingTripForDaySelection by remember { mutableStateOf<SavedTrip?>(null) }
+
+    val accentColor = Color(0xFF00E5FF)
+    val cardBg = Color(0xF0090D16)
+
+    val filteredTrips = remember(savedTripsList, activeCategoryFilter, userProfile.userId) {
+        when (activeCategoryFilter) {
+            "CREATED" -> savedTripsList.filter { it.plannerId == userProfile.userId || it.plannerId == "user_me" || it.plannerId == "user_host" }
+            "JOINED" -> savedTripsList.filter { trip -> trip.joinedRiders.any { it.riderId == userProfile.userId || it.riderId == "user_me" } }
+            "UPCOMING" -> savedTripsList.filter { it.category == TripCategory.UPCOMING }
+            "COMPLETED" -> savedTripsList.filter { it.category == TripCategory.COMPLETED }
+            else -> savedTripsList
+        }
+    }
+
+    val totalDistCompleted = remember(savedTripsList) {
+        savedTripsList.filter { it.category == TripCategory.COMPLETED || it.category == TripCategory.ONGOING }
+            .sumOf { if (it.category == TripCategory.ONGOING) it.completedKm else it.distanceKm }
+    }
+    val completedCount = remember(savedTripsList) { savedTripsList.count { it.category == TripCategory.COMPLETED } }
+    val upcomingCount = remember(savedTripsList) { savedTripsList.count { it.category == TripCategory.UPCOMING } }
+    val ongoingTrip = remember(savedTripsList) { savedTripsList.firstOrNull { it.category == TripCategory.ONGOING } }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF1F5F9))
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // 1. Screen Header
+        Text(
+            text = "Trip History & Saved Rides",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Black,
+            color = Color(0xFF0F172A)
+        )
+        Text(
+            text = "View all trips you created, joined convoys, upcoming, and completed tours",
+            fontSize = 13.sp,
+            color = Color(0xFF475569),
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // 2. Rider Lifetime Stats Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    1.5.dp,
+                    Brush.horizontalGradient(listOf(Color(0xFF0052CC), Color(0xFF3B82F6))),
+                    RoundedCornerShape(18.dp)
+                )
+                .padding(bottom = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "🏆 Rider Activity & Tour Stats",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    StatBox(title = "Total Distance", value = "${totalDistCompleted.toInt()} KM", accentColor = Color(0xFF0052CC), modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    StatBox(title = "Completed Rides", value = "$completedCount Rides", accentColor = Color(0xFF16A34A), modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    StatBox(title = "Upcoming Saved", value = "$upcomingCount Trips", accentColor = Color(0xFF0052CC), modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        // 3. Category Filter Chips Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf(
+                "ALL" to "All (${savedTripsList.size})",
+                "CREATED" to "Created",
+                "JOINED" to "Joined",
+                "UPCOMING" to "Upcoming",
+                "COMPLETED" to "Completed"
+            ).forEach { (catKey, catLabel) ->
+                val isSelected = activeCategoryFilter == catKey
+                Surface(
+                    onClick = { activeCategoryFilter = catKey },
+                    shape = androidx.compose.foundation.shape.CircleShape,
+                    color = if (isSelected) Color(0xFF0052CC) else Color(0xFFFFFFFF),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF0052CC) else Color(0xFFCBD5E1)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = catLabel,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                        color = if (isSelected) Color.White else Color(0xFF0F172A),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        // 4. Live Ongoing Ride Banner (If active)
+        if (ongoingTrip != null && (activeCategoryFilter == "ALL" || activeCategoryFilter == "UPCOMING")) {
+            Text(
+                text = "⚡ Live Ongoing Ride (In Progress)",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF22C55E),
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+
+            TripSummaryCard(
+                trip = ongoingTrip,
+                onViewDetails = { selectedTripForDetails = ongoingTrip },
+                onLaunchTrip = {
+                    TripRepository.setOngoingTrip(ongoingTrip.tripId)
+                    onStartTripClick(
+                        ongoingTrip.title,
+                        ongoingTrip.role,
+                        ongoingTrip.originName,
+                        ongoingTrip.destinationName,
+                        ongoingTrip.waypoints,
+                        if (ongoingTrip.waypointLatLngs.isNotEmpty()) listOf(ongoingTrip.startLatLng) + ongoingTrip.waypointLatLngs + listOf(ongoingTrip.destLatLng) else listOf(ongoingTrip.startLatLng, ongoingTrip.destLatLng)
+                    )
+                },
+                onEditTrip = { tripToEdit = ongoingTrip },
+                onDeleteTrip = { tripToDelete = ongoingTrip },
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+        }
+
+        // 5. Filtered Trips List
+        Text(
+            text = "Trip History Records (${filteredTrips.size})",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF0F172A),
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        if (filteredTrips.isEmpty()) {
+            Surface(
+                color = Color(0xFFFFFFFF),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.BookmarkBorder, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(36.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "No trips found in '$activeCategoryFilter' filter.",
+                        color = Color(0xFF0F172A),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "Create a new ride or join a convoy using a lobby code.",
+                        color = Color(0xFF64748B),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        } else {
+            filteredTrips.forEach { trip ->
+                TripSummaryCard(
+                    trip = trip,
+                    onViewDetails = { selectedTripForDetails = trip },
+                    onLaunchTrip = {
+                        TripRepository.setOngoingTrip(trip.tripId)
+                        if (trip.routeSegments.isNotEmpty()) {
+                            pendingTripForDaySelection = trip
+                        } else {
+                            onStartTripClick(
+                                trip.title,
+                                trip.role,
+                                trip.originName,
+                                trip.destinationName,
+                                trip.waypoints,
+                                if (trip.waypointLatLngs.isNotEmpty()) listOf(trip.startLatLng) + trip.waypointLatLngs + listOf(trip.destLatLng) else listOf(trip.startLatLng, trip.destLatLng)
+                            )
+                        }
+                    },
+                    onEditTrip = { tripToEdit = trip },
+                    onDeleteTrip = { tripToDelete = trip },
+                    modifier = Modifier.padding(bottom = 14.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(80.dp))
+    }
+
+    // Full Trip Details Dialog
+    if (selectedTripForDetails != null) {
+        val trip = selectedTripForDetails!!
+        AlertDialog(
+            onDismissRequest = { selectedTripForDetails = null },
+            containerColor = Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(22.dp),
+            modifier = Modifier.border(
+                width = 1.5.dp,
+                brush = Brush.horizontalGradient(listOf(Color(0xFF0052CC), Color(0xFF3B82F6))),
+                shape = RoundedCornerShape(22.dp)
+            ),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🗺️", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = trip.title,
+                            color = Color(0xFF0F172A),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp,
+                            maxLines = 1
+                        )
+                    }
+                    IconButton(onClick = { selectedTripForDetails = null }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF64748B))
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(text = "Scheduled: ${trip.scheduledDate} • Category: ${trip.category.name}", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(text = "📍 Route Details:", color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "• Origin: ${trip.originName}", color = Color(0xFF475569), fontSize = 13.sp)
+                    Text(text = "• Destination: ${trip.destinationName}", color = Color(0xFF475569), fontSize = 13.sp)
+                    Text(text = "• Distance: ${trip.distanceKm.toInt()} km", color = Color(0xFF475569), fontSize = 13.sp)
+                    if (trip.waypoints.isNotEmpty()) {
+                        Text(text = "• Waypoints: ${trip.waypoints.joinToString(", ")}", color = Color(0xFFD97706), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(text = "👥 Joined Convoy Members (${trip.joinedRiders.size}):", color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    trip.joinedRiders.forEach { rider ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(text = "🏍️", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(text = rider.displayName, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "${rider.bikeModel} • ${rider.role.name}", color = Color(0xFF64748B), fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(text = "🔑 Lobby Join Code: ${trip.lobbyCode}", color = Color(0xFF0052CC), fontSize = 13.sp, fontWeight = FontWeight.Black)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val tr = selectedTripForDetails!!
+                        selectedTripForDetails = null
+                        TripRepository.setOngoingTrip(tr.tripId)
+                        onStartTripClick(
+                            tr.title,
+                            tr.role,
+                            tr.originName,
+                            tr.destinationName,
+                            tr.waypoints,
+                            if (tr.waypointLatLngs.isNotEmpty()) listOf(tr.startLatLng) + tr.waypointLatLngs + listOf(tr.destLatLng) else listOf(tr.startLatLng, tr.destLatLng)
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ) {
+                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("START TRIP NAVIGATION", fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedTripForDetails = null }) {
+                    Text("Close", color = Color(0xFF64748B))
+                }
+            }
+        )
+    }
+
+    // Edit Trip Dialog
+    if (tripToEdit != null) {
+        EditTripRouteDialog(
+            trip = tripToEdit!!,
+            onDismiss = { tripToEdit = null },
+            onTripUpdated = { updated ->
+                TripRepository.saveTrip(updated)
+                tripToEdit = null
+                Toast.makeText(context, "Updated trip '${updated.title}'!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // Delete Trip Confirmation Dialog
+    if (tripToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { tripToDelete = null },
+            containerColor = Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(20.dp)),
+            title = { Text("Delete Trip?", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to remove '${tripToDelete?.title}' from your saved trips history?", color = Color(0xFF475569)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val t = tripToDelete!!
+                        tripToDelete = null
+                        TripRepository.deleteTrip(t.tripId)
+                        Toast.makeText(context, "Deleted '${t.title}'", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444), contentColor = Color.White)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { tripToDelete = null }) { Text("Cancel", color = Color(0xFF64748B)) }
+            }
+        )
+    }
+
+    // Multi-Day Day Route Selector Dialog
+    if (pendingTripForDaySelection != null) {
+        val trip = pendingTripForDaySelection!!
+        SelectDayRouteDialog(
+            trip = trip,
+            masterPolyline = if (trip.waypointLatLngs.isNotEmpty()) listOf(trip.startLatLng) + trip.waypointLatLngs + listOf(trip.destLatLng) else listOf(trip.startLatLng, trip.destLatLng),
+            onDismiss = { pendingTripForDaySelection = null },
+            onSelectRoute = { title, role, orig, dest, waypoints, segPolyline ->
+                pendingTripForDaySelection = null
+                TripRepository.setOngoingTrip(trip.tripId)
+                onStartTripClick(
+                    title,
+                    role,
+                    orig,
+                    dest,
+                    waypoints,
+                    segPolyline
+                )
+            }
+        )
+    }
+}
+

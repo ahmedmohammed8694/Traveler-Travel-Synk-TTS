@@ -88,6 +88,7 @@ class AuthRepositoryImpl : AuthRepository {
             put("fuelType", v.fuelType)
             put("brandName", v.brandName)
             put("model", v.model)
+            put("registrationNumber", v.registrationNumber)
             put("fuelTankCapacity", v.fuelTankCapacity)
             put("mileage", v.mileage)
             put("currentFuelAvailable", v.currentFuelAvailable)
@@ -102,6 +103,7 @@ class AuthRepositoryImpl : AuthRepository {
             fuelType = j.optString("fuelType", FuelType.PETROL.name),
             brandName = j.optString("brandName", ""),
             model = j.optString("model", ""),
+            registrationNumber = j.optString("registrationNumber", j.optString("regNo", "")),
             fuelTankCapacity = j.optDouble("fuelTankCapacity", 15.0),
             mileage = j.optDouble("mileage", 35.0),
             currentFuelAvailable = j.optDouble("currentFuelAvailable", 10.0),

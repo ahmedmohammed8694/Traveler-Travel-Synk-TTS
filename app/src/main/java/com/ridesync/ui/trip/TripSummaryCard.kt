@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -47,18 +48,18 @@ fun TripSummaryCard(
     var showQrDialog by remember { mutableStateOf(false) }
 
     val cardBorder = if (isOngoing) {
-        BorderStroke(2.dp, Color(0xFF22C55E))
+        BorderStroke(2.dp, Color(0xFF059669))
     } else {
-        BorderStroke(1.dp, Color(0xFF334155))
+        BorderStroke(1.5.dp, Color(0xFFE2E8F0))
     }
 
-    val cardBg = if (isOngoing) Color(0xFF0F172A) else Color(0xFF1E293B)
-    val accentColor = if (isOngoing) Color(0xFF22C55E) else Color(0xFFF59E0B)
+    val cardBg = Color(0xFFFFFFFF)
 
     Card(
         colors = CardDefaults.cardColors(containerColor = cardBg),
         shape = RoundedCornerShape(18.dp),
         border = cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = modifier
             .fillMaxWidth()
             .clickable { onViewDetails() }
@@ -73,17 +74,17 @@ fun TripSummaryCard(
                 // Category Status Badge
                 Surface(
                     color = when (trip.category) {
-                        TripCategory.ONGOING -> Color(0xFF22C55E).copy(alpha = 0.2f)
-                        TripCategory.UPCOMING -> Color(0xFFF59E0B).copy(alpha = 0.2f)
-                        TripCategory.COMPLETED -> Color(0xFF38BDF8).copy(alpha = 0.2f)
+                        TripCategory.ONGOING -> Color(0xFFECFDF5)
+                        TripCategory.UPCOMING -> Color(0xFFEFF6FF)
+                        TripCategory.COMPLETED -> Color(0xFFF8FAFC)
                     },
                     shape = RoundedCornerShape(20.dp),
                     border = BorderStroke(
                         1.dp,
                         when (trip.category) {
-                            TripCategory.ONGOING -> Color(0xFF22C55E)
-                            TripCategory.UPCOMING -> Color(0xFFF59E0B)
-                            TripCategory.COMPLETED -> Color(0xFF38BDF8)
+                            TripCategory.ONGOING -> Color(0xFF059669)
+                            TripCategory.UPCOMING -> Color(0xFF0052CC)
+                            TripCategory.COMPLETED -> Color(0xFF64748B)
                         }
                     )
                 ) {
@@ -96,9 +97,9 @@ fun TripSummaryCard(
                                 .size(7.dp)
                                 .background(
                                     when (trip.category) {
-                                        TripCategory.ONGOING -> Color(0xFF22C55E)
-                                        TripCategory.UPCOMING -> Color(0xFFF59E0B)
-                                        TripCategory.COMPLETED -> Color(0xFF38BDF8)
+                                        TripCategory.ONGOING -> Color(0xFF059669)
+                                        TripCategory.UPCOMING -> Color(0xFF0052CC)
+                                        TripCategory.COMPLETED -> Color(0xFF64748B)
                                     },
                                     CircleShape
                                 )
@@ -111,9 +112,9 @@ fun TripSummaryCard(
                                 TripCategory.COMPLETED -> "COMPLETED TOUR"
                             },
                             color = when (trip.category) {
-                                TripCategory.ONGOING -> Color(0xFF22C55E)
-                                TripCategory.UPCOMING -> Color(0xFFFBBF24)
-                                TripCategory.COMPLETED -> Color(0xFF38BDF8)
+                                TripCategory.ONGOING -> Color(0xFF059669)
+                                TripCategory.UPCOMING -> Color(0xFF0052CC)
+                                TripCategory.COMPLETED -> Color(0xFF475569)
                             },
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black
@@ -126,14 +127,14 @@ fun TripSummaryCard(
                         onClick = onEditTrip,
                         modifier = Modifier.size(28.dp)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Trip", tint = Color(0xFF38BDF8), modifier = Modifier.size(17.dp))
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Trip", tint = Color(0xFF0052CC), modifier = Modifier.size(17.dp))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     IconButton(
                         onClick = onDeleteTrip,
                         modifier = Modifier.size(28.dp)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete Trip", tint = Color(0xFFEF4444), modifier = Modifier.size(17.dp))
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Trip", tint = Color(0xFFDC2626), modifier = Modifier.size(17.dp))
                     }
                 }
             }
@@ -145,7 +146,7 @@ fun TripSummaryCard(
                 text = trip.title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Black,
-                color = Color.White
+                color = Color(0xFF0F172A)
             )
 
             // Origin -> Destination
@@ -153,13 +154,13 @@ fun TripSummaryCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
             ) {
-                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(15.dp))
+                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "${trip.originName} ➔ ${trip.destinationName}",
                     fontSize = 13.sp,
-                    color = Color(0xFFCBD5E1),
-                    fontWeight = FontWeight.Medium
+                    color = Color(0xFF1E293B),
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -172,19 +173,19 @@ fun TripSummaryCard(
             ) {
                 // Start Date Badge
                 Surface(
-                    color = Color(0xFF0F172A),
+                    color = Color(0xFFF8FAFC),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFF334155))
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFFBBF24), modifier = Modifier.size(13.dp))
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = trip.scheduledDate.ifBlank { "Oct 2026" },
-                            color = Color(0xFFFBBF24),
+                            color = Color(0xFFD97706),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -193,19 +194,19 @@ fun TripSummaryCard(
 
                 // Distance & Duration Badge
                 Surface(
-                    color = Color(0xFF0F172A),
+                    color = Color(0xFFF8FAFC),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFF334155))
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Icon(Icons.Default.Route, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(13.dp))
+                        Icon(Icons.Default.Route, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "${trip.distanceKm.toInt()} KM • ${trip.durationMinutes / 60}h ${trip.durationMinutes % 60}m",
-                            color = Color(0xFFE2E8F0),
+                            color = Color(0xFF0F172A),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -215,13 +216,13 @@ fun TripSummaryCard(
                 // Multi-Day Badge (if segments exist)
                 if (trip.routeSegments.isNotEmpty()) {
                     Surface(
-                        color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                        color = Color(0xFFEFF6FF),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFF0284C7))
+                        border = BorderStroke(1.dp, Color(0xFF0052CC))
                     ) {
                         Text(
                             text = "${trip.routeSegments.size} Days",
-                            color = Color(0xFF38BDF8),
+                            color = Color(0xFF0052CC),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -235,7 +236,7 @@ fun TripSummaryCard(
                 Text(
                     text = "📍 Stops (${trip.waypoints.size}): ${trip.waypoints.joinToString(" ➔ ")}",
                     fontSize = 11.sp,
-                    color = Color(0xFF38BDF8),
+                    color = Color(0xFF0052CC),
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
@@ -243,9 +244,9 @@ fun TripSummaryCard(
 
             // Joined Riders Bar & Invite Buttons (Share Link & Share QR)
             Surface(
-                color = Color(0xFF0F172A),
+                color = Color(0xFFF8FAFC),
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFF334155)),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 14.dp)
@@ -256,12 +257,12 @@ fun TripSummaryCard(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Group, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Group, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         val ridersCount = trip.joinedRiders.size.coerceAtLeast(1)
                         Text(
                             text = "$ridersCount ${if (ridersCount == 1) "Rider Joined" else "Riders Joined"}",
-                            color = Color.White,
+                            color = Color(0xFF0F172A),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -273,9 +274,9 @@ fun TripSummaryCard(
                             onClick = { showQrDialog = true },
                             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Icon(Icons.Default.QrCode, contentDescription = null, tint = Color(0xFFFBBF24), modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.QrCode, contentDescription = null, tint = Color(0xFFD97706), modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("QR Code", color = Color(0xFFFBBF24), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("QR Code", color = Color(0xFFD97706), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         // Share Trip Link Button
@@ -285,9 +286,9 @@ fun TripSummaryCard(
                             },
                             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Share Link", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Share Link", color = Color(0xFF0052CC), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -305,8 +306,11 @@ fun TripSummaryCard(
                         .weight(1f)
                         .height(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF38BDF8)),
-                    border = BorderStroke(1.dp, Color(0xFF38BDF8))
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFFEFF6FF),
+                        contentColor = Color(0xFF0052CC)
+                    ),
+                    border = BorderStroke(1.5.dp, Color(0xFF0052CC))
                 ) {
                     Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -318,20 +322,31 @@ fun TripSummaryCard(
                     onClick = onLaunchTrip,
                     modifier = Modifier
                         .weight(1.2f)
-                        .height(44.dp),
+                        .height(44.dp)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Color(0xFF0052CC), Color(0xFF003399))
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White
+                    )
                 ) {
                     Icon(
                         imageVector = if (isOngoing) Icons.Default.PlayArrow else Icons.Default.Navigation,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
+                        tint = Color.White
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (isOngoing) "Rejoin Convoy" else "Launch Ride",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Black
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
                     )
                 }
             }

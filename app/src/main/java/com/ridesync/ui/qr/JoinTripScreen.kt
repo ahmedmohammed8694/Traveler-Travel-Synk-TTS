@@ -56,15 +56,17 @@ fun JoinTripScreen(
     fun searchAndPreviewTrip(input: String) {
         val clean = input.trim()
         if (clean.isBlank()) return
-        val extractedCode = if (clean.contains("/join/")) {
-            clean.substringAfter("/join/").takeWhile { it != '?' && it != '/' }
-        } else if (clean.contains("code=")) {
-            clean.substringAfter("code=").takeWhile { it != '&' }
-        } else {
-            clean
-        }.uppercase().replace("-", "").replace(" ", "")
+        val extractedCode = run {
+            var raw = clean
+            if (raw.contains("code=")) {
+                raw = raw.substringAfter("code=").takeWhile { it != '&' && it != ' ' && it != '\n' }
+            } else if (raw.contains("/join/")) {
+                raw = raw.substringAfter("/join/").takeWhile { it != '?' && it != '/' && it != ' ' && it != '\n' }
+            }
+            raw.uppercase().replace("-", "").replace(" ", "").trim()
+        }
 
-        // Asynchronously query Cloudflare Edge & D1 database and Supabase Postgres
+        // Asynchronously query Cloudflare Edge & D1 database, Supabase, and local cache
         isSearchingCode = true
         scope.launch {
             val remoteTrip = TripRepository.fetchTripByLobbyCode(extractedCode)
@@ -73,7 +75,7 @@ fun JoinTripScreen(
                 selectedPreviewTrip = remoteTrip
             } else {
                 selectedPreviewTrip = null
-                Toast.makeText(context, "⚠️ Trip code '$extractedCode' not found in database. Please enter a valid trip code (e.g. RSS1041).", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "⚠️ Trip code '$extractedCode' not found. Please verify the code or scan again.", Toast.LENGTH_LONG).show()
             }
         }
     }

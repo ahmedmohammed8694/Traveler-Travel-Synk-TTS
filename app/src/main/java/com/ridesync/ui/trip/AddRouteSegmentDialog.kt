@@ -67,8 +67,8 @@ fun AddRouteSegmentDialog(
         position = CameraPosition.fromLatLngZoom(LatLng(17.3850, 78.4867), 8f)
     }
 
-    val accentColor = com.ridesync.ui.theme.HudColors.CyanPrimary
-    val surfaceColor = com.ridesync.ui.theme.HudColors.ObsidianSurface
+    val accentColor = Color(0xFF0052CC)
+    val surfaceColor = Color(0xFFFFFFFF)
 
     suspend fun resolveLocation(locStr: String, fallback: LatLng): LatLng {
         val coords = GoogleMapsUrlParser.parseLatLng(locStr)
@@ -191,7 +191,7 @@ fun AddRouteSegmentDialog(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = surfaceColor,
-            border = androidx.compose.foundation.BorderStroke(1.dp, com.ridesync.ui.theme.HudColors.ObsidianBorder),
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF0052CC)),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(6.dp)
@@ -219,14 +219,14 @@ fun AddRouteSegmentDialog(
                             text = "Add Route Link & Stops",
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            color = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                            color = Color(0xFF0F172A)
                         )
                     }
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = com.ridesync.ui.theme.HudColors.TextCoolSilver
+                            tint = Color(0xFF64748B)
                         )
                     }
                 }
@@ -234,7 +234,7 @@ fun AddRouteSegmentDialog(
                 Text(
                     text = "Import multi-stop routes from Google Maps or define day legs manually.",
                     fontSize = 12.sp,
-                    color = com.ridesync.ui.theme.HudColors.TextCoolSilver,
+                    color = Color(0xFF475569),
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -252,9 +252,13 @@ fun AddRouteSegmentDialog(
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accentColor,
-                        unfocusedBorderColor = com.ridesync.ui.theme.HudColors.ObsidianBorder,
-                        focusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite,
-                        unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                        unfocusedBorderColor = Color(0xFFCBD5E1),
+                        focusedTextColor = Color(0xFF0F172A),
+                        unfocusedTextColor = Color(0xFF0F172A),
+                        focusedLabelColor = accentColor,
+                        unfocusedLabelColor = Color(0xFF475569),
+                        focusedContainerColor = Color(0xFFFFFFFF),
+                        unfocusedContainerColor = Color(0xFFFFFFFF)
                     )
                 )
 
@@ -285,9 +289,13 @@ fun AddRouteSegmentDialog(
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accentColor,
-                        unfocusedBorderColor = com.ridesync.ui.theme.HudColors.ObsidianBorder,
-                        focusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite,
-                        unfocusedTextColor = com.ridesync.ui.theme.HudColors.TextCrispWhite
+                        unfocusedBorderColor = Color(0xFFCBD5E1),
+                        focusedTextColor = Color(0xFF0F172A),
+                        unfocusedTextColor = Color(0xFF0F172A),
+                        focusedLabelColor = accentColor,
+                        unfocusedLabelColor = Color(0xFF475569),
+                        focusedContainerColor = Color(0xFFFFFFFF),
+                        unfocusedContainerColor = Color(0xFFFFFFFF)
                     )
                 )
 
@@ -295,9 +303,9 @@ fun AddRouteSegmentDialog(
 
                 // Route Stops Itinerary Section Card
                 Surface(
-                    color = Color(0xFF020617),
+                    color = Color(0xFFF8FAFC),
                     shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -313,12 +321,12 @@ fun AddRouteSegmentDialog(
                                 fontWeight = FontWeight.Bold
                             )
                             Surface(
-                                color = Color(0xFF0284C7).copy(alpha = 0.2f),
+                                color = Color(0xFFE0E7FF),
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
                                     text = "${stopsList.size} Stops",
-                                    color = Color(0xFF38BDF8),
+                                    color = Color(0xFF0052CC),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -335,16 +343,20 @@ fun AddRouteSegmentDialog(
                             label = { Text("Origin (Start Point)") },
                             placeholder = { Text("e.g. Attapur, Hyderabad") },
                             leadingIcon = {
-                                Icon(imageVector = Icons.Default.MyLocation, contentDescription = null, tint = Color(0xFF22C55E))
+                                Icon(imageVector = Icons.Default.MyLocation, contentDescription = null, tint = Color(0xFF16A34A))
                             },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF22C55E),
-                                unfocusedBorderColor = Color(0xFF334155),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedBorderColor = Color(0xFF16A34A),
+                                unfocusedBorderColor = Color(0xFFCBD5E1),
+                                focusedTextColor = Color(0xFF0F172A),
+                                unfocusedTextColor = Color(0xFF0F172A),
+                                focusedLabelColor = Color(0xFF16A34A),
+                                unfocusedLabelColor = Color(0xFF475569),
+                                focusedContainerColor = Color(0xFFFFFFFF),
+                                unfocusedContainerColor = Color(0xFFFFFFFF)
                             )
                         )
 
@@ -353,9 +365,9 @@ fun AddRouteSegmentDialog(
                         // 2. Intermediate Waypoint Stops in Exact Sequence
                         stopsList.forEachIndexed { index, stopName ->
                             Surface(
-                                color = Color(0xFF0F172A),
+                                color = Color(0xFFFFFFFF),
                                 shape = RoundedCornerShape(10.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 3.dp)
@@ -365,13 +377,13 @@ fun AddRouteSegmentDialog(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
                                     Surface(
-                                        color = Color(0xFF38BDF8).copy(alpha = 0.2f),
+                                        color = Color(0xFFE0E7FF),
                                         shape = RoundedCornerShape(6.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8))
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
                                     ) {
                                         Text(
                                             text = "Stop ${index + 1}",
-                                            color = Color(0xFF38BDF8),
+                                            color = Color(0xFF0052CC),
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Black,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -380,7 +392,7 @@ fun AddRouteSegmentDialog(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = stopName,
-                                        color = Color.White,
+                                        color = Color(0xFF0F172A),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
                                         modifier = Modifier.weight(1f)
@@ -417,9 +429,11 @@ fun AddRouteSegmentDialog(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = Color(0xFF334155),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
+                                        unfocusedBorderColor = Color(0xFFCBD5E1),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF)
                                     )
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -431,7 +445,7 @@ fun AddRouteSegmentDialog(
                                             showAddManualStop = false
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.Black),
+                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.White),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Text("Add", fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -442,9 +456,9 @@ fun AddRouteSegmentDialog(
                                 onClick = { showAddManualStop = true },
                                 modifier = Modifier.padding(top = 4.dp)
                             ) {
-                                Icon(Icons.Default.AddLocation, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.AddLocation, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("+ Add Intermediate Stop", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("+ Add Intermediate Stop", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -464,9 +478,13 @@ fun AddRouteSegmentDialog(
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFEF4444),
-                                unfocusedBorderColor = Color(0xFF334155),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                unfocusedBorderColor = Color(0xFFCBD5E1),
+                                focusedTextColor = Color(0xFF0F172A),
+                                unfocusedTextColor = Color(0xFF0F172A),
+                                focusedLabelColor = Color(0xFFEF4444),
+                                unfocusedLabelColor = Color(0xFF475569),
+                                focusedContainerColor = Color(0xFFFFFFFF),
+                                unfocusedContainerColor = Color(0xFFFFFFFF)
                             )
                         )
                     }
@@ -475,21 +493,34 @@ fun AddRouteSegmentDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Parse & Calculate Route Details Button (Passes all stops to Directions engine)
-                OutlinedButton(
-                    onClick = { calculateAndPreviewRoute() },
-                    enabled = !isResolving && (originName.isNotBlank() || destinationName.isNotBlank()),
-                    modifier = Modifier.fillMaxWidth(),
+                Button(
+                    onClick = {
+                        if (originName.isBlank() && destinationName.isBlank()) {
+                            Toast.makeText(context, "Please enter origin/destination or paste a Google Maps link first", Toast.LENGTH_SHORT).show()
+                        } else {
+                            calculateAndPreviewRoute()
+                        }
+                    },
+                    enabled = !isResolving,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0052CC),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFFE0E7FF),
+                        disabledContentColor = Color(0xFF0052CC)
+                    )
                 ) {
                     if (isResolving) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = accentColor)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF0052CC))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Calculating Road Route Across All Stops...")
                     } else {
-                        Icon(imageVector = Icons.Default.Directions, contentDescription = null)
+                        Icon(imageVector = Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Calculate & Preview Multi-Stop Route")
+                        Text("Calculate & Preview Multi-Stop Route", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
 
@@ -509,7 +540,7 @@ fun AddRouteSegmentDialog(
                             .fillMaxWidth()
                             .height(200.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(14.dp))
+                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(14.dp))
                     ) {
                         GoogleMap(
                             modifier = Modifier.fillMaxSize(),
@@ -547,7 +578,7 @@ fun AddRouteSegmentDialog(
                             if (polylinePoints.isNotEmpty()) {
                                 Polyline(
                                     points = polylinePoints,
-                                    color = Color(0xFF38BDF8),
+                                    color = Color(0xFF0052CC),
                                     width = 10f,
                                     geodesic = true
                                 )
@@ -556,7 +587,7 @@ fun AddRouteSegmentDialog(
 
                         // Telemetry badge overlay
                         Surface(
-                            color = Color(0xDD0F172A),
+                            color = Color(0xEEFFFFFF),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
@@ -566,14 +597,14 @@ fun AddRouteSegmentDialog(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
-                                Icon(Icons.Default.Directions, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(13.dp))
+                                Icon(Icons.Default.Directions, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(13.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 val dist = if (calculatedDistanceKm > 0) "${"%.1f".format(calculatedDistanceKm)} km" else "Live Route"
                                 Text(
                                     text = "ROAD ROUTE: $dist • ${stopsList.size} STOPS",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = Color(0xFF0F172A)
                                 )
                             }
                         }
@@ -584,9 +615,9 @@ fun AddRouteSegmentDialog(
                 if (calculatedDistanceKm > 0.0) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Surface(
-                        color = Color(0xFF0F172A),
+                        color = Color(0xFFF8FAFC),
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -596,18 +627,18 @@ fun AddRouteSegmentDialog(
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Distance", color = com.ridesync.ui.theme.HudColors.TextCoolSilver, fontSize = 12.sp)
-                                Text("${"%.1f".format(calculatedDistanceKm)} km", color = com.ridesync.ui.theme.HudColors.TextCrispWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("Distance", color = Color(0xFF475569), fontSize = 12.sp)
+                                Text("${"%.1f".format(calculatedDistanceKm)} km", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Est. Time", color = com.ridesync.ui.theme.HudColors.TextCoolSilver, fontSize = 12.sp)
+                                Text("Est. Time", color = Color(0xFF475569), fontSize = 12.sp)
                                 val hrs = calculatedDurationMins / 60
                                 val mins = calculatedDurationMins % 60
                                 Text("${if (hrs > 0) "${hrs}h " else ""}${mins}m", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Stops", color = com.ridesync.ui.theme.HudColors.TextCoolSilver, fontSize = 12.sp)
-                                Text("${stopsList.size} Stops", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("Stops", color = Color(0xFF475569), fontSize = 12.sp)
+                                Text("${stopsList.size} Stops", color = Color(0xFF0052CC), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
@@ -618,6 +649,10 @@ fun AddRouteSegmentDialog(
                 // Save Segment Button
                 Button(
                     onClick = {
+                        if (originName.isBlank() || destinationName.isBlank()) {
+                            Toast.makeText(context, "Please enter origin and destination points", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
                         val finalDistance = if (calculatedDistanceKm > 0) calculatedDistanceKm else 159.0
                         val finalDuration = if (calculatedDurationMins > 0) calculatedDurationMins else 214
                         val finalPolyline = calculatedPolyline.ifBlank { "_p~iF~ps|U_ulLnnqC_mqNvxq`@" }
@@ -637,12 +672,17 @@ fun AddRouteSegmentDialog(
                         )
                         onSegmentAdded(segment)
                     },
-                    enabled = !isResolving && segmentName.isNotBlank() && originName.isNotBlank() && destinationName.isNotBlank(),
+                    enabled = !isResolving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0052CC),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFFE0E7FF),
+                        disabledContentColor = Color(0xFF0052CC)
+                    )
                 ) {
                     Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))

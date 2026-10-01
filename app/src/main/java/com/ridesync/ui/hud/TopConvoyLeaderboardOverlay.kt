@@ -89,30 +89,29 @@ fun TopConvoyLeaderboardOverlay(
             }
     ) {
         if (isMinimized) {
-            // MINIMIZED FLOATING PILL
+            // MINIMIZED FLOATING PILL (100% TRANSPARENT NO BORDER)
             Surface(
-                color = Color(0xF00F172A),
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, HudColors.CyanPrimary),
-                shadowElevation = 8.dp,
+                color = Color.Transparent,
+                shape = CircleShape,
+                shadowElevation = 0.dp,
                 modifier = Modifier.padding(4.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.DragHandle,
                         contentDescription = "Move",
-                        tint = HudColors.TextCoolSilver,
+                        tint = Color(0xFF475569),
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "👥 Convoy (${radarList.size})",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = HudColors.CyanPrimary
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF0052CC)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
@@ -122,25 +121,21 @@ fun TopConvoyLeaderboardOverlay(
                         },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Expand", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Add, contentDescription = "Expand", tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                     }
                 }
             }
         } else {
-            // EXPANDED HORIZONTAL PROFILE CIRCLES ROW
+            // EXPANDED CONTAINER (100% TRANSPARENT NO BORDER)
             Surface(
-                color = Color(0xDD090D16),
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(
-                    1.dp,
-                    Brush.horizontalGradient(listOf(HudColors.CyanPrimary.copy(alpha = 0.6f), Color(0xFF0284C7).copy(alpha = 0.6f)))
-                ),
-                shadowElevation = 10.dp,
+                color = Color.Transparent,
+                shape = RoundedCornerShape(18.dp),
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
-                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                     // Header Bar with Drag Handle & Minimize Button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -151,24 +146,25 @@ fun TopConvoyLeaderboardOverlay(
                             Icon(
                                 imageVector = Icons.Default.DragHandle,
                                 contentDescription = "Drag overlay anywhere",
-                                tint = HudColors.TextCoolSilver.copy(alpha = 0.7f),
+                                tint = Color(0xFF475569),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "🏆 CONVOY RIDERS (${radarList.size})",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = HudColors.CyanPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF0052CC),
                                 letterSpacing = 0.5.sp
                             )
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Tap profile to view details • Slide ➡️",
+                                text = "Tap profile for details • Slide ➡️",
                                 fontSize = 9.sp,
-                                color = HudColors.TextCoolSilver
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF475569)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             IconButton(
@@ -178,12 +174,12 @@ fun TopConvoyLeaderboardOverlay(
                                 },
                                 modifier = Modifier.size(22.dp)
                             ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Minimize", tint = Color.White, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Remove, contentDescription = "Minimize", tint = Color(0xFF0F172A), modifier = Modifier.size(14.dp))
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // HORIZONTAL SCROLLABLE ROW OF ROUND PROFILE CIRCLES (◯ ◯ ◯ ◯ ◯ ◯)
                     LazyRow(
@@ -195,10 +191,10 @@ fun TopConvoyLeaderboardOverlay(
                             val posRank = idx + 1
                             val avatarBitmap by rememberRiderAvatarBitmap(rider.photoUrl)
                             val borderColor = when (posRank) {
-                                1 -> Color(0xFFEAB308) // Gold
-                                2 -> Color(0xFFCBD5E1) // Silver
-                                3 -> Color(0xFFF59E0B) // Bronze
-                                else -> HudColors.CyanPrimary
+                                1 -> Color(0xFFD97706) // Amber Gold
+                                2 -> Color(0xFF64748B) // Slate Silver
+                                3 -> Color(0xFFB45309) // Bronze
+                                else -> Color(0xFF0052CC)
                             }
 
                             Column(
@@ -220,7 +216,7 @@ fun TopConvoyLeaderboardOverlay(
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
                                                 text = "$posRank",
-                                                color = Color.Black,
+                                                color = Color.White,
                                                 fontSize = 8.sp,
                                                 fontWeight = FontWeight.ExtraBold
                                             )
@@ -228,16 +224,16 @@ fun TopConvoyLeaderboardOverlay(
                                     }
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text(
-                                        text = rider.displayName.take(7),
-                                        color = HudColors.TextCrispWhite,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        text = rider.displayName.take(8),
+                                        color = Color(0xFF0F172A),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(3.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
 
                                 // ROUND PROFILE PHOTO CIRCLE ◯
                                 Box(
@@ -246,7 +242,7 @@ fun TopConvoyLeaderboardOverlay(
                                         .size(46.dp)
                                         .clip(CircleShape)
                                         .border(2.dp, borderColor, CircleShape)
-                                        .background(Color(0xFF0F172A))
+                                        .background(Color(0xFFF1F5F9))
                                 ) {
                                     if (avatarBitmap != null) {
                                         Image(
@@ -258,7 +254,7 @@ fun TopConvoyLeaderboardOverlay(
                                     } else {
                                         Text(
                                             text = rider.displayName.take(1).uppercase(),
-                                            color = Color.White,
+                                            color = Color(0xFF0F172A),
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Black
                                         )
@@ -271,12 +267,12 @@ fun TopConvoyLeaderboardOverlay(
                                 Text(
                                     text = rider.formattedDistance,
                                     color = when (rider.relativePosition.name) {
-                                        "AHEAD" -> Color(0xFF00E5FF)
-                                        "BEHIND" -> Color(0xFFFBBF24)
-                                        else -> Color(0xFF10B981)
+                                        "AHEAD" -> Color(0xFF0052CC)
+                                        "BEHIND" -> Color(0xFFD97706)
+                                        else -> Color(0xFF059669)
                                     },
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }

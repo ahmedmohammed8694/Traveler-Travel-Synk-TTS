@@ -80,7 +80,7 @@ fun TripFullDetailsDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0B1120))
+                .background(Color(0xFFF1F5F9))
         ) {
             Column(
                 modifier = Modifier
@@ -89,8 +89,8 @@ fun TripFullDetailsDialog(
             ) {
                 // Top App Bar
                 Surface(
-                    color = Color(0xFF0F172A),
-                    border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                    color = Color(0xFFFFFFFF),
+                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -102,19 +102,19 @@ fun TripFullDetailsDialog(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onDismiss) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF0F172A))
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             Column {
                                 Text(
                                     text = "Trip Full Details",
-                                    color = Color.White,
+                                    color = Color(0xFF0F172A),
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black
                                 )
                                 Text(
                                     text = liveTrip.title,
-                                    color = Color(0xFF38BDF8),
+                                    color = Color(0xFF0052CC),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -197,15 +197,15 @@ fun TripFullDetailsDialog(
                     // 1. TRIP SUMMARY & TELEMETRY HEADER CARD
                     // ==========================================
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                         shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        border = BorderStroke(1.5.dp, Color(0xFF0052CC)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 text = liveTrip.title,
-                                color = Color.White,
+                                color = Color(0xFF0F172A),
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Black
                             )
@@ -213,13 +213,13 @@ fun TripFullDetailsDialog(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "${liveTrip.originName} ➔ ${liveTrip.destinationName}",
-                                    color = Color(0xFFE2E8F0),
+                                    color = Color(0xFF0052CC),
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
 
@@ -229,33 +229,34 @@ fun TripFullDetailsDialog(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFF0F172A), RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
                                     .padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Start Date", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                    Text("Start Date", color = Color(0xFF475569), fontSize = 11.sp)
                                     Text(
                                         text = liveTrip.scheduledDate.ifBlank { "Oct 2026" },
-                                        color = Color(0xFFFBBF24),
+                                        color = Color(0xFFD97706),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Total Distance", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                    Text("Total Distance", color = Color(0xFF475569), fontSize = 11.sp)
                                     Text(
                                         text = "${liveTrip.distanceKm.toInt()} KM",
-                                        color = Color(0xFF00E5FF),
+                                        color = Color(0xFF0052CC),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Travel Time", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                    Text("Travel Time", color = Color(0xFF475569), fontSize = 11.sp)
                                     Text(
                                         text = "${liveTrip.durationMinutes / 60}h ${liveTrip.durationMinutes % 60}m",
-                                        color = Color(0xFF10B981),
+                                        color = Color(0xFF16A34A),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -266,9 +267,9 @@ fun TripFullDetailsDialog(
 
                             // Lobby Code & QR / Share Buttons
                             Surface(
-                                color = Color(0xFF0F172A),
+                                color = Color(0xFFF8FAFC),
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, Color(0xFF334155)),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -277,10 +278,10 @@ fun TripFullDetailsDialog(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                 ) {
                                     Column {
-                                        Text("Lobby Invite Code", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                        Text("Lobby Invite Code", color = Color(0xFF475569), fontSize = 11.sp)
                                         Text(
                                             text = liveTrip.lobbyCode.ifBlank { "RRS-${liveTrip.tripId.takeLast(4)}" },
-                                            color = Color(0xFF38BDF8),
+                                            color = Color(0xFF0052CC),
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Black
                                         )
@@ -296,13 +297,13 @@ fun TripFullDetailsDialog(
                                             },
                                             modifier = Modifier.size(36.dp)
                                         ) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFFCBD5E1), modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
                                         }
 
                                         // Share QR Code Button
                                         Button(
                                             onClick = { showShareQrDialog = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = Color(0xFFFBBF24)),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E7FF), contentColor = Color(0xFF0052CC)),
                                             shape = RoundedCornerShape(10.dp),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                                         ) {
@@ -314,7 +315,7 @@ fun TripFullDetailsDialog(
                                         // Share Invite Link
                                         Button(
                                             onClick = { shareTripLink(context, liveTrip) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                                             shape = RoundedCornerShape(10.dp),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                                         ) {
@@ -401,7 +402,7 @@ fun TripFullDetailsDialog(
                     ) {
                         Text(
                             text = "🗓️ Day Routes & Itinerary (${daysList.size} Days)",
-                            color = Color.White,
+                            color = Color(0xFF0F172A),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black
                         )
@@ -412,9 +413,9 @@ fun TripFullDetailsDialog(
                                 showEditRouteDialog = true
                             }
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Edit All Routes", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Edit All Routes", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -423,9 +424,9 @@ fun TripFullDetailsDialog(
                         val googleMapsUrl = matchingSegment?.googleMapsUrl ?: day.stops.firstOrNull { it.googleMapsUrl.isNotBlank() }?.googleMapsUrl ?: ""
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
@@ -437,14 +438,14 @@ fun TripFullDetailsDialog(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Surface(
-                                            color = Color(0xFFF59E0B),
+                                            color = Color(0xFF0052CC),
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.size(28.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Text(
                                                     text = "${day.dayNumber}",
-                                                    color = Color.Black,
+                                                    color = Color.White,
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Black
                                                 )
@@ -454,14 +455,14 @@ fun TripFullDetailsDialog(
                                         Column {
                                             Text(
                                                 text = day.dayTitle.ifBlank { "Day ${day.dayNumber} Route" },
-                                                color = Color.White,
+                                                color = Color(0xFF0F172A),
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             if (matchingSegment != null) {
                                                 Text(
                                                     text = "${matchingSegment.originName} ➔ ${matchingSegment.destinationName}",
-                                                    color = Color(0xFF94A3B8),
+                                                    color = Color(0xFF475569),
                                                     fontSize = 12.sp
                                                 )
                                             }
@@ -477,7 +478,7 @@ fun TripFullDetailsDialog(
                                             },
                                             modifier = Modifier.size(32.dp)
                                         ) {
-                                            Icon(Icons.Default.Edit, contentDescription = "Edit Day Route", tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit Day Route", tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                                         }
 
                                         // Open in Google Maps Link Button
@@ -493,7 +494,7 @@ fun TripFullDetailsDialog(
                                                 },
                                                 modifier = Modifier.size(32.dp)
                                             ) {
-                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in Google Maps", tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in Google Maps", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -502,19 +503,20 @@ fun TripFullDetailsDialog(
                                 if (googleMapsUrl.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Surface(
-                                        color = Color(0xFF1E293B),
+                                        color = Color(0xFFF8FAFC),
                                         shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                         ) {
-                                            Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFFFBBF24), modifier = Modifier.size(14.dp))
+                                            Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(14.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
                                                 text = googleMapsUrl,
-                                                color = Color(0xFF94A3B8),
+                                                color = Color(0xFF0052CC),
                                                 fontSize = 11.sp,
                                                 maxLines = 1
                                             )
@@ -527,7 +529,7 @@ fun TripFullDetailsDialog(
                                 // Auto-Generated Stops List
                                 Text(
                                     text = "Milestones & Stops (${day.stops.size}):",
-                                    color = Color(0xFFCBD5E1),
+                                    color = Color(0xFF475569),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 6.dp)
@@ -538,11 +540,11 @@ fun TripFullDetailsDialog(
                                     val isSkipped = stop.status == ItineraryStopStatus.SKIPPED
 
                                     Surface(
-                                        color = Color(0xFF020617),
+                                        color = Color(0xFFF8FAFC),
                                         shape = RoundedCornerShape(10.dp),
                                         border = BorderStroke(
                                             1.dp,
-                                            if (isCompleted) Color(0xFF10B981) else Color(0xFF334155)
+                                            if (isCompleted) Color(0xFF16A34A) else Color(0xFFCBD5E1)
                                         ),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -573,7 +575,7 @@ fun TripFullDetailsDialog(
                                                     },
                                                     contentDescription = "Status",
                                                     tint = when (stop.status) {
-                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF10B981)
+                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF16A34A)
                                                         ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
                                                         else -> Color(0xFF64748B)
                                                     },
@@ -586,7 +588,7 @@ fun TripFullDetailsDialog(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = "${sIdx + 1}. ${stop.stopName}",
-                                                    color = if (isCompleted || isSkipped) Color(0xFF94A3B8) else Color.White,
+                                                    color = if (isCompleted || isSkipped) Color(0xFF64748B) else Color(0xFF0F172A),
                                                     textDecoration = if (isCompleted || isSkipped) TextDecoration.LineThrough else TextDecoration.None,
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold
@@ -594,7 +596,7 @@ fun TripFullDetailsDialog(
                                                 if (stop.activityDescription.isNotBlank()) {
                                                     Text(
                                                         text = stop.activityDescription,
-                                                        color = Color(0xFF64748B),
+                                                        color = Color(0xFF475569),
                                                         fontSize = 11.sp
                                                     )
                                                 }
@@ -603,18 +605,18 @@ fun TripFullDetailsDialog(
                                             // Status Tag
                                             Surface(
                                                 color = when (stop.status) {
-                                                    ItineraryStopStatus.COMPLETED -> Color(0xFF10B981).copy(alpha = 0.2f)
-                                                    ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444).copy(alpha = 0.2f)
-                                                    else -> Color(0xFF0284C7).copy(alpha = 0.2f)
+                                                    ItineraryStopStatus.COMPLETED -> Color(0xFFDCFCE7)
+                                                    ItineraryStopStatus.SKIPPED -> Color(0xFFFEE2E2)
+                                                    else -> Color(0xFFE0E7FF)
                                                 },
                                                 shape = RoundedCornerShape(6.dp)
                                             ) {
                                                 Text(
                                                     text = stop.status.name,
                                                     color = when (stop.status) {
-                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF10B981)
+                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF16A34A)
                                                         ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
-                                                        else -> Color(0xFF38BDF8)
+                                                        else -> Color(0xFF0052CC)
                                                     },
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
@@ -631,13 +633,13 @@ fun TripFullDetailsDialog(
                                 if (matchingSegment != null && onLaunchSegment != null) {
                                     Button(
                                         onClick = { onLaunchSegment(matchingSegment) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier.fillMaxWidth().height(40.dp)
                                     ) {
                                         Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Launch Day ${day.dayNumber} in 3D Map", fontSize = 12.sp, fontWeight = FontWeight.Black)
+                                        Text("Launch Day ${day.dayNumber} in 3D Map", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -649,21 +651,21 @@ fun TripFullDetailsDialog(
                     // ==========================================
                     Text(
                         text = "👥 Joined Riders (${liveTrip.joinedRiders.size})",
-                        color = Color.White,
+                        color = Color(0xFF0F172A),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black
                     )
 
                     if (liveTrip.joinedRiders.isEmpty()) {
                         Surface(
-                            color = Color(0xFF0F172A),
+                            color = Color(0xFFF8FAFC),
                             shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "No other riders joined yet. Share the invite link above to invite companions!",
-                                color = Color(0xFF94A3B8),
+                                color = Color(0xFF475569),
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(14.dp)
                             )
@@ -671,9 +673,9 @@ fun TripFullDetailsDialog(
                     } else {
                         liveTrip.joinedRiders.forEach { rider ->
                             Surface(
-                                color = Color(0xFF0F172A),
+                                color = Color(0xFFFFFFFF),
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color(0xFF334155)),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -683,9 +685,9 @@ fun TripFullDetailsDialog(
                                     // Rider Initial Avatar
                                     Surface(
                                         color = when (rider.role) {
-                                            ConvoyRole.LEAD -> Color(0xFFF59E0B)
-                                            ConvoyRole.SWEEP -> Color(0xFF00E5FF)
-                                            ConvoyRole.MEMBER -> Color(0xFF22C55E)
+                                            ConvoyRole.LEAD -> Color(0xFFD97706)
+                                            ConvoyRole.SWEEP -> Color(0xFF0052CC)
+                                            ConvoyRole.MEMBER -> Color(0xFF16A34A)
                                         },
                                         shape = CircleShape,
                                         modifier = Modifier.size(42.dp)
@@ -693,7 +695,7 @@ fun TripFullDetailsDialog(
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
                                                 text = rider.displayName.take(1).uppercase(),
-                                                color = Color.Black,
+                                                color = Color.White,
                                                 fontSize = 18.sp,
                                                 fontWeight = FontWeight.Black
                                             )
@@ -706,18 +708,18 @@ fun TripFullDetailsDialog(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 text = rider.displayName,
-                                                color = Color.White,
+                                                color = Color(0xFF0F172A),
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Surface(
-                                                color = Color(0xFF1E293B),
+                                                color = Color(0xFFE0E7FF),
                                                 shape = RoundedCornerShape(6.dp)
                                             ) {
                                                 Text(
                                                     text = rider.role.name,
-                                                    color = Color(0xFF38BDF8),
+                                                    color = Color(0xFF0052CC),
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -726,12 +728,12 @@ fun TripFullDetailsDialog(
                                         }
                                         Text(
                                             text = "🏍️ ${rider.bikeModel}",
-                                            color = Color(0xFFCBD5E1),
+                                            color = Color(0xFF475569),
                                             fontSize = 12.sp
                                         )
                                         Text(
                                             text = "Status: ${rider.status}",
-                                            color = Color(0xFF10B981),
+                                            color = Color(0xFF16A34A),
                                             fontSize = 11.sp
                                         )
                                     }
@@ -749,7 +751,7 @@ fun TripFullDetailsDialog(
                                             },
                                             modifier = Modifier.size(36.dp)
                                         ) {
-                                            Icon(Icons.Default.Phone, contentDescription = "Call", tint = Color(0xFF22C55E), modifier = Modifier.size(20.dp))
+                                            Icon(Icons.Default.Phone, contentDescription = "Call", tint = Color(0xFF16A34A), modifier = Modifier.size(20.dp))
                                         }
                                     }
                                 }
@@ -773,8 +775,8 @@ fun TripFullDetailsDialog(
                             },
                             modifier = Modifier.weight(1f).height(46.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF38BDF8)),
-                            border = BorderStroke(1.dp, Color(0xFF38BDF8))
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0052CC)),
+                            border = BorderStroke(1.dp, Color(0xFF0052CC))
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -785,8 +787,8 @@ fun TripFullDetailsDialog(
                             onClick = onExitTrip,
                             modifier = Modifier.weight(1f).height(46.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFF59E0B)),
-                            border = BorderStroke(1.dp, Color(0xFFF59E0B))
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706)),
+                            border = BorderStroke(1.dp, Color(0xFFD97706))
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -809,7 +811,7 @@ fun TripFullDetailsDialog(
                     if (onJoinTrip != null) {
                         Button(
                             onClick = { onJoinTrip(liveTrip) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E), contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A), contentColor = Color.White),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -823,7 +825,7 @@ fun TripFullDetailsDialog(
                         // Primary Launch Button
                         Button(
                             onClick = onLaunchTrip,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF), contentColor = Color.Black),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()

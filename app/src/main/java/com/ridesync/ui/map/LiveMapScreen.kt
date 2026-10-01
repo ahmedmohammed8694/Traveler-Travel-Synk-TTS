@@ -23,6 +23,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -568,24 +573,26 @@ fun LiveMapScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // "I'm Stopping" Warning Button (Same 52.dp size & shape as map controls)
+            // "I'm Stopping" Warning Button (NO ICON - CLEAN TEXT ONLY)
             HudMapOptionIconButton(
-                icon = Icons.Default.Warning,
+                icon = null,
                 contentDescription = "I'm Stopping",
                 active = true,
-                activeColor = Color(0xFFF59E0B),
+                activeColor = Color(0xFFD97706),
+                labelText = "STOP",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onStopReported(StopReason.REST)
                 }
             )
 
-            // "Emergency SOS" Alert Button (Same 52.dp size & shape as map controls)
+            // "Emergency SOS" Alert Button (NO ICON - CLEAN TEXT ONLY)
             HudMapOptionIconButton(
-                icon = Icons.Default.ReportProblem,
+                icon = null,
                 contentDescription = "Emergency SOS",
                 active = true,
-                activeColor = Color(0xFFEF4444),
+                activeColor = Color(0xFFDC2626),
+                labelText = "SOS",
                 onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onSosReported()
@@ -715,39 +722,50 @@ fun LiveMapScreen(
             )
         }
 
-        // Top Left: Compact Semi-Transparent HUD & GPS Status Badge (Does not cover map)
+        // Top Left: 100% Transparent Draggable GPS Status Badge
+        var gpsOffsetX by remember { mutableFloatStateOf(0f) }
+        var gpsOffsetY by remember { mutableFloatStateOf(0f) }
+
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = Color(0x35000000), // High transparency (20% opacity) so map is completely visible
-            border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+            color = Color.Transparent,
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(top = 16.dp, start = 16.dp)
+                .offset { IntOffset(gpsOffsetX.roundToInt(), gpsOffsetY.roundToInt()) }
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        gpsOffsetX += dragAmount.x
+                        gpsOffsetY += dragAmount.y
+                    }
+                }
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(7.dp)
                             .background(if (isFollowMode) HudColors.StatusRiding else HudColors.StatusStopped, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (isFollowMode) "GPS LOCKED" else "FREE PAN",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.9f)
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF0F172A)
                     )
                     if (currentActiveTrip != null) {
                         val nextStop = pendingStopsOnMap.firstOrNull()
                         Text(
                             text = " • Next: ${nextStop?.stopName ?: "Destination"}",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFFBBF24),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD97706),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.clickable { showStopsDrawer = true }
@@ -757,9 +775,9 @@ fun LiveMapScreen(
                 if (myPing != null) {
                     Text(
                         text = "📡 ${"%.4f".format(myPing.latitude)}, ${"%.4f".format(myPing.longitude)} • ${myPing.speedKmh.toInt()} km/h",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFF67E8F9)
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF0052CC)
                     )
                 }
             }
@@ -989,7 +1007,7 @@ fun LiveMapScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Button(
                         onClick = {
@@ -1001,24 +1019,34 @@ fun LiveMapScreen(
                             Toast.makeText(context, "🚀 Trip Started! Navigating from current GPS location", Toast.LENGTH_SHORT).show()
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00E5FF),
-                            contentColor = Color.Black
+                            containerColor = Color(0xF0090D16),
+                            contentColor = Color(0xFF00E5FF)
                         ),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = CircleShape,
+                        border = BorderStroke(
+                            width = 1.5.dp,
+                            brush = Brush.horizontalGradient(
+                                listOf(Color(0xFF38BDF8), Color(0xFF00E5FF), Color(0xFF0284C7))
+                            )
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(38.dp)
                     ) {
                         Icon(
-                            Icons.Default.Navigation,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp)
+                            imageVector = Icons.Default.Navigation,
+                            contentDescription = "Start Navigation",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "🚀 START TRIP NAVIGATION",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black
+                            text = "START TRIP NAVIGATION",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp,
+                            color = Color(0xFF00E5FF)
                         )
                     }
                 }
@@ -1357,29 +1385,54 @@ fun LiveMapScreen(
 
 @Composable
 private fun HudMapOptionIconButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     contentDescription: String,
     active: Boolean,
     activeColor: Color = HudColors.CyanPrimary,
+    labelText: String? = null,
     onClick: () -> Unit
 ) {
-    Box(
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = if (active) activeColor else Color(0xFFFFFFFF), // 100% Solid Opaque background - no transparency!
+        border = BorderStroke(1.5.dp, if (active) Color.White else Color(0xFF0052CC)),
+        shadowElevation = 6.dp,
         modifier = Modifier
             .size(52.dp)
-            .frostedGlassHud(
-                shape = RoundedCornerShape(16.dp),
-                backgroundColor = if (active) activeColor else HudColors.FrostedOverlay,
-                borderColor = if (active) activeColor else HudColors.FrostedBorder
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+            .clickable(onClick = onClick)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (active) Color.Black else HudColors.TextCrispWhite,
-            modifier = Modifier.size(24.dp)
-        )
+        Box(contentAlignment = Alignment.Center) {
+            if (labelText != null) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(2.dp)
+                ) {
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = contentDescription,
+                            tint = if (active) Color.White else Color(0xFF0F172A),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = labelText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (active) Color.White else Color(0xFF0F172A),
+                        maxLines = 1
+                    )
+                }
+            } else if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = if (active) Color.White else Color(0xFF0F172A),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 

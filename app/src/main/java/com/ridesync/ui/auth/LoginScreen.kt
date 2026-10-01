@@ -404,16 +404,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Guest / Demo Mode Quick Access Button
-            TextButton(
-                onClick = onGuestSignInClick,
-                enabled = !isLoading
-            ) {
-                Text("Explore Map in Demo Mode →", color = com.ridesync.ui.theme.HudColors.CobaltBlue, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
             // Switch to Sign Up screen navigation link
             Row(
                 horizontalArrangement = Arrangement.Center,

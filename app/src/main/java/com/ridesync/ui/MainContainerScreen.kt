@@ -35,6 +35,9 @@ import com.ridesync.ui.theme.HudColors
 import com.ridesync.ui.theme.RideSyncTheme
 import com.ridesync.ui.trip.TripCreationScreen
 
+import androidx.compose.material.icons.filled.History
+import com.ridesync.ui.trip.SavedTripsHistoryScreen
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainContainerScreen(
@@ -223,7 +226,7 @@ fun MainContainerScreen(
                             selected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
                             icon = { Icon(Icons.Default.Map, contentDescription = "Convoy Map") },
-                            label = { Text("Convoy Map", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Convoy Map", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -236,8 +239,8 @@ fun MainContainerScreen(
                         NavigationBarItem(
                             selected = selectedTab == 1,
                             onClick = { selectedTab = 1 },
-                            icon = { Icon(Icons.Default.Route, contentDescription = "Trip Planner") },
-                            label = { Text("Trip Planner", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            icon = { Icon(Icons.Default.Route, contentDescription = "Create Trip") },
+                            label = { Text("Create Trip", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -250,8 +253,8 @@ fun MainContainerScreen(
                         NavigationBarItem(
                             selected = selectedTab == 2,
                             onClick = { selectedTab = 2 },
-                            icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "Join Trip") },
-                            label = { Text("Join Trip", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            icon = { Icon(Icons.Default.History, contentDescription = "Trip History") },
+                            label = { Text("Trip History", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -264,8 +267,22 @@ fun MainContainerScreen(
                         NavigationBarItem(
                             selected = selectedTab == 3,
                             onClick = { selectedTab = 3 },
+                            icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "Join Trip") },
+                            label = { Text("Join Trip", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
+                        )
+
+                        NavigationBarItem(
+                            selected = selectedTab == 4,
+                            onClick = { selectedTab = 4 },
                             icon = { Icon(Icons.Default.Person, contentDescription = "Rider Profile") },
-                            label = { Text("Rider Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Rider Profile", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -333,9 +350,10 @@ fun MainContainerScreen(
                 }
 
                 1 -> {
-                    // Trip & Route Planner
+                    // Create Trip & Route Builder Page
                     TripCreationScreen(
                         userProfile = userProfile,
+                        initialTab = 0,
                         onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
                             activeRole = role
                             stopEvents.clear()
@@ -382,18 +400,72 @@ fun MainContainerScreen(
                             selectedTab = 0 // Switch to Convoy Map
                         },
                         onShareLobbyClick = { code ->
-                            selectedTab = 2 // Switch to QR tab
+                            selectedTab = 3 // Switch to Join Trip tab
                         }
                     )
                 }
 
                 2 -> {
+                    // Trip History & Saved Rides Page
+                    SavedTripsHistoryScreen(
+                        userProfile = userProfile,
+                        onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
+                            activeRole = role
+                            stopEvents.clear()
+
+                            val originPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(origin, routePolyline.firstOrNull())
+                            val destPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(dest, routePolyline.lastOrNull())
+                            val waypointPts = waypoints.map { wpName -> com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(wpName) }
+
+                            waypoints.forEachIndexed { idx, wpName ->
+                                val stopLatLng = waypointPts.getOrNull(idx) ?: if (routePolyline.size > 2) {
+                                    val targetIndex = (routePolyline.size * (idx + 1) / (waypoints.size + 1)).coerceIn(0, routePolyline.lastIndex)
+                                    routePolyline[targetIndex]
+                                } else {
+                                    LatLng(
+                                        originPt.latitude + (destPt.latitude - originPt.latitude) * (idx + 1) / (waypoints.size + 1),
+                                        originPt.longitude + (destPt.longitude - originPt.longitude) * (idx + 1) / (waypoints.size + 1)
+                                    )
+                                }
+                                stopEvents.add(
+                                    StopEvent(
+                                        stopId = "stop_evt_$idx",
+                                        riderId = userProfile.userId,
+                                        riderName = wpName,
+                                        reason = StopReason.REST,
+                                        latitude = stopLatLng.latitude,
+                                        longitude = stopLatLng.longitude,
+                                        timestamp = System.currentTimeMillis()
+                                    )
+                                )
+                            }
+
+                            coroutineScope.launch {
+                                val realRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(originPt, destPt, waypointPts)
+                                if (realRoute.polylinePoints.isNotEmpty()) {
+                                    activeRoutePolyline = realRoute.polylinePoints
+                                } else if (routePolyline.size > 2) {
+                                    activeRoutePolyline = routePolyline
+                                } else {
+                                    activeRoutePolyline = listOf(originPt, destPt)
+                                }
+                            }
+                            alertBannerText = "Started Trip: $title as ${role.name}!"
+                            selectedTab = 0 // Switch to Convoy Map
+                        },
+                        onShareLobbyClick = { code ->
+                            selectedTab = 3 // Switch to Join Trip tab
+                        }
+                    )
+                }
+
+                3 -> {
                     // Join Trip (QR Scanner / Trip Code / Join Link)
                     JoinTripScreen(
                         userProfile = userProfile,
                         onTripJoined = { joinedTrip ->
                             alertBannerText = "Joined Trip: ${joinedTrip.title}"
-                            selectedTab = 1 // Switch to Saved Trips & History tab to show the trip!
+                            selectedTab = 2 // Switch to Trip History tab to show the joined trip!
                         },
                         onCancel = {
                             selectedTab = 0
@@ -401,7 +473,7 @@ fun MainContainerScreen(
                     )
                 }
 
-                3 -> {
+                4 -> {
                     // User Profile Dashboard
                     UserProfileScreen(
                         userProfile = userProfile,

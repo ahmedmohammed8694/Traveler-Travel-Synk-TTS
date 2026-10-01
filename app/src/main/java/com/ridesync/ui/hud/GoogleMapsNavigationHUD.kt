@@ -84,6 +84,8 @@ fun GoogleMapsNavigationHUD(
 
     var bannerOffsetX by remember { mutableFloatStateOf(0f) }
     var bannerOffsetY by remember { mutableFloatStateOf(0f) }
+    var bottomOffsetX by remember { mutableFloatStateOf(0f) }
+    var bottomOffsetY by remember { mutableFloatStateOf(0f) }
     var isBannerMinimized by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -101,45 +103,44 @@ fun GoogleMapsNavigationHUD(
                         bannerOffsetY += dragAmount.y
                     }
                 }
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                .padding(top = 12.dp, start = 12.dp, end = 12.dp)
         ) {
             if (isBannerMinimized) {
-                // Compact Minimized Pill (Draggable & Expandable)
+                // Compact Minimized Pill (Draggable & Expandable - 100% Transparent No Border)
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color(0xF20F172A),
-                    border = BorderStroke(1.5.dp, Color(0xFF00E5FF)),
-                    shadowElevation = 10.dp,
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.Transparent,
+                    shadowElevation = 0.dp,
                     modifier = Modifier.clickable { isBannerMinimized = false }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(32.dp)
-                                .background(Brush.radialGradient(listOf(Color(0xFF10B981), Color(0xFF047857))), CircleShape)
+                                .size(28.dp)
+                                .background(Brush.radialGradient(listOf(Color(0xFF0052CC), Color(0xFF003399))), CircleShape)
                         ) {
                             Icon(
                                 imageVector = getManeuverIcon(currentStep.maneuver),
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
                                 text = "In ${currentStep.distanceText}",
-                                color = Color(0xFF00E5FF),
+                                color = Color(0xFF0052CC),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Black
                             )
                             Text(
                                 text = currentStep.roadName.ifBlank { currentStep.instruction },
-                                color = Color.White,
+                                color = Color(0xFF0F172A),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -150,37 +151,31 @@ fun GoogleMapsNavigationHUD(
                         Icon(
                             imageVector = Icons.Default.OpenInFull,
                             contentDescription = "Expand Navigation HUD",
-                            tint = HudColors.CyanPrimary,
-                            modifier = Modifier.size(18.dp)
+                            tint = Color(0xFF0052CC),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
             } else {
-                // Full Expanded Navigation Banner
+                // Full Compact Expanded Navigation Banner (100% Transparent No Border)
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color(0xF20F172A),
-                    border = BorderStroke(
-                        1.5.dp,
-                        Brush.horizontalGradient(
-                            listOf(Color(0xFF00E5FF), Color(0xFF10B981), Color(0xFF00E5FF))
-                        )
-                    ),
-                    shadowElevation = 14.dp,
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.Transparent,
+                    shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            // Big Turn Direction Arrow Puck
+                            // Turn Direction Arrow Puck
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .size(50.dp)
+                                    .size(44.dp)
                                     .background(
-                                        Brush.radialGradient(listOf(Color(0xFF10B981), Color(0xFF047857))),
+                                        Brush.radialGradient(listOf(Color(0xFF0052CC), Color(0xFF003399))),
                                         CircleShape
                                     )
                                     .border(1.5.dp, Color.White, CircleShape)
@@ -190,11 +185,11 @@ fun GoogleMapsNavigationHUD(
                                     imageVector = getManeuverIcon(currentStep.maneuver),
                                     contentDescription = "Maneuver",
                                     tint = Color.White,
-                                    modifier = Modifier.size(30.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(14.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
 
                             Column(
                                 modifier = Modifier
@@ -203,15 +198,15 @@ fun GoogleMapsNavigationHUD(
                             ) {
                                 Text(
                                     text = "In ${currentStep.distanceText}",
-                                    color = Color(0xFF00E5FF),
-                                    fontSize = 13.sp,
+                                    color = Color(0xFF0052CC),
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Black,
-                                    letterSpacing = 0.5.sp
+                                    letterSpacing = 0.3.sp
                                 )
                                 Text(
                                     text = currentStep.instruction,
-                                    color = Color.White,
-                                    fontSize = 15.sp,
+                                    color = Color(0xFF0F172A),
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
@@ -220,19 +215,20 @@ fun GoogleMapsNavigationHUD(
 
                             // Steps button
                             Surface(
-                                color = Color(0x3338BDF8),
+                                color = Color(0xFFEFF6FF),
                                 shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFF0052CC)),
                                 modifier = Modifier
                                     .padding(start = 4.dp)
                                     .clickable { showStepsModal = true }
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                 ) {
                                     Text(
                                         text = "STEPS",
-                                        color = Color(0xFF38BDF8),
+                                        color = Color(0xFF0052CC),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Black
                                     )
@@ -240,7 +236,7 @@ fun GoogleMapsNavigationHUD(
                                     Icon(
                                         Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Color(0xFF38BDF8),
+                                        tint = Color(0xFF0052CC),
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -251,24 +247,24 @@ fun GoogleMapsNavigationHUD(
                             // Minimize Action Button
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
-                                    .background(Color(0x33FFFFFF), CircleShape)
+                                    .size(28.dp)
+                                    .background(Color(0xFFF1F5F9), CircleShape)
                                     .clickable { isBannerMinimized = true },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Default.Remove,
                                     contentDescription = "Minimize Navigation Banner",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = Color(0xFF0F172A),
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
 
                         if (nextStep != null) {
                             HorizontalDivider(
-                                color = Color(0x33334155),
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                color = Color(0xFFE2E8F0),
+                                modifier = Modifier.padding(vertical = 6.dp)
                             )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -279,13 +275,13 @@ fun GoogleMapsNavigationHUD(
                                 Icon(
                                     imageVector = getManeuverIcon(nextStep.maneuver),
                                     contentDescription = null,
-                                    tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = Color(0xFF475569),
+                                    modifier = Modifier.size(14.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Then: ${nextStep.instruction} (${nextStep.distanceText})",
-                                    color = Color(0xFF94A3B8),
+                                    color = Color(0xFF475569),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
@@ -299,7 +295,7 @@ fun GoogleMapsNavigationHUD(
         }
 
         // ==========================================
-        // 2. BOTTOM NAVIGATION BAR (ETA, DURATION, SPEED & CONTROLS)
+        // 2. BOTTOM NAVIGATION BAR (COMPACT 3D GLASSY ALPINE WHITE & SAPPHIRE AZURE)
         // ==========================================
         AnimatedVisibility(
             visible = true,
@@ -307,19 +303,26 @@ fun GoogleMapsNavigationHUD(
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp, start = 16.dp, end = 16.dp)
+                .offset { IntOffset(bottomOffsetX.roundToInt(), bottomOffsetY.roundToInt()) }
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        bottomOffsetX += dragAmount.x
+                        bottomOffsetY += dragAmount.y
+                    }
+                }
+                .padding(bottom = 16.dp, start = 12.dp, end = 12.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = Color(0xF2090D16),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-                shadowElevation = 16.dp,
+                shape = RoundedCornerShape(20.dp),
+                color = Color.Transparent,
+                shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     // Left: Remaining Duration, Distance & ETA Clock Time
                     Column {
@@ -331,50 +334,50 @@ fun GoogleMapsNavigationHUD(
 
                             Text(
                                 text = durDisplay,
-                                color = Color(0xFF10B981), // Google Maps vibrant green duration
-                                fontSize = 20.sp,
+                                color = Color(0xFF059669), // Crisp emerald green duration
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Black
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "• ${"%.1f".format(routeDetails?.distanceKm ?: 0.0)} km",
-                                color = Color(0xFFCBD5E1),
-                                fontSize = 14.sp,
+                                color = Color(0xFF1E293B),
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                         Text(
                             text = "ETA: $etaString • On Time",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
+                            color = Color(0xFF475569),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
 
                     // Center / Right Controls
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         // Live Speed Badge
                         Surface(
                             color = Color(0xFF0F172A),
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF))
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFF0052CC))
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = "${currentSpeedKmh.toInt()}",
-                                    color = Color(0xFF00E5FF),
-                                    fontSize = 14.sp,
+                                    color = Color.White,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Black
                                 )
                                 Text(
                                     text = "KM/H",
-                                    color = Color(0xFF94A3B8),
+                                    color = Color(0xFFCBD5E1),
                                     fontSize = 8.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -388,14 +391,14 @@ fun GoogleMapsNavigationHUD(
                                 onOpenGoogleMapsApp()
                             },
                             modifier = Modifier
-                                .size(42.dp)
-                                .background(Color(0xFF0284C7), CircleShape)
+                                .size(38.dp)
+                                .background(Color(0xFF0052CC), CircleShape)
                         ) {
                             Icon(
                                 Icons.Default.Directions,
                                 contentDescription = "Open Google Maps Navigation",
                                 tint = Color.White,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
@@ -406,14 +409,14 @@ fun GoogleMapsNavigationHUD(
                                 onExitNavigation()
                             },
                             modifier = Modifier
-                                .size(42.dp)
-                                .background(Color(0xFFEF4444), CircleShape)
+                                .size(38.dp)
+                                .background(Color(0xFFDC2626), CircleShape)
                         ) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Exit Navigation",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

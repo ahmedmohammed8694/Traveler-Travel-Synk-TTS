@@ -147,6 +147,7 @@ fun AddEditVehicleDialog(
     var selectedFuelType by remember { mutableStateOf(vehicle?.fuelType ?: FuelType.PETROL.name) }
     var brandName by remember { mutableStateOf(vehicle?.brandName ?: "") }
     var modelName by remember { mutableStateOf(vehicle?.model ?: "") }
+    var registrationNumber by remember { mutableStateOf(vehicle?.registrationNumber ?: "") }
     var capacityText by remember { mutableStateOf(vehicle?.fuelTankCapacity?.toString() ?: "15.0") }
     var mileageText by remember { mutableStateOf(vehicle?.mileage?.toString() ?: "35.0") }
     var currentFuelText by remember { mutableStateOf(vehicle?.currentFuelAvailable?.toString() ?: "10.0") }
@@ -316,6 +317,32 @@ fun AddEditVehicleDialog(
                     onValueChange = { modelName = it },
                     label = { Text("Vehicle Model (e.g. Classic 350, Thar, Model 3)") },
                     singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = HudColors.ObsidianSurface,
+                        unfocusedContainerColor = HudColors.ObsidianSurface,
+                        focusedBorderColor = HudColors.CyanPrimary,
+                        unfocusedBorderColor = HudColors.ObsidianBorder,
+                        focusedLabelColor = HudColors.CyanPrimary,
+                        unfocusedLabelColor = HudColors.TextCoolSilver,
+                        focusedTextColor = HudColors.TextCrispWhite,
+                        unfocusedTextColor = HudColors.TextCrispWhite
+                    )
+                )
+
+                // 4b. Vehicle Registration Number (e.g. TS 09 AB 1234)
+                OutlinedTextField(
+                    value = registrationNumber,
+                    onValueChange = { registrationNumber = it.uppercase() },
+                    label = { Text("Vehicle Registration No. (e.g. TS 09 AB 1234)") },
+                    placeholder = { Text("Enter registration plate number") },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.DirectionsCar, contentDescription = null, tint = HudColors.CyanPrimary)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),
@@ -511,6 +538,7 @@ fun AddEditVehicleDialog(
                             fuelType = selectedFuelType,
                             brandName = brandName.trim(),
                             model = modelName.trim(),
+                            registrationNumber = registrationNumber.trim(),
                             fuelTankCapacity = capacityVal,
                             mileage = mileageVal,
                             currentFuelAvailable = currentFuelVal,
@@ -540,13 +568,207 @@ fun AddEditVehicleDialog(
 }
 
 /**
- * Vehicle Card displaying Vehicle details with Active Mode selection CTA.
+ * Dialog displaying complete details of a vehicle.
+ */
+@Composable
+fun VehicleDetailsViewDialog(
+    vehicle: Vehicle,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = HudColors.ObsidianCanvas,
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, HudColors.CyanPrimary),
+            shadowElevation = 14.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = vehicle.vehicleTypeEnum.iconEmoji, fontSize = 32.sp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = vehicle.fullDisplayName,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                                color = HudColors.TextCrispWhite
+                            )
+                            Text(
+                                text = "${vehicle.vehicleTypeEnum.displayName} • ${vehicle.fuelTypeEnum.displayName}",
+                                fontSize = 13.sp,
+                                color = HudColors.TextCoolSilver
+                            )
+                        }
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = HudColors.TextCoolSilver
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Registration Number Plate Highlight Card
+                if (vehicle.registrationNumber.isNotBlank()) {
+                    Surface(
+                        color = Color(0xFF1E293B),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFF59E0B)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "REGISTRATION NUMBER",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = HudColors.TextCoolSilver
+                                )
+                                Text(
+                                    text = "🇮🇳 ${vehicle.registrationNumber}",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFF59E0B)
+                                )
+                            }
+                            Surface(
+                                color = Color(0xFFFEF3C7),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = "VERIFIED REG",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFD97706),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Detailed Specs List
+                Surface(
+                    color = HudColors.ObsidianSurface,
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, HudColors.ObsidianBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Technical Specifications",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = HudColors.CyanPrimary,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        DetailRowItem(label = "Vehicle Type / Category", value = "${vehicle.vehicleTypeEnum.iconEmoji} ${vehicle.vehicleTypeEnum.displayName}")
+                        DetailRowItem(label = "Fuel / Engine Type", value = "${vehicle.fuelTypeEnum.iconEmoji} ${vehicle.fuelTypeEnum.displayName}")
+                        DetailRowItem(label = "Fuel Tank Capacity", value = "${vehicle.fuelTankCapacity} ${vehicle.fuelTypeEnum.capacityUnit}")
+                        DetailRowItem(label = "Fuel Mileage / Efficiency", value = "${vehicle.mileage} ${vehicle.fuelTypeEnum.mileageUnit}")
+                        DetailRowItem(label = "Current Fuel Level", value = "${vehicle.currentFuelAvailable} ${vehicle.fuelTypeEnum.fuelUnit} (${vehicle.fuelPercentage}%)")
+                        DetailRowItem(label = "Calculated Trip Range", value = "${vehicle.estimatedRangeKm} km")
+                        DetailRowItem(label = "Full Tank Max Range", value = "${vehicle.maxRangeKm} km")
+                        DetailRowItem(label = "Default Vehicle Status", value = if (vehicle.isActive) "★ Default Trip Vehicle" else "Secondary Garage Vehicle")
+                    }
+                }
+
+                // Refuel Warning Banner
+                if (vehicle.isLowFuelAlert) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Surface(
+                        color = Color(0xFF3B1212),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Refuel Alert: Fuel level low (${vehicle.estimatedRangeKm} km remaining). Refuel before long trips.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFFCA5A5),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = HudColors.CyanPrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Close Vehicle Details", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRowItem(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, fontSize = 12.sp, color = HudColors.TextCoolSilver)
+        Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = HudColors.TextCrispWhite)
+    }
+}
+
+/**
+ * Vehicle Card displaying Vehicle details with Active Mode selection & Details View CTA.
  */
 @Composable
 fun VehicleItemCard(
     vehicle: Vehicle,
     isActive: Boolean,
     onSelectActive: () -> Unit,
+    onViewDetails: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -567,7 +789,7 @@ fun VehicleItemCard(
             )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header Row: Vehicle Icon, Name, Active Badge
+            // Header Row: Vehicle Icon, Name, Registration Plate, Active Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -593,6 +815,22 @@ fun VehicleItemCard(
                                 color = HudColors.TextCoolSilver
                             )
                         }
+                        if (vehicle.registrationNumber.isNotBlank()) {
+                            Surface(
+                                color = Color(0xFF1E293B),
+                                shape = RoundedCornerShape(6.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Text(
+                                    text = "🇮🇳 ${vehicle.registrationNumber}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFF59E0B),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -614,7 +852,7 @@ fun VehicleItemCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "★ DEFAULT VEHICLE",
+                                text = "★ DEFAULT",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = accentColor
@@ -633,7 +871,6 @@ fun VehicleItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Tank Capacity
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Capacity", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
@@ -644,7 +881,6 @@ fun VehicleItemCard(
                     )
                 }
 
-                // Mileage
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Mileage", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
@@ -655,7 +891,6 @@ fun VehicleItemCard(
                     )
                 }
 
-                // Current Fuel
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "Current Fuel", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
@@ -666,7 +901,6 @@ fun VehicleItemCard(
                     )
                 }
 
-                // Calculated Range
                 Column(modifier = Modifier.weight(1.2f), horizontalAlignment = Alignment.End) {
                     Text(text = "Trip Range", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
@@ -709,31 +943,38 @@ fun VehicleItemCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action CTAs: Select Default Vehicle | Edit | Delete
+            // Action CTAs: View Details | Select Default Vehicle | Edit | Delete
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (!isActive) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = onSelectActive,
+                        onClick = onViewDetails,
                         shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Set as Default", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Icon(imageVector = Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("View Details", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                } else {
-                    Text(
-                        text = "★ Default Vehicle for Trips",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = accentColor
-                    )
+
+                    if (!isActive) {
+                        OutlinedButton(
+                            onClick = onSelectActive,
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, HudColors.ObsidianBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = HudColors.TextCoolSilver),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.RadioButtonUnchecked, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Set Default", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
 
                 Row {

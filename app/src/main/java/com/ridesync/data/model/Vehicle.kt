@@ -30,6 +30,7 @@ data class Vehicle(
     val fuelType: String = FuelType.PETROL.name,
     val brandName: String = "",
     val model: String = "",
+    val registrationNumber: String = "",
     val fuelTankCapacity: Double = 15.0,     // Liters or kWh
     val mileage: Double = 35.0,               // km/L or km/kWh
     val currentFuelAvailable: Double = 10.0,  // Current fuel/charge in Liters or kWh

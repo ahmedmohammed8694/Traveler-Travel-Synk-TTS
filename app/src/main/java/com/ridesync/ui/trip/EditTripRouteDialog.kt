@@ -100,7 +100,7 @@ fun EditTripRouteDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            color = Color(0xFF0B1120),
+            color = Color(0xFFF1F5F9),
             modifier = Modifier.fillMaxSize()
         ) {
             Column(
@@ -110,8 +110,8 @@ fun EditTripRouteDialog(
             ) {
                 // Top Header Bar
                 Surface(
-                    color = Color(0xFF0F172A),
-                    border = BorderStroke(1.dp, Color(0xFF1E293B)),
+                    color = Color(0xFFFFFFFF),
+                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -123,17 +123,17 @@ fun EditTripRouteDialog(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF0F172A))
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text("Edit Route & Stops", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Black)
-                                Text("Update points, links, or specific day routes", color = Color(0xFF38BDF8), fontSize = 11.sp)
+                                Text("Edit Route & Stops", color = Color(0xFF0F172A), fontSize = 17.sp, fontWeight = FontWeight.Black)
+                                Text("Update points, links, or specific day routes", color = Color(0xFF0052CC), fontSize = 11.sp)
                             }
                         }
 
                         IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF94A3B8))
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF64748B))
                         }
                     }
                 }
@@ -147,11 +147,11 @@ fun EditTripRouteDialog(
                     // Scope Chooser Tab Bar: "Full Trip" vs "Single Day Route"
                     TabRow(
                         selectedTabIndex = editScopeMode,
-                        containerColor = Color(0xFF1E293B),
-                        contentColor = Color(0xFFF59E0B),
+                        containerColor = Color(0xFFFFFFFF),
+                        contentColor = Color(0xFF0052CC),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
                     ) {
                         Tab(
                             selected = editScopeMode == 0,
@@ -182,31 +182,28 @@ fun EditTripRouteDialog(
                     // ====================================================
                     if (editScopeMode == 0) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            border = BorderStroke(1.5.dp, Color(0xFF0052CC)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("Trip Overview", color = Color(0xFFFBBF24), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("Trip Overview", color = Color(0xFF0052CC), fontSize = 14.sp, fontWeight = FontWeight.Bold)
 
                                 OutlinedTextField(
                                     value = tripTitle,
                                     onValueChange = { tripTitle = it },
-                                    label = { Text("Trip Title", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                    label = { Text("Trip Title", color = Color(0xFF475569), fontSize = 11.sp) },
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFFFBBF24),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFFF59E0B),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFF0052CC),
+                                        unfocusedLabelColor = Color(0xFF475569),
+                                        focusedBorderColor = Color(0xFF0052CC),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -214,20 +211,17 @@ fun EditTripRouteDialog(
                                 OutlinedTextField(
                                     value = tripStartDate,
                                     onValueChange = { tripStartDate = it },
-                                    label = { Text("Start Date", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                    label = { Text("Start Date", color = Color(0xFF475569), fontSize = 11.sp) },
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFFFBBF24),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFFF59E0B),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFF0052CC),
+                                        unfocusedLabelColor = Color(0xFF475569),
+                                        focusedBorderColor = Color(0xFF0052CC),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -239,20 +233,17 @@ fun EditTripRouteDialog(
                                     OutlinedTextField(
                                         value = originName,
                                         onValueChange = { originName = it },
-                                        label = { Text("Origin", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                        label = { Text("Origin", color = Color(0xFF475569), fontSize = 11.sp) },
                                         singleLine = true,
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF0F172A),
-                                            unfocusedContainerColor = Color(0xFF0F172A),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
-                                            focusedLabelColor = Color(0xFF22C55E),
-                                            unfocusedLabelColor = Color(0xFF94A3B8),
-                                            focusedPlaceholderColor = Color(0xFF64748B),
-                                            unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF00F0FF),
-                                            focusedBorderColor = Color(0xFF22C55E),
-                                            unfocusedBorderColor = Color(0xFF334155)
+                                            focusedContainerColor = Color(0xFFFFFFFF),
+                                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                                            focusedTextColor = Color(0xFF0F172A),
+                                            unfocusedTextColor = Color(0xFF0F172A),
+                                            focusedLabelColor = Color(0xFF16A34A),
+                                            unfocusedLabelColor = Color(0xFF475569),
+                                            focusedBorderColor = Color(0xFF16A34A),
+                                            unfocusedBorderColor = Color(0xFFCBD5E1)
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -260,20 +251,17 @@ fun EditTripRouteDialog(
                                     OutlinedTextField(
                                         value = destName,
                                         onValueChange = { destName = it },
-                                        label = { Text("Destination", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                        label = { Text("Destination", color = Color(0xFF475569), fontSize = 11.sp) },
                                         singleLine = true,
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF0F172A),
-                                            unfocusedContainerColor = Color(0xFF0F172A),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
+                                            focusedContainerColor = Color(0xFFFFFFFF),
+                                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                                            focusedTextColor = Color(0xFF0F172A),
+                                            unfocusedTextColor = Color(0xFF0F172A),
                                             focusedLabelColor = Color(0xFFEF4444),
-                                            unfocusedLabelColor = Color(0xFF94A3B8),
-                                            focusedPlaceholderColor = Color(0xFF64748B),
-                                            unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF00F0FF),
+                                            unfocusedLabelColor = Color(0xFF475569),
                                             focusedBorderColor = Color(0xFFEF4444),
-                                            unfocusedBorderColor = Color(0xFF334155)
+                                            unfocusedBorderColor = Color(0xFFCBD5E1)
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -282,32 +270,29 @@ fun EditTripRouteDialog(
                                 OutlinedTextField(
                                     value = masterMapUrl,
                                     onValueChange = { masterMapUrl = it },
-                                    label = { Text("Update Route Map Link (maps.app.goo.gl or full URL)", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                    label = { Text("Update Route Map Link (maps.app.goo.gl or full URL)", color = Color(0xFF475569), fontSize = 11.sp) },
                                     maxLines = 2,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFF0F172A),
-                                        unfocusedContainerColor = Color(0xFF0F172A),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedLabelColor = Color(0xFF38BDF8),
-                                        unfocusedLabelColor = Color(0xFF94A3B8),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF00F0FF),
-                                        focusedBorderColor = Color(0xFF38BDF8),
-                                        unfocusedBorderColor = Color(0xFF334155)
+                                        focusedContainerColor = Color(0xFFFFFFFF),
+                                        unfocusedContainerColor = Color(0xFFFFFFFF),
+                                        focusedTextColor = Color(0xFF0F172A),
+                                        unfocusedTextColor = Color(0xFF0F172A),
+                                        focusedLabelColor = Color(0xFF0052CC),
+                                        unfocusedLabelColor = Color(0xFF475569),
+                                        focusedBorderColor = Color(0xFF0052CC),
+                                        unfocusedBorderColor = Color(0xFFCBD5E1)
                                     ),
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
                                 // Milestones / Waypoints Editor
-                                Text("Trip Stops & Milestones (${fullWaypoints.size}):", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("Trip Stops & Milestones (${fullWaypoints.size}):", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
                                 fullWaypoints.forEachIndexed { index, wp ->
                                     Surface(
-                                        color = Color(0xFF020617),
+                                        color = Color(0xFFF8FAFC),
                                         shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -316,9 +301,9 @@ fun EditTripRouteDialog(
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text("${index + 1}. $wp", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                                Text("${index + 1}. $wp", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                             }
 
                                             IconButton(
@@ -343,17 +328,14 @@ fun EditTripRouteDialog(
                                         placeholder = { Text("Add new stop/milestone name", fontSize = 11.sp, color = Color(0xFF64748B)) },
                                         singleLine = true,
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF0F172A),
-                                            unfocusedContainerColor = Color(0xFF0F172A),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
-                                            focusedLabelColor = Color(0xFF38BDF8),
-                                            unfocusedLabelColor = Color(0xFF94A3B8),
-                                            focusedPlaceholderColor = Color(0xFF64748B),
-                                            unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF00F0FF),
-                                            focusedBorderColor = Color(0xFF38BDF8),
-                                            unfocusedBorderColor = Color(0xFF334155)
+                                            focusedContainerColor = Color(0xFFFFFFFF),
+                                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                                            focusedTextColor = Color(0xFF0F172A),
+                                            unfocusedTextColor = Color(0xFF0F172A),
+                                            focusedLabelColor = Color(0xFF0052CC),
+                                            unfocusedLabelColor = Color(0xFF475569),
+                                            focusedBorderColor = Color(0xFF0052CC),
+                                            unfocusedBorderColor = Color(0xFFCBD5E1)
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -365,7 +347,7 @@ fun EditTripRouteDialog(
                                                 newWaypointInput = ""
                                             }
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -382,9 +364,9 @@ fun EditTripRouteDialog(
                     // ====================================================
                     if (editScopeMode == 1) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            border = BorderStroke(1.5.dp, Color(0xFF0052CC)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -393,7 +375,7 @@ fun EditTripRouteDialog(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("Select Day to Edit:", color = Color(0xFFFBBF24), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("Select Day to Edit:", color = Color(0xFF0052CC), fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
                                     TextButton(
                                         onClick = {
@@ -411,9 +393,9 @@ fun EditTripRouteDialog(
                                             selectedDayIndex = daySegments.size - 1
                                         }
                                     ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("+ Add Day", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text("+ Add Day", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
 
@@ -422,14 +404,14 @@ fun EditTripRouteDialog(
                                     itemsIndexed(daySegments) { idx, seg ->
                                         val isSelected = idx == selectedDayIndex
                                         Surface(
-                                            color = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.25f) else Color(0xFF1E293B),
+                                            color = if (isSelected) Color(0xFF0052CC) else Color(0xFFFFFFFF),
                                             shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, if (isSelected) Color(0xFFF59E0B) else Color(0xFF334155)),
+                                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF0052CC) else Color(0xFFCBD5E1)),
                                             modifier = Modifier.clickable { selectedDayIndex = idx }
                                         ) {
                                             Text(
                                                 text = "Day ${idx + 1}",
-                                                color = if (isSelected) Color(0xFFFBBF24) else Color(0xFFCBD5E1),
+                                                color = if (isSelected) Color.White else Color(0xFF0F172A),
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp,
                                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
@@ -447,20 +429,17 @@ fun EditTripRouteDialog(
                                         onValueChange = {
                                             daySegments[selectedDayIndex] = activeSegment.copy(segmentName = it)
                                         },
-                                        label = { Text("Day ${selectedDayIndex + 1} Title", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                        label = { Text("Day ${selectedDayIndex + 1} Title", color = Color(0xFF475569), fontSize = 11.sp) },
                                         singleLine = true,
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF0F172A),
-                                            unfocusedContainerColor = Color(0xFF0F172A),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
-                                            focusedLabelColor = Color(0xFF38BDF8),
-                                            unfocusedLabelColor = Color(0xFF94A3B8),
-                                            focusedPlaceholderColor = Color(0xFF64748B),
-                                            unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF00F0FF),
-                                            focusedBorderColor = Color(0xFF38BDF8),
-                                            unfocusedBorderColor = Color(0xFF334155)
+                                            focusedContainerColor = Color(0xFFFFFFFF),
+                                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                                            focusedTextColor = Color(0xFF0F172A),
+                                            unfocusedTextColor = Color(0xFF0F172A),
+                                            focusedLabelColor = Color(0xFF0052CC),
+                                            unfocusedLabelColor = Color(0xFF475569),
+                                            focusedBorderColor = Color(0xFF0052CC),
+                                            unfocusedBorderColor = Color(0xFFCBD5E1)
                                         ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -470,21 +449,18 @@ fun EditTripRouteDialog(
                                         onValueChange = {
                                             daySegments[selectedDayIndex] = activeSegment.copy(googleMapsUrl = it)
                                         },
-                                        label = { Text("Day ${selectedDayIndex + 1} Google Maps Route Link", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                        label = { Text("Day ${selectedDayIndex + 1} Google Maps Route Link", color = Color(0xFF475569), fontSize = 11.sp) },
                                         placeholder = { Text("https://maps.app.goo.gl/... or full URL", color = Color(0xFF64748B), fontSize = 11.sp) },
                                         maxLines = 2,
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFF0F172A),
-                                            unfocusedContainerColor = Color(0xFF0F172A),
-                                            focusedTextColor = Color.White,
-                                            unfocusedTextColor = Color.White,
-                                            focusedLabelColor = Color(0xFF38BDF8),
-                                            unfocusedLabelColor = Color(0xFF94A3B8),
-                                            focusedPlaceholderColor = Color(0xFF64748B),
-                                            unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF00F0FF),
-                                            focusedBorderColor = Color(0xFF38BDF8),
-                                            unfocusedBorderColor = Color(0xFF334155)
+                                            focusedContainerColor = Color(0xFFFFFFFF),
+                                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                                            focusedTextColor = Color(0xFF0F172A),
+                                            unfocusedTextColor = Color(0xFF0F172A),
+                                            focusedLabelColor = Color(0xFF0052CC),
+                                            unfocusedLabelColor = Color(0xFF475569),
+                                            focusedBorderColor = Color(0xFF0052CC),
+                                            unfocusedBorderColor = Color(0xFFCBD5E1)
                                         ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -498,20 +474,17 @@ fun EditTripRouteDialog(
                                             onValueChange = {
                                                 daySegments[selectedDayIndex] = activeSegment.copy(originName = it)
                                             },
-                                            label = { Text("Day Start Leg", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                            label = { Text("Day Start Leg", color = Color(0xFF475569), fontSize = 11.sp) },
                                             singleLine = true,
                                             colors = OutlinedTextFieldDefaults.colors(
-                                                focusedContainerColor = Color(0xFF0F172A),
-                                                unfocusedContainerColor = Color(0xFF0F172A),
-                                                focusedTextColor = Color.White,
-                                                unfocusedTextColor = Color.White,
-                                                focusedLabelColor = Color(0xFF22C55E),
-                                                unfocusedLabelColor = Color(0xFF94A3B8),
-                                                focusedPlaceholderColor = Color(0xFF64748B),
-                                                unfocusedPlaceholderColor = Color(0xFF64748B),
-                                                cursorColor = Color(0xFF00F0FF),
-                                                focusedBorderColor = Color(0xFF22C55E),
-                                                unfocusedBorderColor = Color(0xFF334155)
+                                                focusedContainerColor = Color(0xFFFFFFFF),
+                                                unfocusedContainerColor = Color(0xFFFFFFFF),
+                                                focusedTextColor = Color(0xFF0F172A),
+                                                unfocusedTextColor = Color(0xFF0F172A),
+                                                focusedLabelColor = Color(0xFF16A34A),
+                                                unfocusedLabelColor = Color(0xFF475569),
+                                                focusedBorderColor = Color(0xFF16A34A),
+                                                unfocusedBorderColor = Color(0xFFCBD5E1)
                                             ),
                                             modifier = Modifier.weight(1f)
                                         )
@@ -521,33 +494,30 @@ fun EditTripRouteDialog(
                                             onValueChange = {
                                                 daySegments[selectedDayIndex] = activeSegment.copy(destinationName = it)
                                             },
-                                            label = { Text("Day End Leg", color = Color(0xFF94A3B8), fontSize = 11.sp) },
+                                            label = { Text("Day End Leg", color = Color(0xFF475569), fontSize = 11.sp) },
                                             singleLine = true,
                                             colors = OutlinedTextFieldDefaults.colors(
-                                                focusedContainerColor = Color(0xFF0F172A),
-                                                unfocusedContainerColor = Color(0xFF0F172A),
-                                                focusedTextColor = Color.White,
-                                                unfocusedTextColor = Color.White,
+                                                focusedContainerColor = Color(0xFFFFFFFF),
+                                                unfocusedContainerColor = Color(0xFFFFFFFF),
+                                                focusedTextColor = Color(0xFF0F172A),
+                                                unfocusedTextColor = Color(0xFF0F172A),
                                                 focusedLabelColor = Color(0xFFEF4444),
-                                                unfocusedLabelColor = Color(0xFF94A3B8),
-                                                focusedPlaceholderColor = Color(0xFF64748B),
-                                                unfocusedPlaceholderColor = Color(0xFF64748B),
-                                                cursorColor = Color(0xFF00F0FF),
+                                                unfocusedLabelColor = Color(0xFF475569),
                                                 focusedBorderColor = Color(0xFFEF4444),
-                                                unfocusedBorderColor = Color(0xFF334155)
+                                                unfocusedBorderColor = Color(0xFFCBD5E1)
                                             ),
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
 
                                     // Day Waypoints
-                                    Text("Day ${selectedDayIndex + 1} Stops (${activeSegment.waypoints.size}):", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Day ${selectedDayIndex + 1} Stops (${activeSegment.waypoints.size}):", color = Color(0xFF0F172A), fontSize = 12.sp, fontWeight = FontWeight.Bold)
 
                                     activeSegment.waypoints.forEachIndexed { wIdx, wp ->
                                         Surface(
-                                            color = Color(0xFF020617),
+                                            color = Color(0xFFF8FAFC),
                                             shape = RoundedCornerShape(8.dp),
-                                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Row(
@@ -555,7 +525,7 @@ fun EditTripRouteDialog(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                             ) {
-                                                Text("${wIdx + 1}. $wp", color = Color.White, fontSize = 12.sp)
+                                                Text("${wIdx + 1}. $wp", color = Color(0xFF0F172A), fontSize = 12.sp)
                                                 IconButton(
                                                     onClick = {
                                                         val updatedWp = activeSegment.waypoints.toMutableList().apply { removeAt(wIdx) }
@@ -581,17 +551,14 @@ fun EditTripRouteDialog(
                                             placeholder = { Text("Add stop to Day ${selectedDayIndex + 1}", fontSize = 11.sp, color = Color(0xFF64748B)) },
                                             singleLine = true,
                                             colors = OutlinedTextFieldDefaults.colors(
-                                                focusedContainerColor = Color(0xFF0F172A),
-                                                unfocusedContainerColor = Color(0xFF0F172A),
-                                                focusedTextColor = Color.White,
-                                                unfocusedTextColor = Color.White,
-                                                focusedLabelColor = Color(0xFF38BDF8),
-                                                unfocusedLabelColor = Color(0xFF94A3B8),
-                                                focusedPlaceholderColor = Color(0xFF64748B),
-                                                unfocusedPlaceholderColor = Color(0xFF64748B),
-                                                cursorColor = Color(0xFF00F0FF),
-                                                focusedBorderColor = Color(0xFF38BDF8),
-                                                unfocusedBorderColor = Color(0xFF334155)
+                                                focusedContainerColor = Color(0xFFFFFFFF),
+                                                unfocusedContainerColor = Color(0xFFFFFFFF),
+                                                focusedTextColor = Color(0xFF0F172A),
+                                                unfocusedTextColor = Color(0xFF0F172A),
+                                                focusedLabelColor = Color(0xFF0052CC),
+                                                unfocusedLabelColor = Color(0xFF475569),
+                                                focusedBorderColor = Color(0xFF0052CC),
+                                                unfocusedBorderColor = Color(0xFFCBD5E1)
                                             ),
                                             modifier = Modifier.weight(1f)
                                         )
@@ -604,7 +571,7 @@ fun EditTripRouteDialog(
                                                     newDayWaypointInput = ""
                                                 }
                                             },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                                             shape = RoundedCornerShape(10.dp)
                                         ) {
                                             Text("Add", fontSize = 12.sp, fontWeight = FontWeight.Bold)

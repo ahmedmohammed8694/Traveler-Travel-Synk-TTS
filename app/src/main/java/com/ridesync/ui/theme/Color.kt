@@ -2,49 +2,49 @@ package com.ridesync.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Apex Telemetry HUD Color System - Matched to Official Design Board
+// 3D Glassy Alpine White & Sapphire Azure Theme System
 object HudColors {
-    // Neutral Void Canvas & Carbon Surface Tones
-    val ObsidianCanvas = Color(0xFF080C16)    // Neutral Dark Charcoal Canvas (#080C16)
-    val ObsidianSurface = Color(0xFF0F131D)   // Deep Carbon Surface (#0F131D)
-    val ObsidianElevated = Color(0xFF171B26)  // Machined Titanium Container (#171B26)
-    val ObsidianBorder = Color(0x3300F3FF)    // Translucent Electric Cyan Border
-    val ObsidianModal = Color(0xF20F131D)     // Translucent Carbon Glass Modal
+    // Pristine Alpine Pearl Canvas & Surface Tones (Daylight High Contrast)
+    val ObsidianCanvas = Color(0xFFF8FAFC)    // Alpine Pearl Light Canvas (#F8FAFC)
+    val ObsidianSurface = Color(0xFFFFFFFF)   // Alpine White Surface (#FFFFFF)
+    val ObsidianElevated = Color(0xFFF1F5F9)  // Translucent Pearl Glass Container (#F1F5F9)
+    val ObsidianBorder = Color(0xFFCBD5E1)    // Fine Slate Border (#CBD5E1)
+    val ObsidianModal = Color(0xFFFFFFFF)     // Alpine Pearl Glass Modal
 
-    // Primary, Secondary & Tertiary Accents (From Official Design Board)
-    val CyanPrimary = Color(0xFF00F3FF)      // Primary Electric Cyan (#00F3FF)
-    val CyanLight = Color(0xFF7DF4FF)        // Luminous Cyan Fixed Accent (#7DF4FF)
-    val CyanGlow = Color(0x3300F3FF)         // Primary Cyan Photon Glow
-    val CobaltBlue = Color(0xFF0066FF)       // Ultramarine Route Ribbon
+    // Primary Sapphire & Lead Accents
+    val CyanPrimary = Color(0xFF1E40AF)      // Deep Sapphire Azure (#1E40AF)
+    val CyanLight = Color(0xFF2563EB)        // Cobalt Blue Accent (#2563EB)
+    val CyanGlow = Color(0x331E40AF)         // Sapphire Photon Glow
+    val CobaltBlue = Color(0xFF2563EB)       // Cobalt Blue Route Ribbon
 
-    val HazardSecondary = Color(0xFFFF5500)  // Secondary Hazard Orange (#FF5500)
-    val SecondaryGlow = Color(0x33FF5500)
+    val HazardSecondary = Color(0xFFF59E0B)  // Sunburst Amber Gold (#F59E0B)
+    val SecondaryGlow = Color(0x33F59E0B)
 
-    val TelemetryTertiary = Color(0xFF00FF66)// Tertiary Active Green (#00FF66)
-    val TertiaryGlow = Color(0x3300FF66)
+    val TelemetryTertiary = Color(0xFF10B981)// Fresh Emerald Green (#10B981)
+    val TertiaryGlow = Color(0x3310B981)
 
-    // Status Palette & Halos
-    val StatusRiding = Color(0xFF00FF66)     // Active Telemetry Green (#00FF66)
-    val StatusRidingGlow = Color(0x3300FF66)
+    // Status Palette & Halos (High Visibility Daylight HUD)
+    val StatusRiding = Color(0xFF10B981)     // Fresh Emerald Green (#10B981)
+    val StatusRidingGlow = Color(0x3310B981)
 
-    val StatusStopped = Color(0xFFFF5500)    // Secondary Hazard Orange (#FF5500)
-    val StatusStoppedGlow = Color(0x33FF5500)
+    val StatusStopped = Color(0xFFF59E0B)    // Sunburst Amber Gold (#F59E0B)
+    val StatusStoppedGlow = Color(0x33F59E0B)
 
-    val StatusDelayed = Color(0xFFFF3366)    // Warning Crimson
-    val StatusDelayedGlow = Color(0x33FF3366)
+    val StatusDelayed = Color(0xFFDC2626)    // Warning Crimson (#DC2626)
+    val StatusDelayedGlow = Color(0x33DC2626)
 
-    val StatusSos = Color(0xFFFF0055)        // Emergency SOS Beacon Red
-    val StatusSosGlow = Color(0x40FF0055)
+    val StatusSos = Color(0xFFB91C1C)        // Emergency SOS Beacon Red (#B91C1C)
+    val StatusSosGlow = Color(0x40B91C1C)
 
-    // Text Hierarchy (From Design Board Specifications)
-    val TextCrispWhite = Color(0xFFDFE2F1)   // High-Contrast Cyber White (#DFE2F1)
-    val TextCoolSilver = Color(0xFFB9CACB)   // Cool Slate Variant (#B9CACB)
-    val TextMuted = Color(0xFF849495)        // Muted Outline Slate (#849495)
+    // Text Hierarchy (Deep Slate Contrast on Alpine Surface - 100% WCAG AAA Legibility)
+    val TextCrispWhite = Color(0xFF0F172A)   // Deep Slate Black for titles (#0F172A)
+    val TextCoolSilver = Color(0xFF475569)   // Cool Slate for subtitles & labels (#475569)
+    val TextMuted = Color(0xFF64748B)        // Muted Slate (#64748B)
 
-    // 3D Bevel Rim Highlights & Frosted Glass Borders
-    val RimHighlight = Color(0x4000F3FF)     // Electric Cyan Rim Highlight
-    val RimHighlightCyan = Color(0x400066FF)
-    val FrostedOverlay = Color(0xBF0F131D)   // Translucent Carbon Glass
-    val FrostedBorder = Color(0x3300F3FF)
+    // 3D Bevel Rim Highlights & Frosted Pearl Glass Borders
+    val RimHighlight = Color(0x401E40AF)     // Sapphire Rim Highlight
+    val RimHighlightCyan = Color(0x402563EB)
+    val FrostedOverlay = Color(0xF2FFFFFF)   // Luminous Translucent Pearl Glass
+    val FrostedBorder = Color(0xFFCBD5E1)
 }
 

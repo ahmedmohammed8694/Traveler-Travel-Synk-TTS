@@ -92,7 +92,7 @@ fun GloveFriendlyActionPad(
                             }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.WarningAmber, contentDescription = "Stop", tint = Color.Black, modifier = Modifier.size(20.dp))
+                            Text("STOP", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color.Black)
                         }
                     }
 
@@ -110,7 +110,7 @@ fun GloveFriendlyActionPad(
                             }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Warning, contentDescription = "SOS", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Text("SOS", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White)
                         }
                     }
 
@@ -123,32 +123,32 @@ fun GloveFriendlyActionPad(
                         },
                         modifier = Modifier.size(28.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Expand", tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Add, contentDescription = "Expand", tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                     }
                 }
             }
         } else {
             // SLEEK SMALL ROUND SHAPE FLOATING ACTION OPTIONS PAD
             Surface(
-                color = Color(0xEE0F172A),
+                color = Color(0xFFFFFFFF),
                 shape = RoundedCornerShape(26.dp),
-                border = BorderStroke(1.dp, Color(0xFF334155)),
+                border = BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
                 shadowElevation = 12.dp,
                 modifier = Modifier.padding(4.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.DragHandle,
                         contentDescription = "Drag Handle",
-                        tint = Color(0xFF94A3B8),
+                        tint = Color(0xFF475569),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // SMALL ROUND SHAPE OPTION: "I'M STOPPING"
+                    // SMALL ROUND SHAPE OPTION: "STOP" (NO ICON)
                     Surface(
                         color = Color(0xFFD97706),
                         shape = RoundedCornerShape(20.dp),
@@ -160,21 +160,14 @@ fun GloveFriendlyActionPad(
                                 showStopPickerModal = true
                             }
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.WarningAmber,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Stopping",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                text = "STOP",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
                                 color = Color.Black
                             )
                         }
@@ -182,7 +175,7 @@ fun GloveFriendlyActionPad(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    // SMALL ROUND SHAPE OPTION: "SOS"
+                    // SMALL ROUND SHAPE OPTION: "SOS" (NO ICON)
                     Surface(
                         color = Color(0xFFDC2626),
                         shape = RoundedCornerShape(20.dp),
@@ -194,20 +187,13 @@ fun GloveFriendlyActionPad(
                                 onSosReported()
                             }
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "SOS",
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
                             )

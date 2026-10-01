@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import com.google.android.gms.maps.model.LatLng
 import com.ridesync.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -555,8 +556,18 @@ object DirectionsRepository {
  */
 object GoogleMapsNavigationHelper {
 
-    fun launchGoogleMapsTurnByTurn(context: Context, destination: LatLng, travelMode: String = "d") {
+    fun launchGoogleMapsTurnByTurn(
+        context: Context,
+        destination: LatLng,
+        travelMode: String = "d",
+        origin: LatLng? = null,
+        waypoints: List<LatLng> = emptyList()
+    ) {
         try {
+            if (waypoints.isNotEmpty() || origin != null) {
+                launchGoogleMapsRouteUrl(context, origin, destination, waypoints)
+                return
+            }
             val gmmIntentUri = Uri.parse("google.navigation:q=${destination.latitude},${destination.longitude}&mode=$travelMode")
             val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
                 setPackage("com.google.android.apps.maps")
@@ -601,6 +612,57 @@ object GoogleMapsNavigationHelper {
         } catch (e: Exception) {
             val webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&travelmode=driving")
             context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
+        }
+    }
+
+    /**
+     * Launches the exact saved route of a trip in Google Maps (including saved origin, destination, waypoints, and imported Google Maps URLs).
+     */
+    fun launchSavedTripExactRoute(context: Context, trip: com.ridesync.data.model.SavedTrip) {
+        try {
+            // Priority 1: Segment googleMapsUrl if saved in routeSegments
+            val segmentUrl = trip.routeSegments.firstOrNull { it.googleMapsUrl.isNotBlank() }?.googleMapsUrl
+                ?: trip.itineraryPlan?.days?.flatMap { it.stops }?.firstOrNull { it.googleMapsUrl.isNotBlank() }?.googleMapsUrl
+
+            if (!segmentUrl.isNullOrBlank()) {
+                val uri = Uri.parse(segmentUrl.trim())
+                val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage("com.google.android.apps.maps")
+                }
+                if (intent.resolveActivity(context.packageManager) != null) {
+                    context.startActivity(intent)
+                    return
+                } else {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    return
+                }
+            }
+
+            // Priority 2: Construct Google Maps Directions URL with origin, destination, and all saved waypoints
+            val originStr = if (trip.originName.isNotBlank()) trip.originName else "${trip.startLatLng.latitude},${trip.startLatLng.longitude}"
+            val destStr = if (trip.destinationName.isNotBlank()) trip.destinationName else "${trip.destLatLng.latitude},${trip.destLatLng.longitude}"
+            val waypointsList = trip.waypoints.filter { it.isNotBlank() }
+
+            val uriBuilder = StringBuilder("https://www.google.com/maps/dir/?api=1")
+            uriBuilder.append("&origin=").append(Uri.encode(originStr))
+            uriBuilder.append("&destination=").append(Uri.encode(destStr))
+            uriBuilder.append("&travelmode=driving")
+
+            if (waypointsList.isNotEmpty()) {
+                uriBuilder.append("&waypoints=").append(Uri.encode(waypointsList.joinToString("|")))
+            }
+
+            val routeUri = Uri.parse(uriBuilder.toString())
+            val intent = Intent(Intent.ACTION_VIEW, routeUri).apply {
+                setPackage("com.google.android.apps.maps")
+            }
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+            } else {
+                context.startActivity(Intent(Intent.ACTION_VIEW, routeUri))
+            }
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open saved trip route: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

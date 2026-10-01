@@ -34,7 +34,7 @@ fun TactileGloveButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    containerGradient: List<Color> = listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9)),
+    containerGradient: List<Color> = listOf(Color(0xFF171B26), Color(0xFF0F131D)),
     accentGlow: Color? = null,
     minHeight: Dp = 64.dp,
     shape: RoundedCornerShape = RoundedCornerShape(20.dp),

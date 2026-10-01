@@ -39,8 +39,9 @@ fun TripCreationOptionsModal(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = HudColors.ObsidianModal,
+        containerColor = Color(0xFFFFFFFF),
         shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.border(1.5.dp, Color(0xFF0052CC), RoundedCornerShape(24.dp)),
         title = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -49,28 +50,28 @@ fun TripCreationOptionsModal(
                 Box(
                     modifier = Modifier
                         .size(52.dp)
-                        .background(HudColors.CyanPrimary.copy(alpha = 0.15f), CircleShape)
-                        .border(1.dp, HudColors.CyanPrimary, CircleShape),
+                        .background(Color(0xFFE0E7FF), CircleShape)
+                        .border(1.dp, Color(0xFF0052CC), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.Explore,
                         contentDescription = null,
-                        tint = HudColors.CyanPrimary,
+                        tint = Color(0xFF0052CC),
                         modifier = Modifier.size(28.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "Create New Trip",
-                    color = HudColors.TextCrispWhite,
+                    color = Color(0xFF0F172A),
                     fontWeight = FontWeight.Black,
                     fontSize = 20.sp,
                     textAlign = TextAlign.Center
                 )
                 Text(
                     text = "Choose your preferred trip planning setup",
-                    color = HudColors.TextCoolSilver,
+                    color = Color(0xFF475569),
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center
                 )
@@ -85,10 +86,10 @@ fun TripCreationOptionsModal(
                 CreationOptionCard(
                     title = "Option A: Upload Itinerary Document",
                     badge = "AI AUTO-EXTRACT",
-                    badgeColor = Color(0xFF38BDF8),
+                    badgeColor = Color(0xFF0284C7),
                     description = "Upload PDF, Word DOCX, text file, or image (<=10MB). AI automatically extracts days, stops, and coordinates.",
                     icon = Icons.Default.UploadFile,
-                    accentColor = Color(0xFF0284C7),
+                    accentColor = Color(0xFF0052CC),
                     onClick = onSelectUploadDocument
                 )
 
@@ -96,10 +97,10 @@ fun TripCreationOptionsModal(
                 CreationOptionCard(
                     title = "Option B: Day-by-Day Map Links",
                     badge = "MULTI-DAY STEPPER",
-                    badgeColor = Color(0xFFFBBF24),
+                    badgeColor = Color(0xFFD97706),
                     description = "Paste one or multiple Google Maps links for each day (Day 1, Day 2). Automatically extracts stops and waypoints.",
                     icon = Icons.Default.AddLink,
-                    accentColor = Color(0xFFF59E0B),
+                    accentColor = Color(0xFFD97706),
                     onClick = onSelectMapLinks
                 )
 
@@ -107,10 +108,10 @@ fun TripCreationOptionsModal(
                 CreationOptionCard(
                     title = "Option C: Direct In-App Search",
                     badge = "INTERACTIVE BUILDER",
-                    badgeColor = Color(0xFF34D399),
+                    badgeColor = Color(0xFF16A34A),
                     description = "Search Start & Destination via Places Autocomplete, pick dates, and add stops per day with road directions.",
                     icon = Icons.Default.Search,
-                    accentColor = Color(0xFF10B981),
+                    accentColor = Color(0xFF16A34A),
                     onClick = onSelectManualSearch
                 )
             }
@@ -123,7 +124,7 @@ fun TripCreationOptionsModal(
             ) {
                 Text(
                     text = "Cancel",
-                    color = HudColors.TextCoolSilver,
+                    color = Color(0xFF64748B),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -145,12 +146,8 @@ private fun CreationOptionCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .hud3dCard(
-                shape = RoundedCornerShape(16.dp),
-                startColor = accentColor.copy(alpha = 0.15f),
-                endColor = Color(0xFF0F172A),
-                rimColor = accentColor.copy(alpha = 0.6f)
-            )
+            .background(Color(0xFFFFFFFF), RoundedCornerShape(16.dp))
+            .border(1.5.dp, accentColor, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
@@ -161,7 +158,7 @@ private fun CreationOptionCard(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .background(accentColor.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                    .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                     .border(1.dp, accentColor, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -183,7 +180,7 @@ private fun CreationOptionCard(
                 ) {
                     Text(
                         text = title,
-                        color = HudColors.TextCrispWhite,
+                        color = Color(0xFF0F172A),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -193,7 +190,7 @@ private fun CreationOptionCard(
 
                 Box(
                     modifier = Modifier
-                        .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                        .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -208,7 +205,7 @@ private fun CreationOptionCard(
 
                 Text(
                     text = description,
-                    color = HudColors.TextCoolSilver,
+                    color = Color(0xFF475569),
                     fontSize = 11.sp,
                     lineHeight = 15.sp
                 )

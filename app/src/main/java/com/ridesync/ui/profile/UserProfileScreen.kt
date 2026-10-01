@@ -106,9 +106,10 @@ fun UserProfileScreen(
         vehiclesList.firstOrNull { it.id == activeVehicleId } ?: vehiclesList.firstOrNull()
     }
 
-    // Add / Edit vehicle dialog state
+    // Add / Edit / View vehicle dialog state
     var showVehicleDialog by remember { mutableStateOf(false) }
     var vehicleToEdit by remember { mutableStateOf<Vehicle?>(null) }
+    var vehicleForDetailsView by remember { mutableStateOf<Vehicle?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -573,6 +574,9 @@ fun UserProfileScreen(
                                 )
                                 onSaveProfile(updated)
                             },
+                            onViewDetails = {
+                                vehicleForDetailsView = vehicle
+                            },
                             onEdit = {
                                 vehicleToEdit = vehicle
                                 showVehicleDialog = true
@@ -720,6 +724,14 @@ fun UserProfileScreen(
 
                 showVehicleDialog = false
             }
+        )
+    }
+
+    // Vehicle Details View Modal Dialog
+    vehicleForDetailsView?.let { veh ->
+        VehicleDetailsViewDialog(
+            vehicle = veh,
+            onDismiss = { vehicleForDetailsView = null }
         )
     }
 }

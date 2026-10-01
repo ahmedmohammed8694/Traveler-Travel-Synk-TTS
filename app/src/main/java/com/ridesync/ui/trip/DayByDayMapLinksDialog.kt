@@ -65,8 +65,9 @@ fun DayByDayMapLinksDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = HudColors.ObsidianModal,
+        containerColor = Color(0xFFFFFFFF),
         shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.border(1.5.dp, Color(0xFF0052CC), RoundedCornerShape(24.dp)),
         title = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -78,22 +79,22 @@ fun DayByDayMapLinksDialog(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(10.dp)),
+                                .background(Color(0xFFE0E7FF), RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(20.dp))
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
                                 text = "Day-by-Day Map Links",
-                                color = HudColors.TextCrispWhite,
+                                color = Color(0xFF0F172A),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp
                             )
                             Text(
                                 text = "Option B: Multi-Day Google Maps Links",
-                                color = Color(0xFFFBBF24),
+                                color = Color(0xFF0052CC),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -101,7 +102,7 @@ fun DayByDayMapLinksDialog(
                     }
 
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = HudColors.TextCoolSilver, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -115,13 +116,13 @@ fun DayByDayMapLinksDialog(
                 OutlinedTextField(
                     value = tripTitle,
                     onValueChange = { tripTitle = it },
-                    label = { Text("Trip Title", color = HudColors.TextCoolSilver, fontSize = 12.sp) },
+                    label = { Text("Trip Title", color = Color(0xFF475569), fontSize = 12.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFF59E0B),
-                        unfocusedBorderColor = Color(0xFF334155)
+                        focusedTextColor = Color(0xFF0F172A),
+                        unfocusedTextColor = Color(0xFF0F172A),
+                        focusedBorderColor = Color(0xFF0052CC),
+                        unfocusedBorderColor = Color(0xFFCBD5E1)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -130,15 +131,15 @@ fun DayByDayMapLinksDialog(
                 OutlinedTextField(
                     value = tripStartDate,
                     onValueChange = { tripStartDate = it },
-                    label = { Text("Start Date", color = HudColors.TextCoolSilver, fontSize = 12.sp) },
+                    label = { Text("Start Date", color = Color(0xFF475569), fontSize = 12.sp) },
                     placeholder = { Text("e.g. 15 Oct 2026") },
-                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp)) },
+                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFF59E0B),
-                        unfocusedBorderColor = Color(0xFF334155)
+                        focusedTextColor = Color(0xFF0F172A),
+                        unfocusedTextColor = Color(0xFF0F172A),
+                        focusedBorderColor = Color(0xFF0052CC),
+                        unfocusedBorderColor = Color(0xFFCBD5E1)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -151,7 +152,7 @@ fun DayByDayMapLinksDialog(
                 ) {
                     Text(
                         text = "Days (${dayEntries.size}):",
-                        color = HudColors.TextCrispWhite,
+                        color = Color(0xFF0F172A),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -163,9 +164,9 @@ fun DayByDayMapLinksDialog(
                             selectedDayIndex = dayEntries.size - 1
                         }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("+ Add Day", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("+ Add Day", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -178,17 +179,17 @@ fun DayByDayMapLinksDialog(
                         val isSelected = index == selectedDayIndex
                         Box(
                             modifier = Modifier
-                                .frostedGlassHud(
-                                    shape = RoundedCornerShape(10.dp),
-                                    backgroundColor = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.25f) else Color(0xFF1E293B),
-                                    borderColor = if (isSelected) Color(0xFFF59E0B) else Color(0xFF334155)
+                                .background(
+                                    color = if (isSelected) Color(0xFF0052CC) else Color(0xFFFFFFFF),
+                                    shape = RoundedCornerShape(10.dp)
                                 )
+                                .border(1.dp, if (isSelected) Color(0xFF0052CC) else Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
                                 .clickable { selectedDayIndex = index }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = "Day ${entry.dayNumber}",
-                                color = if (isSelected) Color(0xFFFBBF24) else HudColors.TextCoolSilver,
+                                color = if (isSelected) Color.White else Color(0xFF0F172A),
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold
                             )
@@ -200,11 +201,11 @@ fun DayByDayMapLinksDialog(
                 val activeEntry = dayEntries.getOrNull(selectedDayIndex)
                 if (activeEntry != null) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(14.dp))
+                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(14.dp))
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(
@@ -214,7 +215,7 @@ fun DayByDayMapLinksDialog(
                             ) {
                                 Text(
                                     text = "Day ${activeEntry.dayNumber} Settings",
-                                    color = Color(0xFFFBBF24),
+                                    color = Color(0xFF0052CC),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -240,13 +241,13 @@ fun DayByDayMapLinksDialog(
                                     activeEntry.dayTitle = it
                                     dayEntries[selectedDayIndex] = activeEntry.copy(dayTitle = it)
                                 },
-                                label = { Text("Day Title / Leg Name", color = HudColors.TextCoolSilver, fontSize = 11.sp) },
+                                label = { Text("Day Title / Leg Name", color = Color(0xFF475569), fontSize = 11.sp) },
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFF38BDF8),
-                                    unfocusedBorderColor = Color(0xFF334155)
+                                    focusedTextColor = Color(0xFF0F172A),
+                                    unfocusedTextColor = Color(0xFF0F172A),
+                                    focusedBorderColor = Color(0xFF0052CC),
+                                    unfocusedBorderColor = Color(0xFFCBD5E1)
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -257,14 +258,14 @@ fun DayByDayMapLinksDialog(
                                     activeEntry.googleMapsUrl = it
                                     dayEntries[selectedDayIndex] = activeEntry.copy(googleMapsUrl = it)
                                 },
-                                label = { Text("Google Maps Route Link (maps.app.goo.gl or full URL)", color = HudColors.TextCoolSilver, fontSize = 11.sp) },
+                                label = { Text("Google Maps Route Link (maps.app.goo.gl or full URL)", color = Color(0xFF475569), fontSize = 11.sp) },
                                 placeholder = { Text("https://maps.app.goo.gl/... or google.com/maps/dir/...", color = Color(0xFF64748B), fontSize = 11.sp) },
                                 maxLines = 2,
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedBorderColor = Color(0xFF38BDF8),
-                                    unfocusedBorderColor = Color(0xFF334155)
+                                    focusedTextColor = Color(0xFF0F172A),
+                                    unfocusedTextColor = Color(0xFF0F172A),
+                                    focusedBorderColor = Color(0xFF0052CC),
+                                    unfocusedBorderColor = Color(0xFFCBD5E1)
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -374,11 +375,11 @@ fun DayByDayMapLinksDialog(
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color.Black),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (isResolvingLinks) {
-                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Resolving Maps Links...", fontWeight = FontWeight.Black, fontSize = 13.sp)
                 } else {
@@ -390,7 +391,7 @@ fun DayByDayMapLinksDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Cancel", color = HudColors.TextCoolSilver, fontSize = 12.sp)
+                Text("Cancel", color = Color(0xFF64748B), fontSize = 12.sp)
             }
         }
     )

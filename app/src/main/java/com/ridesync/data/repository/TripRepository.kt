@@ -681,14 +681,22 @@ object TripRepository {
             val cleanCode = code.trim().uppercase()
             if (cleanCode.isBlank()) return@withContext null
 
-            // 1. Query Cloudflare Edge & D1 Database first
+            // 1. Instant check in local trips flow & cache
+            val localMatch = getAllTrips().firstOrNull { 
+                it.lobbyCode.isNotBlank() && it.lobbyCode.uppercase().replace("-", "") == cleanCode.replace("-", "")
+            }
+            if (localMatch != null) {
+                return@withContext localMatch
+            }
+
+            // 2. Query Cloudflare Edge & D1 Database
             try {
                 val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/by-code?code=$cleanCode")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("Content-Type", "application/json")
-                conn.connectTimeout = 6000
-                conn.readTimeout = 6000
+                conn.connectTimeout = 4000
+                conn.readTimeout = 4000
 
                 if (conn.responseCode in 200..299) {
                     val text = conn.inputStream.bufferedReader().readText()
@@ -705,15 +713,15 @@ object TripRepository {
                 Log.e(TAG, "Error looking up trip code $cleanCode on Cloudflare", e)
             }
 
-            // 2. Query Supabase REST Database directly if Cloudflare lookup failed or returned null
+            // 3. Query Supabase REST Database directly if Cloudflare lookup failed or returned null
             try {
                 val sbUrl = URL("$SUPABASE_URL/rest/v1/saved_trips?lobby_code=ilike.$cleanCode&select=*")
                 val conn = sbUrl.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("apikey", SUPABASE_ANON_KEY)
                 conn.setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
-                conn.connectTimeout = 6000
-                conn.readTimeout = 6000
+                conn.connectTimeout = 4000
+                conn.readTimeout = 4000
 
                 if (conn.responseCode in 200..299) {
                     val text = conn.inputStream.bufferedReader().readText()
@@ -746,10 +754,7 @@ object TripRepository {
                 Log.w(TAG, "Supabase code lookup note: ${e.message}")
             }
 
-            // 3. Fallback to local cache (only if valid matching lobby code exists)
-            getAllTrips().firstOrNull { 
-                it.lobbyCode.isNotBlank() && it.lobbyCode.equals(cleanCode, ignoreCase = true) 
-            }
+            null
         }
     }
 
