@@ -36,8 +36,8 @@ class AuthRepositoryImpl : AuthRepository {
 
     private val prefs: SharedPreferences? by lazy {
         try {
-            RideSyncApplication.appContext?.getSharedPreferences("ridesync_auth_prefs", Context.MODE_PRIVATE)
-        } catch (e: Throwable) {
+            RideSyncApplication.appContext.getSharedPreferences("ridesync_auth_prefs", Context.MODE_PRIVATE)
+        } catch (e: Exception) {
             null
         }
     }

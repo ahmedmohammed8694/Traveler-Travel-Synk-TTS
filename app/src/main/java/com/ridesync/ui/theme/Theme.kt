@@ -40,7 +40,6 @@ fun RideSyncTheme(
 ) {
     MaterialTheme(
         colorScheme = DarkHudColorScheme,
-        typography = HudTypography,
         content = content
     )
 }
@@ -51,8 +50,8 @@ fun RideSyncTheme(
 fun Modifier.hud3dCard(
     shape: Shape = RoundedCornerShape(20.dp),
     elevation: Dp = 10.dp,
-    startColor: Color = Color(0xFFFFFFFF),
-    endColor: Color = Color(0xFFF1F5F9),
+    startColor: Color = Color(0xFF171B26),
+    endColor: Color = Color(0xFF0F131D),
     rimColor: Color = HudColors.RimHighlight,
     borderWidth: Dp = 1.dp
 ): Modifier = this

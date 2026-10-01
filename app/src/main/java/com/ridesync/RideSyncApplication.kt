@@ -11,17 +11,15 @@ class RideSyncApplication : Application() {
         instance = this
         try {
             FirebaseApp.initializeApp(this)
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             Log.w("RideSyncApp", "Firebase initialization deferred/optional: ${e.message}")
         }
     }
 
     companion object {
-        @Volatile
-        var instance: RideSyncApplication? = null
+        lateinit var instance: RideSyncApplication
             private set
-
-        val appContext: Context?
-            get() = instance?.applicationContext
+        val appContext: Context
+            get() = instance.applicationContext
     }
 }

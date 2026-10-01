@@ -65,38 +65,30 @@
 - **Dynamic Leaderboard & Map Marker Integration**: Dynamically mapped all `joinedRiders` into `activeConvoyMembers` and `mergedLocations`. `ConvoyRadarEngine` processes every joined member so they appear on Google Maps markers, top position leaderboard overlay (`TopConvoyLeaderboardOverlay`), radar (`ConvoyRadarOverlay`), and roster bottom sheet (`ConvoyStatusBottomSheet`).
 - **Real-Time Join Notifications**: Added automatic detection for newly joined riders in `MainContainerScreen.kt`. Whenever a new rider joins the trip, a real-time broadcast notification banner (`"🎉 New Convoy Member Joined: [Name] ([Bike])!"`) and Toast alert are triggered automatically for all other members on that trip.
 
-### 3.8 Exact Design System Color Tokens, Typography Scale & Tactical Microcopy
-- **Color Palette Tokens (`HudColors` in `Color.kt`)**:
-  - Primary Accent (Cyan): `#00F0FF` (Active cockpit rider tag, interactive buttons, focus rings, cursors, waypoint links)
-  - Success / Connected: `#10B981` (GPS synced dot, connected status, verified route badges, online mesh health)
-  - Warning / Caution: `#F59E0B` (Sweeper role badges, gap alerts, telemetry pace highlight)
-  - SOS / Hazard Alert: `#EF4444` (Header emergency SOS trigger button, crash beacons, dropout warnings)
-  - Base Surface (Deep Dark): `#0A0F1D` (Global canvas, outer app frame, top app bar & bottom navigation bar background)
-  - Elevated Container: `#0F172A` (Cards, search input box, roster sheets)
-  - Subtle Container / High: `#161B2A` (Inner cards, table rows, convoy roll call list items, input fields)
-  - Structural Border: `#1E293B` (Card outlines, tab dividers, input field borders)
-  - Primary Text: `#FFFFFF` (Main trip titles, rider names, live speed & distance figures, primary button labels)
-  - Secondary Text: `#94A3B8` (Field labels, bike models, host names, telemetry metadata headers)
-  - Muted / Placeholder Text: `#64748B` (Search input placeholder `RSS1041`, inactive bottom nav tabs, timestamps)
-- **Font & Typography Scale (`HudTypographyTokens` & `Type.kt`)**:
-  - Primary Font Family: Chivo / Roboto (`FontFamily.SansSerif`)
-  - Numbers / Telemetry Font: Tabular Monospace (`FontFamily.Monospace`)
-  - App Title (RIDERSYNK): 18px - 20px, Bold (700), `+0.05em`, uppercase, `#FFFFFF`
-  - Section Eyebrow Tags ([ACTIVE.SESSION_LIVE]): 11px - 12px, SemiBold (600), `+0.08em`, uppercase monospace, `#94A3B8` / `#00F0FF`
-  - Trip Headings (Western Ghats Alpine Rally): 18px - 20px, Bold (700), Normal, `#FFFFFF`
-  - Metric Figures (266 KM, 420 KM, 84 KPH): 20px - 24px, ExtraBold (800), Monospace / Tabular, `#FFFFFF` / `#00F0FF` / `#F59E0B`
-  - Convoy Roster Names (Marcus Vance, Alex Rivera): 14px - 15px, Medium (500) / SemiBold, Normal, `#FFFFFF`
-  - Subtitles / Bike Specs (Yamaha Ténéré 700, BMW R1250GS): 12px, Regular (400), Normal, `#94A3B8`
-  - Badges / Roles (LEAD, SWEEPER, SLOT #2): 10px - 11px, Bold (700), `+0.05em`, uppercase
-  - Bottom Navigation Tabs: 10px - 11px, SemiBold (600), `+0.04em`, uppercase, Active: `#00F0FF` / Inactive: `#64748B`
-- **Text Formatting & UI Microcopy Conventions**:
-  - System & Tactical Brackets: All technical section headers use tactical bracket syntax: `[SYS.CONVOY.ACCESS]`, `[ACTIVE.SESSION_LIVE]`, `[ICE // EMERGENCY MATRIX]`
-  - High-Contrast Input Fields: Background: `#0F172A`, Typed Text: `#FFFFFF`, Placeholder Text: `#64748B`, Focused Caret / Cursor: `#00F0FF`
-  - Trip Codes: Formatted as uppercase 7-character alphanumeric string (e.g. `RSS1041`).
+### 3.8 Saved APK Backup & Codebase Snapshot Restoration
+- **Persistent APK Backup**: Saved compiled APK binary (`49.9 MB`) to:
+  - Local Backup Directory: `d:\My Applications\RIDERsYNK\apk_backups\app-debug-realtime-sync.apk`
+  - Conversation Artifacts Directory: `C:\Users\Mohammed Ahmed\.gemini\antigravity-ide\brain\3dc24f91-a182-4339-a870-f6da37d0f888\app-debug-realtime-sync.apk`
+- **Restore Command Mandate**: If instructed to "return to this APK" or "restore files to this version", copy `d:\My Applications\RIDERsYNK\apk_backups\app-debug-realtime-sync.apk` back to `app/build/outputs/apk/debug/app-debug.apk` and reset git tree to this commit snapshot (`3.8 Real-Time Convoy Sync`).
 
-### 3.9 Null-Safe Application Context & Startup Crash Resolution
-- **Root Cause**: `RideSyncApplication` companion object `lateinit var instance` threw `UninitializedPropertyAccessException` when repository singletons (`AuthRepositoryImpl`, `TripRepository`, `LiveLocationEngine`) accessed `appContext` before `Application.onCreate()` completed.
-- **Fix**: Refactored `RideSyncApplication` to use `@Volatile var instance: RideSyncApplication? = null` and `val appContext: Context? get() = instance?.applicationContext`. Updated all singletons (`AuthRepositoryImpl`, `TripRepository`, `LiveLocationEngine`) to use safe navigation (`appContext?.`) with `Throwable` exception bounds, resolving app launch crashes.
+### 3.9 Google Stitch MCP & `/googlestitchappdesing` Skill Integration
+- **Stitch MCP Configuration**: Added `stitch` server entry (`https://stitch.googleapis.com/mcp` with `X-Goog-Api-Key`) to `C:\Users\Mohammed Ahmed\.gemini\config\mcp_config.json`.
+- **Global & Workspace Skill**: Created `googlestitchappdesing` skill at `C:\Users\Mohammed Ahmed\.gemini\config\skills\googlestitchappdesing\SKILL.md` and `.agents/skills/googlestitchappdesing/SKILL.md` enabling `/googlestitchappdesing` slash command invocation.
+
+### 3.10 Frontend Redesign: Option 1 — Midnight Glassmorphism & Electric Cyan
+- **UI Redesign**: Refactored application theme to **Option 1: Midnight Glassmorphism & Electric Cyan**.
+- **Android Theme Update**: Updated `Color.kt` and `Theme.kt` with Midnight Navy Canvas (`#0B0E17`), Deep Navy Surface (`#0F1424`), Elevated Glass (`#141C2E`), and Electric Cyan Accents (`#00F3FF`).
+- **Web UI Update**: Updated `public/index.html` with `--primary: #00F3FF`, `--bg-dark: #0B0E17`, `--bg-card: rgba(20, 28, 45, 0.75)`, and `--border: rgba(0, 243, 255, 0.2)`.
+- **Backend & Data Preservation**: 100% preservation of all database schemas, backend endpoints, real-time Firebase listeners, trip code generation (`RSS1041`), live maps, and authentic stats (0 fake data).
+- **APK Build & Backup**: Built debug APK (`assembleDebug`) and saved to:
+  - Local Backup Directory: `d:\My Applications\RIDERsYNK\apk_backups\app-debug-midnight-cyan-v1.apk`
+  - Artifacts Directory: `C:\Users\Mohammed Ahmed\.gemini\antigravity-ide\brain\3dc24f91-a182-4339-a870-f6da37d0f888\app-debug-midnight-cyan.apk`
+
+### 3.11 Official Design System Board Integration
+- **Color Tokens**: Primary (`#00F3FF`), Secondary (`#FF5500`), Tertiary (`#00FF66`), Neutral Canvas (`#080C16`), Surface (`#0F131D`), Titanium Container (`#171B26`).
+- **Typography Hierarchy**: `Chivo` (Headlines), `Space Grotesk` (Body), `JetBrains Mono` (Labels & Telemetry).
+- **Files Refactored**: `Color.kt`, `Theme.kt`, and `public/index.html`.
+- **APK Rebuilt**: Updated compiled debug APK (`app-debug-design-board-v1.apk`).
 
 ---
 
@@ -112,5 +104,8 @@ Whenever ANY code, database schema, endpoint, or feature is updated:
 
 - [x] Integrate Supabase as secondary database with dual-write.
 - [x] Configure automatic documentation and persistent memory tracking.
+- [x] Integrate Google Stitch MCP & `/googlestitchappdesing` skill.
+- [x] Refactor frontend UI to Option 1: Midnight Glassmorphism & Electric Cyan.
+- [x] Apply Official Design System Board (`#00F3FF`, `#FF5500`, `#00FF66`, `#080C16`, Chivo, Space Grotesk, JetBrains Mono).
 - [ ] Run full end-to-end convoy tracking session simulation test on real hardware.
 - [ ] Maintain `memory.md` and `docs/` on all future modifications.

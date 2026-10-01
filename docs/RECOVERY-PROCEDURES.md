@@ -49,3 +49,23 @@ Verify Worker health status by opening:
    ```bash
    curl -X POST https://ahmedmohammed8694-riders-ride-sync.mdahmed08061994.workers.dev/api/trip/reset
    ```
+
+---
+
+## 4. APK Version & Codebase Restoration Runbook
+
+**Saved Backup APK**: `d:\My Applications\RIDERsYNK\apk_backups\app-debug-realtime-sync.apk`  
+**Artifact Backup**: `C:\Users\Mohammed Ahmed\.gemini\antigravity-ide\brain\3dc24f91-a182-4339-a870-f6da37d0f888\app-debug-realtime-sync.apk`
+
+**Restoration Procedure**:
+If instructed to return to this version or restore files:
+1. Restore APK binary:
+   ```powershell
+   Copy-Item "d:\My Applications\RIDERsYNK\apk_backups\app-debug-realtime-sync.apk" -Destination "d:\My Applications\RIDERsYNK\app\build\outputs\apk\debug\app-debug.apk" -Force
+   ```
+2. Verify restore state:
+   - Real-Time Member Sync (`TripRepository.kt` polling Cloudflare/Supabase)
+   - High-Contrast Form Inputs (`TripCreationScreen.kt`, `EditTripRouteDialog.kt`, `DayByDayMapLinksDialog.kt`)
+   - Authentic Rider Stats (No fake data offsets)
+   - Real-time Broadcast Notifications (`🎉 New Convoy Member Joined...`)
+

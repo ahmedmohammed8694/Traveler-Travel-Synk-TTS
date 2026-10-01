@@ -2,58 +2,49 @@ package com.ridesync.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/**
- * High-Contrast Cockpit HUD Color System Tokens for RIDERsYNK (RideSync).
- * Grounded in ultra-glanceable high-contrast dark cockpit specifications for motorcycle handlebar mounts.
- */
+// Apex Telemetry HUD Color System - Matched to Official Design Board
 object HudColors {
-    // 1. Color Palette Tokens
-    val CyanPrimary = Color(0xFF00F0FF)      // Primary Accent (Cyan): Active cockpit rider tag (YOU), interactive buttons (ENTER LIVE HUD, INSPECT & VIEW), focus rings, cursors, waypoint links
-    val SuccessGreen = Color(0xFF10B981)     // Success / Connected: GPS synced dot, connected status, verified route badges, online mesh health
-    val WarningAmber = Color(0xFFF59E0B)     // Warning / Caution: Sweeper role badges (SWEEPER), gap alerts, telemetry pace highlight
-    val SosRed = Color(0xFFEF4444)           // SOS / Hazard Alert: Header emergency SOS trigger button, crash beacons, dropout warnings
+    // Neutral Void Canvas & Carbon Surface Tones
+    val ObsidianCanvas = Color(0xFF080C16)    // Neutral Dark Charcoal Canvas (#080C16)
+    val ObsidianSurface = Color(0xFF0F131D)   // Deep Carbon Surface (#0F131D)
+    val ObsidianElevated = Color(0xFF171B26)  // Machined Titanium Container (#171B26)
+    val ObsidianBorder = Color(0x3300F3FF)    // Translucent Electric Cyan Border
+    val ObsidianModal = Color(0xF20F131D)     // Translucent Carbon Glass Modal
 
-    // Base Surfaces & Container Tokens
-    val BaseDark = Color(0xFF0A0F1D)         // Base Surface (Deep Dark): Global canvas, outer app frame, top app bar & bottom navigation bar background
-    val ElevatedContainer = Color(0xFF0F172A)// Elevated Container: Cards (Active Session, Saved Trips), search input box, roster sheets
-    val SubtleContainer = Color(0xFF161B2A)  // Subtle Container / High: Inner cards, table rows, convoy roll call list items, input fields
-    val StructuralBorder = Color(0xFF1E293B) // Structural Border: Card outlines, tab dividers, input field borders
+    // Primary, Secondary & Tertiary Accents (From Official Design Board)
+    val CyanPrimary = Color(0xFF00F3FF)      // Primary Electric Cyan (#00F3FF)
+    val CyanLight = Color(0xFF7DF4FF)        // Luminous Cyan Fixed Accent (#7DF4FF)
+    val CyanGlow = Color(0x3300F3FF)         // Primary Cyan Photon Glow
+    val CobaltBlue = Color(0xFF0066FF)       // Ultramarine Route Ribbon
 
-    // Text Hierarchy Tokens
-    val PrimaryText = Color(0xFFFFFFFF)      // Primary Text: Main trip titles, rider names, live speed & distance figures, primary button labels
-    val SecondaryText = Color(0xFF94A3B8)    // Secondary Text: Field labels, bike models, host names, telemetry metadata headers
-    val MutedText = Color(0xFF64748B)        // Muted / Placeholder Text: Search input placeholder (RSS1041), inactive bottom nav tabs, timestamps
+    val HazardSecondary = Color(0xFFFF5500)  // Secondary Hazard Orange (#FF5500)
+    val SecondaryGlow = Color(0x33FF5500)
 
-    // Semantic Legacy Aliases for seamless component integration
-    val ObsidianCanvas = BaseDark
-    val ObsidianSurface = ElevatedContainer
-    val ObsidianElevated = SubtleContainer
-    val ObsidianBorder = StructuralBorder
-    val ObsidianModal = ElevatedContainer
+    val TelemetryTertiary = Color(0xFF00FF66)// Tertiary Active Green (#00FF66)
+    val TertiaryGlow = Color(0x3300FF66)
 
-    val CyanLight = Color(0xFF38BDF8)
-    val CyanGlow = Color(0x3300F0FF)
-    val CobaltBlue = Color(0xFF0284C7)
+    // Status Palette & Halos
+    val StatusRiding = Color(0xFF00FF66)     // Active Telemetry Green (#00FF66)
+    val StatusRidingGlow = Color(0x3300FF66)
 
-    val StatusRiding = SuccessGreen
-    val StatusRidingGlow = Color(0xFF22C55E)
+    val StatusStopped = Color(0xFFFF5500)    // Secondary Hazard Orange (#FF5500)
+    val StatusStoppedGlow = Color(0x33FF5500)
 
-    val StatusStopped = WarningAmber
-    val StatusStoppedGlow = Color(0xFFFBBF24)
+    val StatusDelayed = Color(0xFFFF3366)    // Warning Crimson
+    val StatusDelayedGlow = Color(0x33FF3366)
 
-    val StatusDelayed = WarningAmber
-    val StatusDelayedGlow = Color(0xFFFBBF24)
+    val StatusSos = Color(0xFFFF0055)        // Emergency SOS Beacon Red
+    val StatusSosGlow = Color(0x40FF0055)
 
-    val StatusSos = SosRed
-    val StatusSosGlow = Color(0xFFF87171)
+    // Text Hierarchy (From Design Board Specifications)
+    val TextCrispWhite = Color(0xFFDFE2F1)   // High-Contrast Cyber White (#DFE2F1)
+    val TextCoolSilver = Color(0xFFB9CACB)   // Cool Slate Variant (#B9CACB)
+    val TextMuted = Color(0xFF849495)        // Muted Outline Slate (#849495)
 
-    val TextCrispWhite = PrimaryText
-    val TextCoolSilver = SecondaryText
-    val TextMuted = MutedText
-
-    val RimHighlight = Color(0x4000F0FF)
-    val RimHighlightCyan = Color(0x400284C7)
-    val FrostedOverlay = Color(0xF20F172A)
-    val FrostedBorder = StructuralBorder
+    // 3D Bevel Rim Highlights & Frosted Glass Borders
+    val RimHighlight = Color(0x4000F3FF)     // Electric Cyan Rim Highlight
+    val RimHighlightCyan = Color(0x400066FF)
+    val FrostedOverlay = Color(0xBF0F131D)   // Translucent Carbon Glass
+    val FrostedBorder = Color(0x3300F3FF)
 }
 
