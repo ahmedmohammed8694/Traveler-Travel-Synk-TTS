@@ -2,9 +2,15 @@ package com.ridesync.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -13,37 +19,37 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.model.LatLng
 import com.ridesync.data.model.*
 import com.ridesync.data.remote.HybridFirebaseClient
+import com.ridesync.data.repository.NotificationRepository
 import com.ridesync.data.repository.TelemetryBufferRepository
-import kotlinx.coroutines.launch
 import com.ridesync.engine.LiveLocationEngine
+import com.ridesync.ui.home.HomeScreen
 import com.ridesync.ui.hud.ConvoyAlertBanner
-import com.ridesync.ui.hud.ConvoyStatusBottomSheet
-import com.ridesync.ui.hud.GloveFriendlyActionPad
 import com.ridesync.ui.map.LiveMapScreen
+import com.ridesync.ui.notification.NotificationCenterDialog
+import com.ridesync.ui.profile.ChatInboxDialog
+import com.ridesync.ui.profile.DirectChatDialog
+import com.ridesync.ui.profile.SocialTravelersListDialog
+import com.ridesync.ui.profile.TravelerProfileDialog
 import com.ridesync.ui.profile.UserProfileScreen
 import com.ridesync.ui.qr.JoinTripScreen
-import com.ridesync.ui.qr.QrCodeScannerScreen
 import com.ridesync.ui.theme.HudColors
 import com.ridesync.ui.theme.RideSyncTheme
-import com.ridesync.ui.trip.TripCreationScreen
-
-import androidx.compose.material.icons.filled.History
 import com.ridesync.ui.trip.SavedTripsHistoryScreen
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
+import com.ridesync.ui.trip.TripConvoyChatDialog
+import com.ridesync.ui.trip.TripCreationScreen
 import com.ridesync.util.rememberRiderAvatarBitmap
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,9 +102,17 @@ fun MainContainerScreen(
     val allSavedTrips by com.ridesync.data.repository.TripRepository.tripsFlow.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Home, 1: Map, 2: Create Trip, 3: Chats, 4: Profile
     var activeRole by remember { mutableStateOf(ConvoyRole.LEAD) }
     var activeTripId by remember { mutableStateOf<String?>(null) }
+
+    // Dialog state controllers
+    var showNotificationCenterDialog by remember { mutableStateOf(false) }
+    var showChatInboxDialog by remember { mutableStateOf(false) }
+    var showSocialListDialog by remember { mutableStateOf(false) }
+    var activeDirectChatUser by remember { mutableStateOf<UserProfile?>(null) }
+    var activeTravelerProfileView by remember { mutableStateOf<UserProfile?>(null) }
+    var activeConvoyChatTrip by remember { mutableStateOf<SavedTrip?>(null) }
 
     val activeTrip = remember(allSavedTrips, activeTripId) {
         allSavedTrips.firstOrNull { it.category == TripCategory.ONGOING }
@@ -154,7 +168,7 @@ fun MainContainerScreen(
                 map[r.riderId] = ConvoyMember(
                     userId = r.riderId,
                     displayName = r.displayName.ifBlank { "Rider" },
-                    photoUrl = "",
+                    photoUrl = r.photoUrl,
                     vehicleModel = r.bikeModel.ifBlank { "Motorcycle" },
                     role = r.role,
                     status = if (r.status.contains("Riding", ignoreCase = true)) RiderStatus.RIDING else RiderStatus.STOPPED,
@@ -209,6 +223,18 @@ fun MainContainerScreen(
                 val newMember = activeConvoyMembers[newId]
                 if (newMember != null && newId != userProfile.userId) {
                     alertBannerText = "🎉 New Convoy Member Joined: ${newMember.displayName} (${newMember.vehicleModel})!"
+
+                    NotificationRepository.addNotification(
+                        AppNotification(
+                            title = "🚀 New Member Joined Convoy",
+                            message = "${newMember.displayName} joined the trip convoy!",
+                            type = NotificationType.CONVOY_MEMBER_JOINED,
+                            senderUserId = newId,
+                            senderName = newMember.displayName,
+                            senderPhotoUrl = newMember.photoUrl
+                        )
+                    )
+
                     android.widget.Toast.makeText(
                         context,
                         "🚀 ${newMember.displayName} joined the trip! Total Members: ${activeConvoyMembers.size}",
@@ -230,9 +256,25 @@ fun MainContainerScreen(
                         containerColor = HudColors.ObsidianSurface,
                         contentColor = HudColors.TextCrispWhite
                     ) {
+                        // 0: HOME DASHBOARD
                         NavigationBarItem(
                             selected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                            label = { Text("Home", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
+                        )
+
+                        // 1: CONVOY MAP
+                        NavigationBarItem(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
                             icon = { Icon(Icons.Default.Map, contentDescription = "Convoy Map") },
                             label = { Text("Convoy Map", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
@@ -244,9 +286,10 @@ fun MainContainerScreen(
                             )
                         )
 
+                        // 2: CREATE TRIP
                         NavigationBarItem(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
                             icon = { Icon(Icons.Default.Route, contentDescription = "Create Trip") },
                             label = { Text("Create Trip", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
@@ -258,25 +301,15 @@ fun MainContainerScreen(
                             )
                         )
 
-                        NavigationBarItem(
-                            selected = selectedTab == 2,
-                            onClick = { selectedTab = 2 },
-                            icon = { Icon(Icons.Default.History, contentDescription = "Trip History") },
-                            label = { Text("Trip History", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = HudColors.CyanPrimary,
-                                selectedTextColor = HudColors.CyanPrimary,
-                                unselectedIconColor = HudColors.TextCoolSilver,
-                                unselectedTextColor = HudColors.TextCoolSilver,
-                                indicatorColor = HudColors.ObsidianElevated
-                            )
-                        )
-
+                        // 3: CHATS INBOX
                         NavigationBarItem(
                             selected = selectedTab == 3,
-                            onClick = { selectedTab = 3 },
-                            icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = "Join Trip") },
-                            label = { Text("Join Trip", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            onClick = {
+                                selectedTab = 3
+                                showChatInboxDialog = true
+                            },
+                            icon = { Icon(Icons.Default.Chat, contentDescription = "Chats") },
+                            label = { Text("Chats", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -286,6 +319,7 @@ fun MainContainerScreen(
                             )
                         )
 
+                        // 4: TRAVELER PROFILE
                         NavigationBarItem(
                             selected = selectedTab == 4,
                             onClick = { selectedTab = 4 },
@@ -308,7 +342,7 @@ fun MainContainerScreen(
                                     Icon(Icons.Default.Person, contentDescription = "Traveler Profile")
                                 }
                             },
-                            label = { Text("Traveler Profile", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Profile", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -321,27 +355,40 @@ fun MainContainerScreen(
                 }
             }
         ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (isMapFullScreen) PaddingValues(0.dp) else innerPadding)
-        ) {
-            when (selectedTab) {
-                0 -> {
-                    // Convoy Map + Live Telemetry HUD Overlay
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        LiveMapScreen(
-                            routePolyline = activeRoutePolyline,
-                            riderLocations = mergedLocations,
-                            convoyMembers = activeConvoyMembers,
-                            stopEvents = if (liveStops.isNotEmpty()) liveStops else stopEvents,
-                            isOnline = isOnline,
-                            activeTripId = activeTripId,
-                            onToggleFullScreen = { isMapFullScreen = it },
-                            onStopReported = { reason ->
-                                val myPing = phoneLocationPing
-                                stopEvents.add(
-                                    StopEvent(
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(if (isMapFullScreen) PaddingValues(0.dp) else innerPadding)
+            ) {
+                when (selectedTab) {
+                    0 -> {
+                        // Main Home Dashboard Screen
+                        HomeScreen(
+                            userProfile = userProfile,
+                            activeTrip = activeTrip,
+                            onNavigateToTab = { tabIdx -> selectedTab = tabIdx },
+                            onOpenNotificationCenter = { showNotificationCenterDialog = true },
+                            onOpenChatInbox = { showChatInboxDialog = true },
+                            onOpenSocialList = { showSocialListDialog = true },
+                            onOpenConvoyChat = { trip -> activeConvoyChatTrip = trip }
+                        )
+                    }
+
+                    1 -> {
+                        // Convoy Map + Live Telemetry HUD Overlay
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LiveMapScreen(
+                                routePolyline = activeRoutePolyline,
+                                riderLocations = mergedLocations,
+                                convoyMembers = activeConvoyMembers,
+                                stopEvents = if (liveStops.isNotEmpty()) liveStops else stopEvents,
+                                isOnline = isOnline,
+                                activeTripId = activeTripId,
+                                currentUserPhotoUrl = userProfile.photoUrl,
+                                onToggleFullScreen = { isMapFullScreen = it },
+                                onStopReported = { reason ->
+                                    val myPing = phoneLocationPing
+                                    val evt = StopEvent(
                                         stopId = "evt-${System.currentTimeMillis()}",
                                         riderId = userProfile.userId,
                                         riderName = userProfile.displayName.ifBlank { "Rider" },
@@ -350,179 +397,202 @@ fun MainContainerScreen(
                                         longitude = myPing?.longitude ?: 78.4344,
                                         timestamp = System.currentTimeMillis()
                                     )
+                                    stopEvents.add(evt)
+                                    alertBannerText = "Stop Reported: ${reason.name} by ${userProfile.displayName.ifBlank { "Rider" }}"
+
+                                    NotificationRepository.addNotification(
+                                        AppNotification(
+                                            title = "🛑 Convoy Stop Alert",
+                                            message = "${userProfile.displayName} reported a ${reason.name} stop.",
+                                            type = NotificationType.TRIP_UPDATE
+                                        )
+                                    )
+                                },
+                                onSosReported = {
+                                    alertBannerText = "🚨 EMERGENCY SOS BROADCAST SENT BY ${userProfile.displayName.ifBlank { "Rider" }}!"
+                                    NotificationRepository.addNotification(
+                                        AppNotification(
+                                            title = "🚨 EMERGENCY SOS BROADCAST",
+                                            message = "EMERGENCY SOS broadcast sent by ${userProfile.displayName}!",
+                                            type = NotificationType.SOS_ALERT
+                                        )
+                                    )
+                                }
+                            )
+
+                            if (!isMapFullScreen && alertBannerText != null) {
+                                val banner = AlertBanner(
+                                    title = "Convoy Broadcast",
+                                    message = alertBannerText!!,
+                                    severity = if (alertBannerText!!.contains("SOS", ignoreCase = true)) AlertSeverity.CRITICAL else AlertSeverity.WARNING
                                 )
-                                alertBannerText = "Stop Reported: ${reason.name} by ${userProfile.displayName.ifBlank { "Rider" }}"
+                                ConvoyAlertBanner(
+                                    banner = banner,
+                                    onDismiss = { alertBannerText = null },
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    2 -> {
+                        // Create Trip & Route Builder Page
+                        TripCreationScreen(
+                            userProfile = userProfile,
+                            initialTab = 0,
+                            onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
+                                activeRole = role
+                                stopEvents.clear()
+
+                                val originPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(origin, routePolyline.firstOrNull())
+                                val destPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(dest, routePolyline.lastOrNull())
+                                val waypointPts = waypoints.map { wpName -> com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(wpName) }
+
+                                waypoints.forEachIndexed { idx, wpName ->
+                                    val stopLatLng = waypointPts.getOrNull(idx) ?: if (routePolyline.size > 2) {
+                                        val targetIndex = (routePolyline.size * (idx + 1) / (waypoints.size + 1)).coerceIn(0, routePolyline.lastIndex)
+                                        routePolyline[targetIndex]
+                                    } else {
+                                        LatLng(
+                                            originPt.latitude + (destPt.latitude - originPt.latitude) * (idx + 1) / (waypoints.size + 1),
+                                            originPt.longitude + (destPt.longitude - originPt.longitude) * (idx + 1) / (waypoints.size + 1)
+                                        )
+                                    }
+                                    stopEvents.add(
+                                        StopEvent(
+                                            stopId = "stop_evt_$idx",
+                                            riderId = userProfile.userId,
+                                            riderName = wpName,
+                                            reason = StopReason.REST,
+                                            latitude = stopLatLng.latitude,
+                                            longitude = stopLatLng.longitude,
+                                            timestamp = System.currentTimeMillis()
+                                        )
+                                    )
+                                }
+
+                                coroutineScope.launch {
+                                    val realRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(originPt, destPt, waypointPts)
+                                    if (realRoute.polylinePoints.isNotEmpty()) {
+                                        activeRoutePolyline = realRoute.polylinePoints
+                                    } else if (routePolyline.size > 2) {
+                                        activeRoutePolyline = routePolyline
+                                    } else {
+                                        activeRoutePolyline = listOf(originPt, destPt)
+                                    }
+                                }
+                                alertBannerText = "Started Trip: $title as ${role.name}!"
+                                selectedTab = 1 // Switch to Convoy Map
                             },
-                            onSosReported = {
-                                alertBannerText = "🚨 EMERGENCY SOS BROADCAST SENT BY ${userProfile.displayName.ifBlank { "Rider" }}!"
+                            onShareLobbyClick = { code ->
+                                // Trigger Join Screen / Share
                             }
                         )
+                    }
 
-                        if (!isMapFullScreen && alertBannerText != null) {
-                            val banner = AlertBanner(
-                                title = "Convoy Broadcast",
-                                message = alertBannerText!!,
-                                severity = if (alertBannerText!!.contains("SOS", ignoreCase = true)) AlertSeverity.CRITICAL else AlertSeverity.WARNING
-                            )
-                            ConvoyAlertBanner(
-                                banner = banner,
-                                onDismiss = { alertBannerText = null },
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(16.dp)
-                            )
-                        }
+                    3 -> {
+                        // Chats Inbox Screen / Direct Messages List
+                        ChatInboxDialog(
+                            currentUserProfile = userProfile,
+                            onOpenChat = { targetUser -> activeDirectChatUser = targetUser },
+                            onSearchTravelers = { showSocialListDialog = true },
+                            onDismiss = { selectedTab = 0 }
+                        )
+                    }
+
+                    4 -> {
+                        // User Profile Dashboard
+                        UserProfileScreen(
+                            userProfile = userProfile,
+                            onSaveProfile = onSaveUserProfile,
+                            onSignOut = onSignOut
+                        )
                     }
                 }
 
-                1 -> {
-                    // Create Trip & Route Builder Page
-                    TripCreationScreen(
-                        userProfile = userProfile,
-                        initialTab = 0,
-                        onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
-                            activeRole = role
-                            stopEvents.clear()
+                // DIALOG OVERLAYS
+                if (showNotificationCenterDialog) {
+                    NotificationCenterDialog(
+                        onDismiss = { showNotificationCenterDialog = false }
+                    )
+                }
 
-                            val originPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(origin, routePolyline.firstOrNull())
-                            val destPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(dest, routePolyline.lastOrNull())
-                            val waypointPts = waypoints.map { wpName -> com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(wpName) }
-
-                            // Create stop markers with actual Stop Names along the specific route
-                            waypoints.forEachIndexed { idx, wpName ->
-                                val stopLatLng = waypointPts.getOrNull(idx) ?: if (routePolyline.size > 2) {
-                                    val targetIndex = (routePolyline.size * (idx + 1) / (waypoints.size + 1)).coerceIn(0, routePolyline.lastIndex)
-                                    routePolyline[targetIndex]
-                                } else {
-                                    LatLng(
-                                        originPt.latitude + (destPt.latitude - originPt.latitude) * (idx + 1) / (waypoints.size + 1),
-                                        originPt.longitude + (destPt.longitude - originPt.longitude) * (idx + 1) / (waypoints.size + 1)
-                                    )
-                                }
-                                stopEvents.add(
-                                    StopEvent(
-                                        stopId = "stop_evt_$idx",
-                                        riderId = userProfile.userId,
-                                        riderName = wpName,
-                                        reason = StopReason.REST,
-                                        latitude = stopLatLng.latitude,
-                                        longitude = stopLatLng.longitude,
-                                        timestamp = System.currentTimeMillis()
-                                    )
-                                )
-                            }
-
-                            coroutineScope.launch {
-                                val realRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(originPt, destPt, waypointPts)
-                                if (realRoute.polylinePoints.isNotEmpty()) {
-                                    activeRoutePolyline = realRoute.polylinePoints
-                                } else if (routePolyline.size > 2) {
-                                    activeRoutePolyline = routePolyline
-                                } else {
-                                    activeRoutePolyline = listOf(originPt, destPt)
-                                }
-                            }
-                            alertBannerText = "Started Trip: $title as ${role.name}!"
-                            selectedTab = 0 // Switch to Convoy Map
+                if (showChatInboxDialog && selectedTab != 3) {
+                    ChatInboxDialog(
+                        currentUserProfile = userProfile,
+                        onOpenChat = { targetUser ->
+                            showChatInboxDialog = false
+                            activeDirectChatUser = targetUser
                         },
-                        onShareLobbyClick = { code ->
-                            selectedTab = 3 // Switch to Join Trip tab
+                        onSearchTravelers = {
+                            showChatInboxDialog = false
+                            showSocialListDialog = true
+                        },
+                        onDismiss = { showChatInboxDialog = false }
+                    )
+                }
+
+                if (showSocialListDialog) {
+                    SocialTravelersListDialog(
+                        currentUserProfile = userProfile,
+                        onSaveCurrentUserProfile = onSaveUserProfile,
+                        onSelectTraveler = { targetUser ->
+                            showSocialListDialog = false
+                            activeTravelerProfileView = targetUser
+                        },
+                        onOpenChat = { targetUser ->
+                            showSocialListDialog = false
+                            activeDirectChatUser = targetUser
+                        },
+                        onDismiss = { showSocialListDialog = false }
+                    )
+                }
+
+                if (activeDirectChatUser != null) {
+                    DirectChatDialog(
+                        currentUserProfile = userProfile,
+                        targetTraveler = activeDirectChatUser!!,
+                        onDismiss = { activeDirectChatUser = null }
+                    )
+                }
+
+                if (activeTravelerProfileView != null) {
+                    TravelerProfileDialog(
+                        traveler = activeTravelerProfileView!!,
+                        currentUserProfile = userProfile,
+                        onSaveCurrentUserProfile = onSaveUserProfile,
+                        onOpenChat = { targetUser ->
+                            activeTravelerProfileView = null
+                            activeDirectChatUser = targetUser
+                        },
+                        onDismiss = { activeTravelerProfileView = null }
+                    )
+                }
+
+                if (activeConvoyChatTrip != null) {
+                    TripConvoyChatDialog(
+                        trip = activeConvoyChatTrip!!,
+                        currentUserProfile = userProfile,
+                        onDismiss = { activeConvoyChatTrip = null }
+                    )
+                }
+
+                if (showPermissionsOnboarding) {
+                    com.ridesync.ui.permissions.PermissionsOnboardingDialog(
+                        onAllGranted = {
+                            val prefs = context.getSharedPreferences("ridesync_app_prefs", android.content.Context.MODE_PRIVATE)
+                            prefs.edit().putBoolean("has_completed_permissions_onboarding", true).apply()
+                            showPermissionsOnboarding = false
+                            LiveLocationEngine.startLiveLocationUpdates(context)
+                        },
+                        onDismiss = {
+                            showPermissionsOnboarding = false
                         }
                     )
                 }
-
-                2 -> {
-                    // Trip History & Saved Rides Page
-                    SavedTripsHistoryScreen(
-                        userProfile = userProfile,
-                        onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
-                            activeRole = role
-                            stopEvents.clear()
-
-                            val originPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(origin, routePolyline.firstOrNull())
-                            val destPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(dest, routePolyline.lastOrNull())
-                            val waypointPts = waypoints.map { wpName -> com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(wpName) }
-
-                            waypoints.forEachIndexed { idx, wpName ->
-                                val stopLatLng = waypointPts.getOrNull(idx) ?: if (routePolyline.size > 2) {
-                                    val targetIndex = (routePolyline.size * (idx + 1) / (waypoints.size + 1)).coerceIn(0, routePolyline.lastIndex)
-                                    routePolyline[targetIndex]
-                                } else {
-                                    LatLng(
-                                        originPt.latitude + (destPt.latitude - originPt.latitude) * (idx + 1) / (waypoints.size + 1),
-                                        originPt.longitude + (destPt.longitude - originPt.longitude) * (idx + 1) / (waypoints.size + 1)
-                                    )
-                                }
-                                stopEvents.add(
-                                    StopEvent(
-                                        stopId = "stop_evt_$idx",
-                                        riderId = userProfile.userId,
-                                        riderName = wpName,
-                                        reason = StopReason.REST,
-                                        latitude = stopLatLng.latitude,
-                                        longitude = stopLatLng.longitude,
-                                        timestamp = System.currentTimeMillis()
-                                    )
-                                )
-                            }
-
-                            coroutineScope.launch {
-                                val realRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(originPt, destPt, waypointPts)
-                                if (realRoute.polylinePoints.isNotEmpty()) {
-                                    activeRoutePolyline = realRoute.polylinePoints
-                                } else if (routePolyline.size > 2) {
-                                    activeRoutePolyline = routePolyline
-                                } else {
-                                    activeRoutePolyline = listOf(originPt, destPt)
-                                }
-                            }
-                            alertBannerText = "Started Trip: $title as ${role.name}!"
-                            selectedTab = 0 // Switch to Convoy Map
-                        },
-                        onShareLobbyClick = { code ->
-                            selectedTab = 3 // Switch to Join Trip tab
-                        }
-                    )
-                }
-
-                3 -> {
-                    // Join Trip (QR Scanner / Trip Code / Join Link)
-                    JoinTripScreen(
-                        userProfile = userProfile,
-                        onTripJoined = { joinedTrip ->
-                            alertBannerText = "Joined Trip: ${joinedTrip.title}"
-                            selectedTab = 2 // Switch to Trip History tab to show the joined trip!
-                        },
-                        onCancel = {
-                            selectedTab = 0
-                        }
-                    )
-                }
-
-                4 -> {
-                    // User Profile Dashboard
-                    UserProfileScreen(
-                        userProfile = userProfile,
-                        onSaveProfile = onSaveUserProfile,
-                        onSignOut = onSignOut
-                    )
-                }
-            }
-
-            if (showPermissionsOnboarding) {
-                com.ridesync.ui.permissions.PermissionsOnboardingDialog(
-                    onAllGranted = {
-                        val prefs = context.getSharedPreferences("ridesync_app_prefs", android.content.Context.MODE_PRIVATE)
-                        prefs.edit().putBoolean("has_completed_permissions_onboarding", true).apply()
-                        showPermissionsOnboarding = false
-                        LiveLocationEngine.startLiveLocationUpdates(context)
-                    },
-                    onDismiss = {
-                        showPermissionsOnboarding = false
-                    }
-                )
             }
         }
     }
-}
 }

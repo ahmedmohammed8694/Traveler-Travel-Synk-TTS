@@ -280,6 +280,7 @@ fun RouteStopMarker(
     stopNumber: Int,
     isFirstStop: Boolean = false,
     isLastStop: Boolean = false,
+    photoUrl: String = "",
     onClick: () -> Unit
 ) {
     val accentColor = when {
@@ -287,6 +288,8 @@ fun RouteStopMarker(
         isLastStop -> Color(0xFFEF4444)  // Red for destination
         else -> HudColors.CyanPrimary     // Cyan for intermediate stop
     }
+
+    val avatarBitmap by rememberRiderAvatarBitmap(photoUrl)
 
     MarkerComposable(
         state = MarkerState(position = position),
@@ -297,6 +300,57 @@ fun RouteStopMarker(
         }
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Display User Profile Photo Puck at Start Point or when photo is provided
+            if (isFirstStop || avatarBitmap != null) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .border(2.5.dp, Color(0xFFEAB308), CircleShape)
+                        .background(Color(0xFF0F172A))
+                ) {
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap!!.asImageBitmap(),
+                            contentDescription = stopName,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = stopName.trim().take(1).uppercase().ifBlank { "M" },
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+
+                    // Rank / Start Badge
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFFEAB308),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 2.dp, y = 2.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "#1",
+                                color = Color.Black,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+            }
+
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = Color(0xF20B132B),

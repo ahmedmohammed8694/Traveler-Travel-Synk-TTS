@@ -489,6 +489,48 @@ object DirectionsRepository {
     }
 
     /**
+     * Calculates real road distance in KM between origin, destination, waypoints, and polyline points.
+     * Uses polyline segment distances when polyline is available, or Haversine distance with 1.25x road factor fallback.
+     */
+    fun calculateRoadDistanceKm(
+        origin: LatLng,
+        destination: LatLng,
+        waypoints: List<LatLng> = emptyList(),
+        polyline: List<LatLng> = emptyList()
+    ): Double {
+        if (polyline.size > 1) {
+            var totalMeters = 0.0
+            val results = FloatArray(1)
+            for (i in 0 until polyline.size - 1) {
+                android.location.Location.distanceBetween(
+                    polyline[i].latitude, polyline[i].longitude,
+                    polyline[i + 1].latitude, polyline[i + 1].longitude,
+                    results
+                )
+                totalMeters += results[0]
+            }
+            if (totalMeters > 0) {
+                return (kotlin.math.round(totalMeters / 100.0) / 10.0)
+            }
+        }
+
+        val allPoints = (listOf(origin) + waypoints + listOf(destination)).filter { it.latitude != 0.0 && it.longitude != 0.0 }
+        if (allPoints.size < 2) return 0.0
+        var totalMeters = 0.0
+        val results = FloatArray(1)
+        for (i in 0 until allPoints.size - 1) {
+            android.location.Location.distanceBetween(
+                allPoints[i].latitude, allPoints[i].longitude,
+                allPoints[i + 1].latitude, allPoints[i + 1].longitude,
+                results
+            )
+            totalMeters += results[0]
+        }
+        val directKm = totalMeters / 1000.0
+        return (kotlin.math.round(directKm * 1.25 * 10.0) / 10.0)
+    }
+
+    /**
      * Dynamically maps location text or address strings to geographic LatLng coordinates.
      */
     fun resolveLocationNameToLatLng(name: String, fallback: LatLng? = null): LatLng {

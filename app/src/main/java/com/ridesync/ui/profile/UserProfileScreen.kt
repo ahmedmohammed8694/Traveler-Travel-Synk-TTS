@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
@@ -110,6 +111,13 @@ fun UserProfileScreen(
     var showVehicleDialog by remember { mutableStateOf(false) }
     var vehicleToEdit by remember { mutableStateOf<Vehicle?>(null) }
     var vehicleForDetailsView by remember { mutableStateOf<Vehicle?>(null) }
+
+    // Social & Chat Dialog States
+    var showChatInbox by remember { mutableStateOf(false) }
+    var showSocialList by remember { mutableStateOf(false) }
+    var socialListInitialTab by remember { mutableIntStateOf(0) }
+    var selectedTravelerForProfile by remember { mutableStateOf<UserProfile?>(null) }
+    var selectedTravelerForChat by remember { mutableStateOf<UserProfile?>(null) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -308,8 +316,150 @@ fun UserProfileScreen(
                     text = activeVehicle?.fullDisplayName?.let { "Default Vehicle: $it" } ?: "Traveler Travel Sync (TTS) Member",
                     fontSize = 14.sp,
                     color = HudColors.TextCoolSilver,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                 )
+
+                // Profile Code Card (TTS-8899)
+                Surface(
+                    color = cardColor,
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, HudColors.CyanPrimary.copy(alpha = 0.6f)),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column {
+                            Text("My Profile Code", color = HudColors.TextCoolSilver, fontSize = 11.sp)
+                            Text(
+                                text = userProfile.safeProfileCode,
+                                color = HudColors.CyanPrimary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val code = userProfile.safeProfileCode
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("Profile Code", code)
+                                clipboard.setPrimaryClip(clip)
+                                android.widget.Toast.makeText(context, "Profile Code Copied: $code", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = HudColors.CyanPrimary, contentColor = Color.Black),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Copy Code", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // INSTAGRAM-STYLE SOCIAL COUNTERS & ACTION BUTTONS
+                Surface(
+                    color = cardColor,
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        // Stats row (Instagram-Style)
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable {
+                                    socialListInitialTab = 0
+                                    showSocialList = true
+                                }
+                            ) {
+                                Text("12", fontSize = 18.sp, fontWeight = FontWeight.Black, color = HudColors.TextCrispWhite)
+                                Text("Trips", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable {
+                                    socialListInitialTab = 0
+                                    showSocialList = true
+                                }
+                            ) {
+                                Text("${userProfile.friends.size}", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF22C55E))
+                                Text("Friends", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable {
+                                    socialListInitialTab = 1
+                                    showSocialList = true
+                                }
+                            ) {
+                                Text("${userProfile.followers.size}", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFF38BDF8))
+                                Text("Followers", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable {
+                                    socialListInitialTab = 2
+                                    showSocialList = true
+                                }
+                            ) {
+                                Text("${userProfile.following.size}", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color(0xFFF59E0B))
+                                Text("Following", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Action Buttons Bar
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = { showChatInbox = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("💬 Messages", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    socialListInitialTab = 0
+                                    showSocialList = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155), contentColor = Color.White),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("👥 Friends", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    socialListInitialTab = 3
+                                    showSocialList = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("🔍 Search", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
 
                 // ACTIVE VEHICLE HUD RANGE CARD (RECIRCULATING REMINDER)
                 if (activeVehicle != null) {
@@ -733,6 +883,64 @@ fun UserProfileScreen(
         VehicleDetailsViewDialog(
             vehicle = veh,
             onDismiss = { vehicleForDetailsView = null }
+        )
+    }
+
+    // Direct Messages Chat Inbox Dialog
+    if (showChatInbox) {
+        ChatInboxDialog(
+            currentUserProfile = userProfile,
+            onOpenChat = { target ->
+                showChatInbox = false
+                selectedTravelerForChat = target
+            },
+            onSearchTravelers = {
+                showChatInbox = false
+                socialListInitialTab = 3
+                showSocialList = true
+            },
+            onDismiss = { showChatInbox = false }
+        )
+    }
+
+    // Social Friends & Network Dialog
+    if (showSocialList) {
+        SocialTravelersListDialog(
+            initialTab = socialListInitialTab,
+            currentUserProfile = userProfile,
+            onSaveCurrentUserProfile = onSaveProfile,
+            onSelectTraveler = { target ->
+                showSocialList = false
+                selectedTravelerForProfile = target
+            },
+            onOpenChat = { target ->
+                showSocialList = false
+                selectedTravelerForChat = target
+            },
+            onDismiss = { showSocialList = false }
+        )
+    }
+
+    // Traveler Profile View Dialog
+    selectedTravelerForProfile?.let { traveler ->
+        TravelerProfileDialog(
+            traveler = traveler,
+            currentUserProfile = userProfile,
+            onSaveCurrentUserProfile = onSaveProfile,
+            onOpenChat = { target ->
+                selectedTravelerForProfile = null
+                selectedTravelerForChat = target
+            },
+            onDismiss = { selectedTravelerForProfile = null }
+        )
+    }
+
+    // 1-on-1 Direct Traveler Chat Dialog
+    selectedTravelerForChat?.let { traveler ->
+        DirectChatDialog(
+            currentUserProfile = userProfile,
+            targetTraveler = traveler,
+            onDismiss = { selectedTravelerForChat = null }
         )
     }
 }

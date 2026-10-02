@@ -80,6 +80,7 @@ fun LiveMapScreen(
     stopEvents: List<StopEvent>,
     isOnline: Boolean = true,
     activeTripId: String? = null,
+    currentUserPhotoUrl: String = "",
     onToggleFullScreen: (Boolean) -> Unit = {},
     onStopReported: (StopReason) -> Unit = {},
     onSosReported: () -> Unit = {},
@@ -504,6 +505,7 @@ fun LiveMapScreen(
                         stopNumber = stop.orderIndex + 1,
                         isFirstStop = isFirst,
                         isLastStop = isLast,
+                        photoUrl = if (isFirst) currentUserPhotoUrl else "",
                         onClick = {
                             selectedStopForModal = stop
                         }

@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -72,6 +73,11 @@ fun TripFullDetailsDialog(
     var showShareQrDialog by remember { mutableStateOf(false) }
     var showEditRouteDialog by remember { mutableStateOf(false) }
     var editDayNumberTarget by remember { mutableStateOf<Int?>(null) }
+    var showAddMemberDialog by remember { mutableStateOf(false) }
+    var showGroupChatDialog by remember { mutableStateOf(false) }
+    var selectedTravelerForProfile by remember { mutableStateOf<UserProfile?>(null) }
+    var selectedTravelerForChat by remember { mutableStateOf<UserProfile?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -311,6 +317,18 @@ fun TripFullDetailsDialog(
                                             Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("QR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        // Convoy Group Chat Button
+                                        Button(
+                                            onClick = { showGroupChatDialog = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB), contentColor = Color.White),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                        ) {
+                                            Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Chat 💬", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
 
                                         // Share Invite Link
@@ -648,14 +666,32 @@ fun TripFullDetailsDialog(
                     }
 
                     // ==========================================
-                    // 3. JOINED RIDERS & COMPANIONS SECTION
+                    // 3. JOINED RIDERS & HOST MEMBER MANAGEMENT
                     // ==========================================
-                    Text(
-                        text = "👥 Joined Riders (${liveTrip.joinedRiders.size})",
-                        color = Color(0xFF0F172A),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "👥 Joined Riders (${liveTrip.joinedRiders.size})",
+                            color = Color(0xFF0F172A),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black
+                        )
+
+                        // Host Add Member Button
+                        Button(
+                            onClick = { showAddMemberDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("+ Add Member", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
 
                     if (liveTrip.joinedRiders.isEmpty()) {
                         Surface(
@@ -665,7 +701,7 @@ fun TripFullDetailsDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "No other riders joined yet. Share the invite link above to invite companions!",
+                                text = "No other riders joined yet. Tap '+ Add Member' above to search by Profile Code (TTS-8899), Email, or Phone!",
                                 color = Color(0xFF475569),
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(14.dp)
@@ -673,6 +709,8 @@ fun TripFullDetailsDialog(
                         }
                     } else {
                         liveTrip.joinedRiders.forEach { rider ->
+                            val avatarBmp by com.ridesync.util.rememberRiderAvatarBitmap(rider.photoUrl)
+
                             Surface(
                                 color = Color(0xFFFFFFFF),
                                 shape = RoundedCornerShape(14.dp),
@@ -681,25 +719,49 @@ fun TripFullDetailsDialog(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(12.dp)
-                                ) {
-                                    // Rider Initial Avatar
-                                    Surface(
-                                        color = when (rider.role) {
-                                            ConvoyRole.LEAD -> Color(0xFFD97706)
-                                            ConvoyRole.SWEEP -> Color(0xFF0052CC)
-                                            ConvoyRole.MEMBER -> Color(0xFF16A34A)
-                                        },
-                                        shape = CircleShape,
-                                        modifier = Modifier.size(42.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(
-                                                text = rider.displayName.take(1).uppercase(),
-                                                color = Color.White,
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.Black
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .clickable {
+                                            selectedTravelerForProfile = com.ridesync.data.model.UserProfile(
+                                                userId = rider.riderId,
+                                                displayName = rider.displayName,
+                                                vehicleModel = rider.bikeModel,
+                                                photoUrl = rider.photoUrl,
+                                                profileCode = rider.profileCode.ifBlank { "TTS-${rider.riderId.takeLast(4)}" },
+                                                email = rider.email,
+                                                mobileNumber = rider.mobileNumber
                                             )
+                                        }
+                                ) {
+                                    // Rider Profile Avatar Photo or Initial
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                when (rider.role) {
+                                                    ConvoyRole.LEAD -> Color(0xFFD97706)
+                                                    ConvoyRole.SWEEP -> Color(0xFF0052CC)
+                                                    ConvoyRole.MEMBER -> Color(0xFF16A34A)
+                                                }
+                                            )
+                                    ) {
+                                        if (avatarBmp != null) {
+                                            androidx.compose.foundation.Image(
+                                                bitmap = avatarBmp!!.asImageBitmap(),
+                                                contentDescription = rider.displayName,
+                                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                                Text(
+                                                    text = rider.displayName.take(1).uppercase(),
+                                                    color = Color.White,
+                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.Black
+                                                )
+                                            }
                                         }
                                     }
 
@@ -733,27 +795,40 @@ fun TripFullDetailsDialog(
                                             fontSize = 12.sp
                                         )
                                         Text(
-                                            text = "Status: ${rider.status}",
-                                            color = Color(0xFF16A34A),
-                                            fontSize = 11.sp
+                                            text = "Code: ${rider.profileCode.ifBlank { "TTS-${rider.riderId.takeLast(4)}" }}",
+                                            color = Color(0xFF0052CC),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
 
-                                    // Direct Emergency Call Action
-                                    if (rider.emergencyContact.isNotBlank()) {
-                                        IconButton(
-                                            onClick = {
-                                                try {
-                                                    val callIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${rider.emergencyContact}"))
-                                                    context.startActivity(callIntent)
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(context, "Call error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                                }
-                                            },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(Icons.Default.Phone, contentDescription = "Call", tint = Color(0xFF16A34A), modifier = Modifier.size(20.dp))
-                                        }
+                                    // Chat Button
+                                    IconButton(
+                                        onClick = {
+                                            selectedTravelerForChat = com.ridesync.data.model.UserProfile(
+                                                userId = rider.riderId,
+                                                displayName = rider.displayName,
+                                                vehicleModel = rider.bikeModel,
+                                                photoUrl = rider.photoUrl,
+                                                profileCode = rider.profileCode.ifBlank { "TTS-${rider.riderId.takeLast(4)}" }
+                                            )
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Chat, contentDescription = "Chat", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
+                                    }
+
+                                    // Host Remove Member Action
+                                    IconButton(
+                                        onClick = {
+                                            val updatedRiders = liveTrip.joinedRiders.filter { it.riderId != rider.riderId }
+                                            val updatedTrip = liveTrip.copy(joinedRiders = updatedRiders, activeRidersCount = (updatedRiders.size + 1).coerceAtLeast(1))
+                                            TripRepository.updateTrip(updatedTrip)
+                                            Toast.makeText(context, "Removed ${rider.displayName} from trip", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Remove Member", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
@@ -861,6 +936,53 @@ fun TripFullDetailsDialog(
             initialDayNumber = editDayNumberTarget,
             onDismiss = { showEditRouteDialog = false },
             onTripUpdated = { /* TripRepository automatically emits via Flow */ }
+        )
+    }
+
+    if (showAddMemberDialog) {
+        com.ridesync.ui.trip.AddTripMemberDialog(
+            existingRiderIds = liveTrip.joinedRiders.map { it.riderId } + currentUserId,
+            onAddMember = { newMember ->
+                val updatedList = liveTrip.joinedRiders.toMutableList()
+                if (updatedList.none { it.riderId == newMember.riderId }) {
+                    updatedList.add(newMember)
+                    val updatedTrip = liveTrip.copy(
+                        joinedRiders = updatedList,
+                        activeRidersCount = updatedList.size + 1
+                    )
+                    TripRepository.updateTrip(updatedTrip)
+                }
+            },
+            onDismiss = { showAddMemberDialog = false }
+        )
+    }
+
+    selectedTravelerForProfile?.let { traveler ->
+        com.ridesync.ui.profile.TravelerProfileDialog(
+            traveler = traveler,
+            currentUserProfile = com.ridesync.data.model.UserProfile(userId = currentUserId),
+            onSaveCurrentUserProfile = { },
+            onOpenChat = { target ->
+                selectedTravelerForProfile = null
+                selectedTravelerForChat = target
+            },
+            onDismiss = { selectedTravelerForProfile = null }
+        )
+    }
+
+    if (showGroupChatDialog) {
+        TripConvoyChatDialog(
+            trip = liveTrip,
+            currentUserProfile = com.ridesync.data.model.UserProfile(userId = currentUserId, displayName = "Me"),
+            onDismiss = { showGroupChatDialog = false }
+        )
+    }
+
+    selectedTravelerForChat?.let { traveler ->
+        com.ridesync.ui.profile.DirectChatDialog(
+            currentUserProfile = com.ridesync.data.model.UserProfile(userId = currentUserId, displayName = "Me"),
+            targetTraveler = traveler,
+            onDismiss = { selectedTravelerForChat = null }
         )
     }
 }

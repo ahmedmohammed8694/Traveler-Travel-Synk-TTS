@@ -344,7 +344,7 @@ fun TripCreationScreen(
     }
 
 
-    // Fetch Real Google Maps Directions Road Route
+    // Fetch Real Google Maps Directions Road Route & Calculate Accurate Distance
     LaunchedEffect(startLatLng, destLatLng, waypointLatLngs.toList()) {
         isFetchingRoute = true
         try {
@@ -354,10 +354,18 @@ fun TripCreationScreen(
                 waypoints = waypointLatLngs.toList()
             )
             activeRoutePolyline = routeDetails.polylinePoints
-            estimatedDistanceKm = routeDetails.distanceKm
-            estimatedDurationMin = routeDetails.durationMinutes
+            val calcKm = DirectionsRepository.calculateRoadDistanceKm(
+                startLatLng, destLatLng, waypointLatLngs.toList(), activeRoutePolyline
+            )
+            estimatedDistanceKm = if (routeDetails.distanceKm > 0) routeDetails.distanceKm else calcKm
+            estimatedDurationMin = if (routeDetails.durationMinutes > 0) routeDetails.durationMinutes else (calcKm * 1.35).toInt().coerceAtLeast(10)
         } catch (e: Exception) {
             e.printStackTrace()
+            val calcKm = DirectionsRepository.calculateRoadDistanceKm(
+                startLatLng, destLatLng, waypointLatLngs.toList(), activeRoutePolyline
+            )
+            estimatedDistanceKm = calcKm
+            estimatedDurationMin = (calcKm * 1.35).toInt().coerceAtLeast(10)
         } finally {
             isFetchingRoute = false
         }
@@ -445,6 +453,19 @@ fun TripCreationScreen(
                         tripTitle = "$cleanOrig to $cleanDest Ride"
                     }
 
+                    // Fetch road route and calculate accurate distance KM immediately
+                    val routeDetails = DirectionsRepository.getDirectionsRoute(
+                        origin = newStartLatLng,
+                        destination = newDestLatLng,
+                        waypoints = resolvedWps
+                    )
+                    activeRoutePolyline = routeDetails.polylinePoints
+                    val calcKm = DirectionsRepository.calculateRoadDistanceKm(
+                        newStartLatLng, newDestLatLng, resolvedWps, activeRoutePolyline
+                    )
+                    estimatedDistanceKm = if (routeDetails.distanceKm > 0) routeDetails.distanceKm else calcKm
+                    estimatedDurationMin = if (routeDetails.durationMinutes > 0) routeDetails.durationMinutes else (calcKm * 1.35).toInt().coerceAtLeast(10)
+
                     // Animate camera to fit route bounds
                     coroutineScope.launch {
                         kotlinx.coroutines.delay(350)
@@ -462,8 +483,8 @@ fun TripCreationScreen(
 
                     Toast.makeText(
                         context,
-                        "Extracted ${parsedWaypoints.size} intermediate stops! Road route updated on Map.",
-                        Toast.LENGTH_SHORT
+                        "Imported Google Maps route! Distance: ${"%.1f".format(estimatedDistanceKm)} KM (${parsedWaypoints.size} stops)",
+                        Toast.LENGTH_LONG
                     ).show()
                 } else {
                     Toast.makeText(context, "Could not parse Google Maps URL. Check format.", Toast.LENGTH_SHORT).show()
@@ -509,8 +530,11 @@ fun TripCreationScreen(
                     waypoints = updatedWps
                 )
                 activeRoutePolyline = routeDetails.polylinePoints
-                estimatedDistanceKm = routeDetails.distanceKm
-                estimatedDurationMin = routeDetails.durationMinutes
+                val calcKm = DirectionsRepository.calculateRoadDistanceKm(
+                    originParam, destParam, updatedWps, activeRoutePolyline
+                )
+                estimatedDistanceKm = if (routeDetails.distanceKm > 0) routeDetails.distanceKm else calcKm
+                estimatedDurationMin = if (routeDetails.durationMinutes > 0) routeDetails.durationMinutes else (calcKm * 1.35).toInt().coerceAtLeast(10)
 
                 if (activeRoutePolyline.isNotEmpty()) {
                     val boundsBuilder = LatLngBounds.builder()
@@ -566,1421 +590,1039 @@ fun TripCreationScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // TAB 0: CREATE TRIP & ROUTE BUILDER (3 DEDICATED SETUP METHODS)
-                // 1. Setup Method Selector
-                Text(
-                    text = "Choose Trip Creation Method",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    modifier = Modifier.padding(bottom = 10.dp)
+            // UNIFIED SINGLE CREATE TRIP & ROUTE BUILDER FORM
+            // 1. Convoy Role Selection
+            Text(
+                text = "Select Convoy Role",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A),
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                RoleChip(
+                    role = ConvoyRole.LEAD,
+                    title = "Lead Rider",
+                    icon = Icons.Default.DirectionsBike,
+                    isSelected = selectedRole == ConvoyRole.LEAD,
+                    accentColor = accentColor,
+                    modifier = Modifier.weight(1f),
+                    onClick = { selectedRole = ConvoyRole.LEAD }
                 )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CreationMethodTabChip(
-                        title = "📄 Itinerary File",
-                        subtitle = "AI Document",
-                        isSelected = currentCreationMode == TripCreationMode.DOCUMENT,
-                        accentColor = Color(0xFF0052CC),
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentCreationMode = TripCreationMode.DOCUMENT }
-                    )
-                    CreationMethodTabChip(
-                        title = "🗺️ Map Links",
-                        subtitle = "Day-by-Day URLs",
-                        isSelected = currentCreationMode == TripCreationMode.MAP_LINKS,
-                        accentColor = Color(0xFF0052CC),
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentCreationMode = TripCreationMode.MAP_LINKS }
-                    )
-                    CreationMethodTabChip(
-                        title = "📍 Direct Trip",
-                        subtitle = "Search & Pins",
-                        isSelected = currentCreationMode == TripCreationMode.MANUAL_SEARCH,
-                        accentColor = Color(0xFF0052CC),
-                        modifier = Modifier.weight(1f),
-                        onClick = { currentCreationMode = TripCreationMode.MANUAL_SEARCH }
-                    )
-                }
-
-                // 2. Convoy Role Selection (Applies to all creation methods)
-                Text(
-                    text = "Select Convoy Role",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    modifier = Modifier.padding(bottom = 10.dp)
+                RoleChip(
+                    role = ConvoyRole.SWEEP,
+                    title = "Sweep Safety",
+                    icon = Icons.Default.Shield,
+                    isSelected = selectedRole == ConvoyRole.SWEEP,
+                    accentColor = accentColor,
+                    modifier = Modifier.weight(1f),
+                    onClick = { selectedRole = ConvoyRole.SWEEP }
                 )
+                RoleChip(
+                    role = ConvoyRole.MEMBER,
+                    title = "Pack Rider",
+                    icon = Icons.Default.CheckCircle,
+                    isSelected = selectedRole == ConvoyRole.MEMBER,
+                    accentColor = accentColor,
+                    modifier = Modifier.weight(1f),
+                    onClick = { selectedRole = ConvoyRole.MEMBER }
+                )
+            }
 
+            // Role Detailed Explanation Box
+            Surface(
+                color = when (selectedRole) {
+                    ConvoyRole.LEAD -> Color(0xFFFEF3C7)
+                    ConvoyRole.SWEEP -> Color(0xFFE0E7FF)
+                    ConvoyRole.MEMBER -> Color(0xFFDCFCE7)
+                },
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    when (selectedRole) {
+                        ConvoyRole.LEAD -> Color(0xFFD97706)
+                        ConvoyRole.SWEEP -> Color(0xFF0052CC)
+                        ConvoyRole.MEMBER -> Color(0xFF16A34A)
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(12.dp)
                 ) {
-                    RoleChip(
-                        role = ConvoyRole.LEAD,
-                        title = "Lead Rider",
-                        icon = Icons.Default.DirectionsBike,
-                        isSelected = selectedRole == ConvoyRole.LEAD,
-                        accentColor = accentColor,
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedRole = ConvoyRole.LEAD }
+                    Text(
+                        text = when (selectedRole) {
+                            ConvoyRole.LEAD -> "👑"
+                            ConvoyRole.SWEEP -> "🛡️"
+                            ConvoyRole.MEMBER -> "🏍️"
+                        },
+                        fontSize = 20.sp
                     )
-                    RoleChip(
-                        role = ConvoyRole.SWEEP,
-                        title = "Sweep Safety",
-                        icon = Icons.Default.Shield,
-                        isSelected = selectedRole == ConvoyRole.SWEEP,
-                        accentColor = accentColor,
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedRole = ConvoyRole.SWEEP }
-                    )
-                    RoleChip(
-                        role = ConvoyRole.MEMBER,
-                        title = "Pack Rider",
-                        icon = Icons.Default.CheckCircle,
-                        isSelected = selectedRole == ConvoyRole.MEMBER,
-                        accentColor = accentColor,
-                        modifier = Modifier.weight(1f),
-                        onClick = { selectedRole = ConvoyRole.MEMBER }
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = when (selectedRole) {
+                                ConvoyRole.LEAD -> "LEAD RIDER (#1 Front Position)"
+                                ConvoyRole.SWEEP -> "SWEEP SAFETY RIDER (Rear Guard Anchor)"
+                                ConvoyRole.MEMBER -> "PACK RIDER (Middle Formation Member)"
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = when (selectedRole) {
+                                ConvoyRole.LEAD -> Color(0xFF92400E)
+                                ConvoyRole.SWEEP -> Color(0xFF1E40AF)
+                                ConvoyRole.MEMBER -> Color(0xFF166534)
+                            }
+                        )
+                        Text(
+                            text = when (selectedRole) {
+                                ConvoyRole.LEAD -> "Navigates the route, sets safe cruising pace, signals hazards/turns, and commands front position #1 on the map."
+                                ConvoyRole.SWEEP -> "Positioned at the very rear (last position) to protect the pack, assist with mechanical breakdowns/emergencies, and ensure no rider is left behind."
+                                ConvoyRole.MEMBER -> "Rides in middle convoy formation, maintains staggered distance, and relays turn/hazard signals between Lead and Sweep."
+                            },
+                            fontSize = 11.sp,
+                            color = Color(0xFF334155),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
+            }
 
-                // 2.5 Vehicle Selection for Trip (Pre-selected to Default Vehicle, expandable to change)
-                var showVehicleDropdown by remember { mutableStateOf(false) }
+            // 2. Vehicle Selection for Trip
+            var showVehicleDropdown by remember { mutableStateOf(false) }
 
-                Surface(
-                    color = Color(0xFFFFFFFF),
-                    shape = RoundedCornerShape(14.dp),
-                    shadowElevation = 2.dp,
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = selectedTripVehicle?.vehicleTypeEnum?.iconEmoji ?: "🏍️",
-                                    fontSize = 20.sp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "Trip Vehicle",
-                                            fontSize = 12.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                        if (selectedTripVehicle?.id == userProfile.activeVehicleId) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Surface(
-                                                color = Color(0xFFEFF6FF),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(
-                                                    text = "★ DEFAULT",
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = Color(0xFF0052CC),
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                )
-                                            }
+            Surface(
+                color = Color(0xFFFFFFFF),
+                shape = RoundedCornerShape(14.dp),
+                shadowElevation = 2.dp,
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = selectedTripVehicle?.vehicleTypeEnum?.iconEmoji ?: "🏍️",
+                                fontSize = 20.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Trip Vehicle",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                    if (selectedTripVehicle?.id == userProfile.activeVehicleId) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            color = Color(0xFFEFF6FF),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = "★ DEFAULT",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = Color(0xFF0052CC),
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
                                         }
                                     }
-                                    Text(
-                                        text = selectedTripVehicle?.fullDisplayName ?: userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF0F172A)
-                                    )
                                 }
-                            }
-
-                            if (userProfile.vehicles.size > 1) {
-                                TextButton(onClick = { showVehicleDropdown = !showVehicleDropdown }) {
-                                    Text(
-                                        text = if (showVehicleDropdown) "Close" else "Change",
-                                        color = Color(0xFF0052CC),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            } else {
                                 Text(
-                                    text = "${selectedTripVehicle?.estimatedRangeKm ?: 350.0} km range",
-                                    color = Color(0xFF059669),
+                                    text = selectedTripVehicle?.fullDisplayName ?: userProfile.vehicleModel.ifBlank { "Royal Enfield Meteor 350" },
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                            }
+                        }
+
+                        if (userProfile.vehicles.size > 1) {
+                            TextButton(onClick = { showVehicleDropdown = !showVehicleDropdown }) {
+                                Text(
+                                    text = if (showVehicleDropdown) "Close" else "Change",
+                                    color = Color(0xFF0052CC),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                        }
-
-                        // Vehicle picker dropdown if user has multiple vehicles
-                        if (showVehicleDropdown && userProfile.vehicles.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Divider(color = Color(0xFFE2E8F0))
-                            Spacer(modifier = Modifier.height(10.dp))
+                        } else {
                             Text(
-                                text = "Select vehicle for this trip:",
-                                fontSize = 11.sp,
-                                color = Color(0xFF64748B),
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                text = "${selectedTripVehicle?.estimatedRangeKm ?: 350.0} km range",
+                                color = Color(0xFF059669),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                            userProfile.vehicles.forEach { v ->
-                                val isSelected = selectedTripVehicle?.id == v.id
-                                Surface(
-                                    onClick = {
-                                        selectedTripVehicle = v
-                                        showVehicleDropdown = false
-                                    },
-                                    color = if (isSelected) Color(0xFFEFF6FF) else Color.Transparent,
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 2.dp)
+                        }
+                    }
+
+                    if (showVehicleDropdown && userProfile.vehicles.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Divider(color = Color(0xFFE2E8F0))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Select vehicle for this trip:",
+                            fontSize = 11.sp,
+                            color = Color(0xFF64748B),
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        userProfile.vehicles.forEach { v ->
+                            val isSelected = selectedTripVehicle?.id == v.id
+                            Surface(
+                                onClick = {
+                                    selectedTripVehicle = v
+                                    showVehicleDropdown = false
+                                },
+                                color = if (isSelected) Color(0xFFEFF6FF) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "${v.vehicleTypeEnum.iconEmoji} ${v.fullDisplayName}",
-                                            color = if (isSelected) Color(0xFF0052CC) else Color(0xFF0F172A),
-                                            fontSize = 13.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                        if (v.id == userProfile.activeVehicleId) {
-                                            Text("★ Default", fontSize = 10.sp, color = Color(0xFFD97706), fontWeight = FontWeight.Bold)
-                                        }
+                                    Text(
+                                        text = "${v.vehicleTypeEnum.iconEmoji} ${v.fullDisplayName}",
+                                        color = if (isSelected) Color(0xFF0052CC) else Color(0xFF0F172A),
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                    if (v.id == userProfile.activeVehicleId) {
+                                        Text("★ Default", fontSize = 10.sp, color = Color(0xFFD97706), fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                // 3. DEDICATED METHOD VIEWS
-                when (currentCreationMode) {
-                    TripCreationMode.DOCUMENT -> {
-                        // 📄 METHOD 1: DEDICATED ITINERARY DOCUMENT UPLOAD VIEW
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.UploadFile, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(22.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Upload Itinerary Document",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                    }
-                                    Surface(
-                                        color = Color(0xFFEFF6FF),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "AI AUTO-PLAN",
-                                            color = Color(0xFF0052CC),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Black,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
+            // 3. Main Trip Information (Title & Dates)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Trip Essentials",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
 
-                                Text(
-                                    text = "Upload your trip document (.pdf, .docx, .txt, .png, .jpg <= 10MB). AI will automatically parse the multi-day schedule, geocode coordinates, and organize stops.",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF475569),
-                                    modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
-                                )
-
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.padding(bottom = 14.dp)
-                                ) {
-                                    listOf("PDF", "DOCX", "TXT", "PNG", "JPG").forEach { ext ->
-                                        Surface(
-                                            color = Color(0xFFF8FAFC),
-                                            shape = RoundedCornerShape(6.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1))
-                                        ) {
-                                            Text(
-                                                text = ext,
-                                                color = Color(0xFF0F172A),
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Button(
-                                    onClick = { documentPickerLauncher.launch("*/*") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp)
-                                        .background(
-                                            brush = Brush.horizontalGradient(
-                                                colors = listOf(Color(0xFF0052CC), Color(0xFF003399))
-                                            ),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                ) {
-                                    Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Select Itinerary Document / Photo", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                                }
-                            }
-                        }
-
-                        // Extracted Itinerary Breakdown (if document parsed)
-                        currentItineraryPlan?.let { plan ->
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
-                                shape = RoundedCornerShape(16.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF059669)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = "Extracted Trip Itinerary",
-                                            color = Color(0xFF059669),
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Surface(
-                                            color = Color(0xFFECFDF5),
-                                            shape = RoundedCornerShape(6.dp)
-                                        ) {
-                                            Text(
-                                                text = "${plan.days.size} Days • ${plan.days.sumOf { it.stops.size }} Stops",
-                                                color = Color(0xFF059669),
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Black,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    OutlinedTextField(
-                                        value = tripTitle,
-                                        onValueChange = { tripTitle = it },
-                                        label = { Text("Trip Title") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedContainerColor = Color(0xFFFFFFFF),
-                                            unfocusedContainerColor = Color(0xFFFFFFFF),
-                                            focusedTextColor = Color(0xFF0F172A),
-                                            unfocusedTextColor = Color(0xFF0F172A),
-                                            focusedLabelColor = Color(0xFF0052CC),
-                                            unfocusedLabelColor = Color(0xFF64748B),
-                                            focusedPlaceholderColor = Color(0xFF64748B),
-                                            unfocusedPlaceholderColor = Color(0xFF64748B),
-                                            cursorColor = Color(0xFF0052CC),
-                                            focusedBorderColor = Color(0xFF0052CC),
-                                            unfocusedBorderColor = Color(0xFFCBD5E1)
-                                        )
-                                    )
-
-                                    plan.days.forEachIndexed { dIdx, day ->
-                                        Surface(
-                                            color = Color(0xFFF8FAFC),
-                                            shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp)
-                                        ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Surface(
-                                                        color = Color(0xFF059669),
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        modifier = Modifier.size(24.dp)
-                                                    ) {
-                                                        Box(contentAlignment = Alignment.Center) {
-                                                            Text("${day.dayNumber}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
-                                                        }
-                                                    }
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(day.dayTitle, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                                }
-
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                day.stops.forEachIndexed { sIdx, stop ->
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.padding(vertical = 2.dp)
-                                                    ) {
-                                                        Text("• Stop ${sIdx + 1}: ${stop.stopName}", color = Color(0xFF1E293B), fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                                        if (stop.estimatedVisitTime.isNotBlank()) {
-                                                            Text(" (${stop.estimatedVisitTime})", color = Color(0xFF0052CC), fontSize = 11.sp)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    TextButton(
-                                        onClick = {
-                                            currentItineraryPlan = null
-                                            multiDaySegments.clear()
-                                        },
-                                        modifier = Modifier.align(Alignment.End)
-                                    ) {
-                                        Text("Clear & Re-Upload", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    TripCreationMode.MAP_LINKS -> {
-                        // 🗺️ METHOD 2: DEDICATED DAY-BY-DAY GOOGLE MAPS LINKS VIEW
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(22.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Day-by-Day Google Maps Links",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                    }
-                                    Surface(
-                                        color = Color(0xFFEFF6FF),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "${multiDaySegments.size} DAYS",
-                                            color = Color(0xFF0052CC),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Black,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = "Paste Google Maps links for multi-day itineraries (Day 1, Day 2, etc.). Shortened maps.app.goo.gl and full URLs are auto-analyzed to extract stops.",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF475569),
-                                    modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)
-                                )
-
-                                OutlinedTextField(
-                                    value = tripTitle,
-                                    onValueChange = { tripTitle = it },
-                                    label = { Text("Trip Title") },
-                                    placeholder = { Text("Enter multi-day tour title") },
-                                    leadingIcon = { Icon(Icons.Default.Route, contentDescription = null, tint = Color(0xFF0052CC)) },
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 10.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFFFFFFF),
-                                        unfocusedContainerColor = Color(0xFFFFFFFF),
-                                        focusedTextColor = Color(0xFF0F172A),
-                                        unfocusedTextColor = Color(0xFF0F172A),
-                                        focusedLabelColor = Color(0xFF0052CC),
-                                        unfocusedLabelColor = Color(0xFF64748B),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF0052CC),
-                                        focusedBorderColor = Color(0xFF0052CC),
-                                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                                    )
-                                )
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    TripDatePickerField(
-                                        value = tripStartDate,
-                                        onDateSelected = { tripStartDate = it },
-                                        label = "Trip Start Date",
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    TripDatePickerField(
-                                        value = tripEndDate,
-                                        onDateSelected = { tripEndDate = it },
-                                        label = "Trip End Date",
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-
-                                // Day Route Link Quick Paste Input
-                                OutlinedTextField(
-                                    value = mainGoogleMapsUrlInput,
-                                    onValueChange = { url ->
-                                        mainGoogleMapsUrlInput = url
-                                        if (url.isNotBlank() && (url.contains("maps.app") || url.contains("/dir/"))) {
-                                            importRouteFromGoogleMapsUrl(url)
-                                        }
-                                    },
-                                    label = { Text("Paste Google Maps Route Link (Day ${multiDaySegments.size + 1})") },
-                                    placeholder = { Text("https://maps.app.goo.gl/... or /dir/...") },
-                                    leadingIcon = { Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC)) },
-                                    trailingIcon = {
-                                        if (isImportingRouteLink) {
-                                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF0052CC), strokeWidth = 2.dp)
-                                        } else if (mainGoogleMapsUrlInput.isNotBlank()) {
-                                            IconButton(onClick = { importRouteFromGoogleMapsUrl(mainGoogleMapsUrlInput) }) {
-                                                Icon(Icons.Default.Refresh, contentDescription = "Re-analyze", tint = Color(0xFF0052CC))
-                                            }
-                                        }
-                                    },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFFFFFFF),
-                                        unfocusedContainerColor = Color(0xFFFFFFFF),
-                                        focusedTextColor = Color(0xFF0F172A),
-                                        unfocusedTextColor = Color(0xFF0F172A),
-                                        focusedLabelColor = Color(0xFF0052CC),
-                                        unfocusedLabelColor = Color(0xFF64748B),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = Color(0xFF0052CC),
-                                        focusedBorderColor = Color(0xFF0052CC),
-                                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                 Button(
-                                     onClick = { showAddSegmentDialog = true },
-                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
-                                     shape = RoundedCornerShape(10.dp),
-                                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
-                                     modifier = Modifier.fillMaxWidth().height(42.dp)
-                                 ) {
-                                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                     Spacer(modifier = Modifier.width(4.dp))
-                                     Text("+ Add Day Route", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                 }
-
-                                if (multiDaySegments.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(14.dp))
-                                    Text(
-                                        text = "Configured Day Routes (${multiDaySegments.size}):",
-                                        color = Color(0xFF0F172A),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(bottom = 6.dp)
-                                    )
-
-                                    multiDaySegments.forEachIndexed { index, segment ->
-                                        Surface(
-                                            color = Color(0xFFF8FAFC),
-                                            shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(12.dp)
-                                            ) {
-                                                Surface(
-                                                    color = Color(0xFF0052CC),
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    modifier = Modifier.size(26.dp)
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
-                                                    }
-                                                }
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(segment.segmentName.ifBlank { "Day ${index + 1}" }, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                                    Text("${segment.originName} ➔ ${segment.destinationName}", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                                                    if (segment.waypoints.isNotEmpty()) {
-                                                        Text("📍 Stops (${segment.waypoints.size}): ${segment.waypoints.joinToString(" ➔ ")}", color = Color(0xFF38BDF8), fontSize = 11.sp)
-                                                    }
-                                                    Text("📏 ${"%.1f".format(segment.distanceKm)} KM • ⏱️ ${segment.estimatedDurationMinutes / 60}h ${segment.estimatedDurationMinutes % 60}m", color = Color(0xFFFBBF24), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                                IconButton(
-                                                    onClick = {
-                                                        if (index < multiDaySegments.size) {
-                                                            multiDaySegments.removeAt(index)
-                                                        }
-                                                    }
-                                                ) {
-                                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(14.dp))
-                                    Button(
-                                        onClick = {
-                                            val finalTitle = tripTitle.ifBlank { "Multi-Day Tour (${multiDaySegments.size} Days)" }
-                                            val itineraryDays = multiDaySegments.mapIndexed { idx, seg ->
-                                                ItineraryDay(
-                                                    dayNumber = idx + 1,
-                                                    dayTitle = seg.segmentName.ifBlank { "Day ${idx + 1}" },
-                                                    date = tripStartDate,
-                                                    stops = listOf(
-                                                        ItineraryStop(
-                                                            stopId = "stop_${idx}_0",
-                                                            stopName = seg.originName.ifBlank { "Start Point" },
-                                                            activityDescription = "Starting Location",
-                                                            googleMapsUrl = seg.googleMapsUrl,
-                                                            orderIndex = 0
-                                                        )
-                                                    ) + seg.waypoints.mapIndexed { wIdx, wp ->
-                                                        ItineraryStop(
-                                                            stopId = "stop_${idx}_${wIdx + 1}",
-                                                            stopName = wp,
-                                                            activityDescription = "Scheduled Milestone",
-                                                            googleMapsUrl = seg.googleMapsUrl,
-                                                            orderIndex = wIdx + 1
-                                                        )
-                                                    } + listOf(
-                                                        ItineraryStop(
-                                                            stopId = "stop_${idx}_${seg.waypoints.size + 1}",
-                                                            stopName = seg.destinationName.ifBlank { "Destination" },
-                                                            activityDescription = "End of Day Leg",
-                                                            googleMapsUrl = seg.googleMapsUrl,
-                                                            orderIndex = seg.waypoints.size + 1
-                                                        )
-                                                    )
-                                                )
-                                            }
-
-                                            val autoPlan = ItineraryTripPlan(
-                                                planId = "plan_${System.currentTimeMillis()}",
-                                                creationMode = TripCreationMode.MAP_LINKS,
-                                                tripTitle = finalTitle,
-                                                startDate = tripStartDate,
-                                                totalDuration = "${multiDaySegments.size} Days Planned",
-                                                days = itineraryDays
-                                            )
-
-                                            val totalDist = multiDaySegments.sumOf { it.distanceKm }.let { if (it > 0) it else 240.0 }
-                                            val totalDur = multiDaySegments.sumOf { it.estimatedDurationMinutes }.let { if (it > 0) it else 360 }
-
-                                            val newSavedTrip = SavedTrip(
-                                                tripId = "TRIP-SAVED-${System.currentTimeMillis()}",
-                                                plannerId = userProfile.userId.ifBlank { "user_host" },
-                                                title = finalTitle,
-                                                originName = multiDaySegments.firstOrNull()?.originName ?: origin,
-                                                destinationName = multiDaySegments.lastOrNull()?.destinationName ?: destination,
-                                                startLatLng = startLatLng,
-                                                destLatLng = destLatLng,
-                                                distanceKm = totalDist,
-                                                durationMinutes = totalDur,
-                                                role = selectedRole,
-                                                category = TripCategory.UPCOMING,
-                                                lobbyCode = generatedLobbyCode,
-                                                scheduledDate = tripStartDate,
-                                                joinedRiders = listOf(
-                                                    JoinedRiderProfile(
-                                                        riderId = userProfile.userId.ifBlank { "rider_me" },
-                                                        displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                                        bikeModel = userProfile.displayVehicleModel,
-                                                        role = selectedRole,
-                                                        status = "Lead Navigator",
-                                                        experienceBadge = "Trip Host",
-                                                        emergencyContact = userProfile.privacySettings.emergencyContactPhone
-                                                    )
-                                                ),
-                                                routeSegments = multiDaySegments.toList(),
-                                                itineraryPlan = autoPlan
-                                            )
-                                            TripRepository.saveTrip(newSavedTrip)
-                                            selectedScreenTab = 1 // Switch to Saved Trips to display the trip card
-                                            Toast.makeText(context, "Saved '$finalTitle' with ${multiDaySegments.size} day routes!", Toast.LENGTH_SHORT).show()
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color.Black),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.fillMaxWidth().height(46.dp)
-                                    ) {
-                                        Icon(Icons.Default.BookmarkAdded, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("💾 Save Trip & Build Itinerary (${multiDaySegments.size} Days)", fontWeight = FontWeight.Black, fontSize = 13.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    TripCreationMode.MANUAL_SEARCH -> {
-                        // 📍 METHOD 3: DEDICATED DIRECT IN-APP ROUTE BUILDER VIEW
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = "Origin & Destination Search",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A),
-                                    modifier = Modifier.padding(bottom = 10.dp)
-                                )
-
-                                OutlinedTextField(
-                                    value = tripTitle,
-                                    onValueChange = { tripTitle = it },
-                                    label = { Text("Trip Title") },
-                                    placeholder = { Text("Enter your custom trip title") },
-                                    leadingIcon = { Icon(Icons.Default.Route, contentDescription = null, tint = accentColor) },
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFFFFFFF),
-                                        unfocusedContainerColor = Color(0xFFFFFFFF),
-                                        focusedTextColor = Color(0xFF0F172A),
-                                        unfocusedTextColor = Color(0xFF0F172A),
-                                        focusedLabelColor = accentColor,
-                                        unfocusedLabelColor = Color(0xFF64748B),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = accentColor,
-                                        focusedBorderColor = accentColor,
-                                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                                    )
-                                )
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    TripDatePickerField(
-                                        value = tripStartDate,
-                                        onDateSelected = { tripStartDate = it },
-                                        label = "Trip Start Date",
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    TripDatePickerField(
-                                        value = tripEndDate,
-                                        onDateSelected = { tripEndDate = it },
-                                        label = "Trip End Date",
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-
-                                // Multi-Day Day Routes (Direct Multi-Leg Creation)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 8.dp)
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Multi-Day Direct Route Legs (${multiDaySegments.size})",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0F172A)
-                                        )
-                                        Text(
-                                            text = "Add day-by-day legs with start, destination & stop location search",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF64748B)
-                                        )
-                                    }
-
-                                    Button(
-                                        onClick = { showAddSegmentDialog = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
-                                        shape = RoundedCornerShape(10.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("+ Add Day Route", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-
-                                if (multiDaySegments.isNotEmpty()) {
-                                    multiDaySegments.forEachIndexed { index, segment ->
-                                        Surface(
-                                            color = Color(0xFFF8FAFC),
-                                            shape = RoundedCornerShape(12.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(12.dp)
-                                            ) {
-                                                Surface(
-                                                    color = Color(0xFF0052CC),
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    modifier = Modifier.size(26.dp)
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
-                                                    }
-                                                }
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(segment.segmentName.ifBlank { "Day ${index + 1}" }, color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                                    Text("${segment.originName} ➔ ${segment.destinationName}", color = Color(0xFF475569), fontSize = 12.sp)
-                                                    if (segment.waypoints.isNotEmpty()) {
-                                                        Text("📍 Stops (${segment.waypoints.size}): ${segment.waypoints.joinToString(" ➔ ")}", color = Color(0xFF0052CC), fontSize = 11.sp)
-                                                    }
-                                                    Text("📏 ${"%.1f".format(segment.distanceKm)} KM • ⏱️ ${segment.estimatedDurationMinutes / 60}h ${segment.estimatedDurationMinutes % 60}m", color = Color(0xFFD97706), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                                IconButton(
-                                                    onClick = {
-                                                        if (index < multiDaySegments.size) {
-                                                            multiDaySegments.removeAt(index)
-                                                        }
-                                                    }
-                                                ) {
-                                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                                                }
-                                            }
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    HorizontalDivider(color = Color(0xFFE2E8F0))
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                }
-
-                                OutlinedTextField(
-                                    value = origin,
-                                    onValueChange = { origin = it },
-                                    label = { Text("Start Location (Origin)") },
-                                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF059669)) },
-                                    trailingIcon = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            IconButton(
-                                                onClick = {
-                                                    searchTargetField = "START"
-                                                    searchQuery = ""
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF0052CC))
-                                            }
-                                            IconButton(
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        val phoneGps = LiveLocationEngine.getCurrentPhoneLocation(context, forceFresh = true)
-                                                        if (phoneGps != null) {
-                                                            startLatLng = phoneGps
-                                                            origin = "Current Phone GPS (${"%.4f".format(phoneGps.latitude)}, ${"%.4f".format(phoneGps.longitude)})"
-                                                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startLatLng, 14f))
-                                                            Toast.makeText(context, "Start location set to your live mobile GPS!", Toast.LENGTH_SHORT).show()
-                                                        } else {
-                                                            startLatLng = LatLng(17.3753, 78.4344)
-                                                            origin = "Current GPS (17.3753, 78.4344)"
-                                                            cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startLatLng, 12f))
-                                                            Toast.makeText(context, "Fetching GPS location... Ensure Location services are active.", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.MyLocation, contentDescription = "Use Real Mobile GPS", tint = Color(0xFF059669))
-                                            }
-                                        }
-                                    },
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 12.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFFFFFFF),
-                                        unfocusedContainerColor = Color(0xFFFFFFFF),
-                                        focusedTextColor = Color(0xFF0F172A),
-                                        unfocusedTextColor = Color(0xFF0F172A),
-                                        focusedLabelColor = Color(0xFF059669),
-                                        unfocusedLabelColor = Color(0xFF64748B),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = accentColor,
-                                        focusedBorderColor = Color(0xFF059669),
-                                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                                    )
-                                )
-
-                                Row(
-                                    horizontalArrangement = Arrangement.End,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 6.dp)
-                                ) {
-                                    TextButton(
-                                        onClick = {
-                                            val tempName = origin
-                                            origin = destination
-                                            destination = tempName
-
-                                            val tempLatLng = startLatLng
-                                            startLatLng = destLatLng
-                                            destLatLng = tempLatLng
-                                        }
-                                    ) {
-                                        Icon(Icons.Default.SwapVert, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Swap Start & Destination", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-
-                                OutlinedTextField(
-                                    value = destination,
-                                    onValueChange = { destination = it },
-                                    label = { Text("Destination Location") },
-                                    leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFFDC2626)) },
-                                    trailingIcon = {
-                                        IconButton(
-                                            onClick = {
-                                                searchTargetField = "DEST"
-                                                searchQuery = ""
-                                            }
-                                        ) {
-                                            Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF0052CC))
-                                        }
-                                    },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFFFFFFF),
-                                        unfocusedContainerColor = Color(0xFFFFFFFF),
-                                        focusedTextColor = Color(0xFF0F172A),
-                                        unfocusedTextColor = Color(0xFF0F172A),
-                                        focusedLabelColor = Color(0xFFDC2626),
-                                        unfocusedLabelColor = Color(0xFF64748B),
-                                        focusedPlaceholderColor = Color(0xFF64748B),
-                                        unfocusedPlaceholderColor = Color(0xFF64748B),
-                                        cursorColor = accentColor,
-                                        focusedBorderColor = Color(0xFFDC2626),
-                                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                                    )
-                                )
-
-                                Button(
-                                    onClick = { syncAndRecalculateManualRoute() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 12.dp)
-                                ) {
-                                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Sync Locations & Update Route on Map", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                }
-                            }
-                        }
-
-                        // Interactive Google Map Route Corridor & Pin Picker Card
-                        Text(
-                            text = "Interactive Google Map Route Preview",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
-                            modifier = Modifier.padding(bottom = 10.dp)
+                    OutlinedTextField(
+                        value = tripTitle,
+                        onValueChange = { tripTitle = it },
+                        label = { Text("Trip Title") },
+                        placeholder = { Text("Enter your custom trip title") },
+                        leadingIcon = { Icon(Icons.Default.Route, contentDescription = null, tint = accentColor) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFFFFFFF),
+                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                            focusedTextColor = Color(0xFF0F172A),
+                            unfocusedTextColor = Color(0xFF0F172A),
+                            focusedLabelColor = accentColor,
+                            unfocusedLabelColor = Color(0xFF64748B),
+                            focusedPlaceholderColor = Color(0xFF64748B),
+                            unfocusedPlaceholderColor = Color(0xFF64748B),
+                            cursorColor = accentColor,
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
                         )
+                    )
 
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 20.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    FilterChip(
-                                        selected = mapPinSelectionMode == "START",
-                                        onClick = { mapPinSelectionMode = "START" },
-                                        label = { Text("📍 Set Start", fontSize = 12.sp) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Color(0xFF059669),
-                                            selectedLabelColor = Color.White,
-                                            containerColor = Color(0xFFF8FAFC),
-                                            labelColor = Color(0xFF475569)
-                                        )
-                                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        TripDatePickerField(
+                            value = tripStartDate,
+                            onDateSelected = { tripStartDate = it },
+                            label = "Trip Start Date",
+                            modifier = Modifier.weight(1f)
+                        )
+                        TripDatePickerField(
+                            value = tripEndDate,
+                            onDateSelected = { tripEndDate = it },
+                            label = "Trip End Date",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
 
-                                    FilterChip(
-                                        selected = mapPinSelectionMode == "DEST",
-                                        onClick = { mapPinSelectionMode = "DEST" },
-                                        label = { Text("🏁 Set Dest", fontSize = 12.sp) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Color(0xFFDC2626),
-                                            selectedLabelColor = Color.White,
-                                            containerColor = Color(0xFFF8FAFC),
-                                            labelColor = Color(0xFF475569)
-                                        )
-                                    )
+            // 4. Unified Route Creation Card (Google Maps Link Paste OR Origin/Destination Search)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Route Creation Options",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "Paste a Google Maps link OR search Start location, Destination & Stops below",
+                        fontSize = 12.sp,
+                        color = Color(0xFF475569),
+                        modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                    )
 
-                                    Spacer(modifier = Modifier.weight(1f))
-
-                                    IconButton(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startLatLng, 8f))
-                                            }
-                                        }
-                                    ) {
-                                        Icon(Icons.Default.Map, contentDescription = "Fit Route", tint = accentColor)
-                                    }
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(240.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
-                                ) {
-                                    GoogleMap(
-                                        modifier = Modifier.fillMaxSize(),
-                                        cameraPositionState = cameraPositionState,
-                                        uiSettings = MapUiSettings(
-                                            zoomControlsEnabled = true,
-                                            compassEnabled = true,
-                                            myLocationButtonEnabled = false,
-                                            mapToolbarEnabled = true
-                                        ),
-                                        properties = MapProperties(isTrafficEnabled = false),
-                                        onMapClick = { clickedLatLng ->
-                                            when (mapPinSelectionMode) {
-                                                "START" -> {
-                                                    startLatLng = clickedLatLng
-                                                    origin = "Map Pin (${"%.4f".format(clickedLatLng.latitude)}, ${"%.4f".format(clickedLatLng.longitude)})"
-                                                    Toast.makeText(context, "Start location set to map pin!", Toast.LENGTH_SHORT).show()
-                                                }
-                                                "DEST" -> {
-                                                    destLatLng = clickedLatLng
-                                                    destination = "Map Pin (${"%.4f".format(clickedLatLng.latitude)}, ${"%.4f".format(clickedLatLng.longitude)})"
-                                                    Toast.makeText(context, "Destination set to map pin!", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    ) {
-                                        Marker(
-                                            state = rememberMarkerState(position = startLatLng),
-                                            title = "Start: $origin",
-                                            snippet = "Convoy Origin",
-                                            icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
-                                                com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_GREEN
-                                            )
-                                        )
-
-                                        Marker(
-                                            state = rememberMarkerState(position = destLatLng),
-                                            title = "Destination: $destination",
-                                            snippet = "Convoy Target",
-                                            icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
-                                                com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED
-                                            )
-                                        )
-
-                                        waypointLatLngs.forEachIndexed { index, wpLatLng ->
-                                            val stopTitle = if (index < waypointNames.size) waypointNames[index] else "Stop ${index + 1}"
-                                            Marker(
-                                                state = rememberMarkerState(position = wpLatLng),
-                                                title = "Stop ${index + 1}: $stopTitle",
-                                                snippet = "Highway Rest / Regroup Point",
-                                                icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
-                                                    com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
-                                                )
-                                            )
-                                        }
-
-                                        if (activeRoutePolyline.isNotEmpty()) {
-                                            Polyline(
-                                                points = activeRoutePolyline,
-                                                color = Color(0xFF0052CC),
-                                                width = 12f
-                                            )
-                                        }
-                                    }
-
-                                    if (isFetchingRoute) {
-                                        Surface(
-                                            color = Color.White.copy(alpha = 0.9f),
-                                            shape = RoundedCornerShape(8.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
-                                            modifier = Modifier
-                                                .align(Alignment.TopCenter)
-                                                .padding(top = 10.dp)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                            ) {
-                                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("Calculating Road Route...", color = Color(0xFF0F172A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "📏 Route: ${"%.1f".format(estimatedDistanceKm)} KM",
-                                        color = Color(0xFF0F172A),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "⏱️ Est. Time: ${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m",
-                                        color = accentColor,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                    // OPTION A: Google Maps Link Paste Box
+                    OutlinedTextField(
+                        value = mainGoogleMapsUrlInput,
+                        onValueChange = { url ->
+                            mainGoogleMapsUrlInput = url
+                            if (url.isNotBlank() && (url.contains("maps.app") || url.contains("/dir/"))) {
+                                importRouteFromGoogleMapsUrl(url)
+                            }
+                        },
+                        label = { Text("Paste Google Maps Link (Auto-Extracts Route)") },
+                        placeholder = { Text("https://maps.app.goo.gl/... or /dir/...") },
+                        leadingIcon = { Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC)) },
+                        trailingIcon = {
+                            if (isImportingRouteLink) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF0052CC), strokeWidth = 2.dp)
+                            } else if (mainGoogleMapsUrlInput.isNotBlank()) {
+                                IconButton(onClick = { importRouteFromGoogleMapsUrl(mainGoogleMapsUrlInput) }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Import", tint = Color(0xFF0052CC))
                                 }
                             }
-                        }
+                        },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFFFFFFF),
+                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                            focusedTextColor = Color(0xFF0F172A),
+                            unfocusedTextColor = Color(0xFF0F172A),
+                            focusedLabelColor = Color(0xFF0052CC),
+                            unfocusedLabelColor = Color(0xFF64748B),
+                            focusedPlaceholderColor = Color(0xFF64748B),
+                            unfocusedPlaceholderColor = Color(0xFF64748B),
+                            cursorColor = Color(0xFF0052CC),
+                            focusedBorderColor = Color(0xFF0052CC),
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                        )
+                    )
 
-                        // Intermediate Highway Stops Section
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 10.dp)
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // OPTION B: Origin, Destination & Stops Search
+                    Text(
+                        text = "Or Search Start, Destination & Stops",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+
+                    // Origin Input
+                    OutlinedTextField(
+                        value = origin,
+                        onValueChange = { origin = it },
+                        label = { Text("Start Location (Origin)") },
+                        leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF059669)) },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = {
+                                        searchTargetField = "START"
+                                        searchQuery = ""
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF0052CC))
+                                }
+                                IconButton(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            val phoneGps = LiveLocationEngine.getCurrentPhoneLocation(context, forceFresh = true)
+                                            if (phoneGps != null) {
+                                                startLatLng = phoneGps
+                                                origin = "Current Phone GPS (${"%.4f".format(phoneGps.latitude)}, ${"%.4f".format(phoneGps.longitude)})"
+                                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startLatLng, 14f))
+                                                Toast.makeText(context, "Start location set to live GPS!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                startLatLng = LatLng(17.3753, 78.4344)
+                                                origin = "Current GPS (17.3753, 78.4344)"
+                                                cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startLatLng, 12f))
+                                                Toast.makeText(context, "Fetching GPS location...", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Default.MyLocation, contentDescription = "Use GPS", tint = Color(0xFF059669))
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFFFFFFF),
+                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                            focusedTextColor = Color(0xFF0F172A),
+                            unfocusedTextColor = Color(0xFF0F172A),
+                            focusedLabelColor = Color(0xFF059669),
+                            unfocusedLabelColor = Color(0xFF64748B),
+                            focusedPlaceholderColor = Color(0xFF64748B),
+                            unfocusedPlaceholderColor = Color(0xFF64748B),
+                            cursorColor = accentColor,
+                            focusedBorderColor = Color(0xFF059669),
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                        )
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val tempName = origin
+                                origin = destination
+                                destination = tempName
+
+                                val tempLatLng = startLatLng
+                                startLatLng = destLatLng
+                                destLatLng = tempLatLng
+                            }
                         ) {
+                            Icon(Icons.Default.SwapVert, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Swap Start & Destination", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Destination Input
+                    OutlinedTextField(
+                        value = destination,
+                        onValueChange = { destination = it },
+                        label = { Text("Destination Location") },
+                        leadingIcon = { Icon(Icons.Default.Flag, contentDescription = null, tint = Color(0xFFDC2626)) },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = {
+                                    searchTargetField = "DEST"
+                                    searchQuery = ""
+                                }
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = "Search Google Maps", tint = Color(0xFF0052CC))
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFFFFFFF),
+                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                            focusedTextColor = Color(0xFF0F172A),
+                            unfocusedTextColor = Color(0xFF0F172A),
+                            focusedLabelColor = Color(0xFFDC2626),
+                            unfocusedLabelColor = Color(0xFF64748B),
+                            focusedPlaceholderColor = Color(0xFF64748B),
+                            unfocusedPlaceholderColor = Color(0xFF64748B),
+                            cursorColor = accentColor,
+                            focusedBorderColor = Color(0xFFDC2626),
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                        )
+                    )
+
+                    Button(
+                        onClick = { syncAndRecalculateManualRoute() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                    ) {
+                        Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Sync Locations & Update Route on Map", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            // 5. Multi-Day Day Routes Section ("+ Add Day Route" direct option)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Intermediate Stops (${waypointNames.size})",
-                                fontSize = 16.sp,
+                                text = "Multi-Day Day Routes (${multiDaySegments.size})",
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
                             )
-
-                            Button(
-                                onClick = {
-                                    searchTargetField = "STOP"
-                                    searchQuery = ""
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
-                            ) {
-                                Icon(Icons.Default.AddLocation, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("+ Add Stop", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
+                            Text(
+                                text = "Add day-by-day legs using search or map links for multi-day trips",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
                         }
 
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 20.dp)
+                        Button(
+                            onClick = { showAddSegmentDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                if (waypointNames.isEmpty()) {
-                                    Text(
-                                        text = "No intermediate stops added yet. Tap '+ Add Stop' above to search places on Google Maps.",
-                                        color = Color(0xFF64748B),
-                                        fontSize = 13.sp,
-                                        modifier = Modifier.padding(vertical = 8.dp)
-                                    )
-                                } else {
-                                    waypointNames.forEachIndexed { index, wpName ->
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 6.dp)
-                                                .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
-                                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                                        ) {
-                                            Surface(
-                                                color = Color(0xFFEFF6FF),
-                                                shape = RoundedCornerShape(8.dp)
-                                            ) {
-                                                Text(
-                                                    text = "STOP ${index + 1}",
-                                                    color = Color(0xFF0052CC),
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = wpName,
-                                                color = Color(0xFF0F172A),
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            IconButton(
-                                                onClick = {
-                                                    if (index < waypointNames.size && index < waypointLatLngs.size) {
-                                                        waypointNames.removeAt(index)
-                                                        waypointLatLngs.removeAt(index)
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Delete Stop", tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("+ Add Day Route", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (multiDaySegments.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        multiDaySegments.forEachIndexed { index, segment ->
+                            Surface(
+                                color = Color(0xFFF8FAFC),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Surface(
+                                        color = Color(0xFF0052CC),
+                                        shape = RoundedCornerShape(6.dp),
+                                        modifier = Modifier.size(26.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(segment.segmentName.ifBlank { "Day ${index + 1}" }, color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text("${segment.originName} ➔ ${segment.destinationName}", color = Color(0xFF475569), fontSize = 12.sp)
+                                        if (segment.waypoints.isNotEmpty()) {
+                                            Text("📍 Stops (${segment.waypoints.size}): ${segment.waypoints.joinToString(" ➔ ")}", color = Color(0xFF0052CC), fontSize = 11.sp)
+                                        }
+                                        Text("📏 ${"%.1f".format(segment.distanceKm)} KM • ⏱️ ${segment.estimatedDurationMinutes / 60}h ${segment.estimatedDurationMinutes % 60}m", color = Color(0xFFD97706), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (index < multiDaySegments.size) {
+                                                multiDaySegments.removeAt(index)
                                             }
                                         }
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                // Permissions & Policy Setup Button
-                OutlinedButton(
-                    onClick = { showPermissionsDialog = true },
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF059669)),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFECFDF5), contentColor = Color(0xFF059669)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                ) {
-                    Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "🛡️ Device Permissions & Policy Setup",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            // 6. Interactive Google Map Route Preview Card & Distance Readout
+            Text(
+                text = "Interactive Google Map Route Preview",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A),
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
 
-                // Single Prominent "Save Trip" Button across all 3 Trip Creation modes
-                Button(
-                    onClick = {
-                        val finalTitle = tripTitle.ifBlank {
-                            if (origin.isNotBlank() && destination.isNotBlank()) "$origin to $destination Ride"
-                            else "Multi-Day Convoy Tour"
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterChip(
+                            selected = mapPinSelectionMode == "START",
+                            onClick = { mapPinSelectionMode = "START" },
+                            label = { Text("📍 Set Start", fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF059669),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF8FAFC),
+                                labelColor = Color(0xFF475569)
+                            )
+                        )
+
+                        FilterChip(
+                            selected = mapPinSelectionMode == "DEST",
+                            onClick = { mapPinSelectionMode = "DEST" },
+                            label = { Text("🏁 Set Dest", fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFFDC2626),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFFF8FAFC),
+                                labelColor = Color(0xFF475569)
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startLatLng, 8f))
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Map, contentDescription = "Fit Route", tint = accentColor)
                         }
-                        val freshLobbyCode = "TTS${(1000..9999).random()}"
+                    }
 
-                        val finalPlan = currentItineraryPlan ?: run {
-                            val dayStops = mutableListOf<ItineraryStop>()
-                            dayStops.add(
-                                ItineraryStop(
-                                    stopId = "stop_0",
-                                    stopName = origin.ifBlank { "Start Point" },
-                                    activityDescription = "Starting Point (Origin)",
-                                    latitude = startLatLng.latitude,
-                                    longitude = startLatLng.longitude,
-                                    status = ItineraryStopStatus.PENDING,
-                                    orderIndex = 0
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                    ) {
+                        GoogleMap(
+                            modifier = Modifier.fillMaxSize(),
+                            cameraPositionState = cameraPositionState,
+                            uiSettings = MapUiSettings(
+                                zoomControlsEnabled = true,
+                                compassEnabled = true,
+                                myLocationButtonEnabled = false,
+                                mapToolbarEnabled = true
+                            ),
+                            properties = MapProperties(isTrafficEnabled = false),
+                            onMapClick = { clickedLatLng ->
+                                when (mapPinSelectionMode) {
+                                    "START" -> {
+                                        startLatLng = clickedLatLng
+                                        origin = "Map Pin (${"%.4f".format(clickedLatLng.latitude)}, ${"%.4f".format(clickedLatLng.longitude)})"
+                                        Toast.makeText(context, "Start location set to map pin!", Toast.LENGTH_SHORT).show()
+                                    }
+                                    "DEST" -> {
+                                        destLatLng = clickedLatLng
+                                        destination = "Map Pin (${"%.4f".format(clickedLatLng.latitude)}, ${"%.4f".format(clickedLatLng.longitude)})"
+                                        Toast.makeText(context, "Destination set to map pin!", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        ) {
+                            Marker(
+                                state = rememberMarkerState(position = startLatLng),
+                                title = "Start: $origin",
+                                snippet = "Convoy Origin",
+                                icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
+                                    com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_GREEN
                                 )
                             )
-                            waypointNames.forEachIndexed { idx, wpName ->
-                                val latLng = waypointLatLngs.getOrNull(idx) ?: LatLng(0.0, 0.0)
-                                dayStops.add(
-                                    ItineraryStop(
-                                        stopId = "stop_${idx + 1}",
-                                        stopName = wpName,
-                                        activityDescription = "Intermediate Stop / Route Point",
-                                        latitude = latLng.latitude,
-                                        longitude = latLng.longitude,
-                                        status = ItineraryStopStatus.PENDING,
-                                        orderIndex = idx + 1
+
+                            Marker(
+                                state = rememberMarkerState(position = destLatLng),
+                                title = "Destination: $destination",
+                                snippet = "Convoy Target",
+                                icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
+                                    com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_RED
+                                )
+                            )
+
+                            waypointLatLngs.forEachIndexed { index, wpLatLng ->
+                                val stopTitle = if (index < waypointNames.size) waypointNames[index] else "Stop ${index + 1}"
+                                Marker(
+                                    state = rememberMarkerState(position = wpLatLng),
+                                    title = "Stop ${index + 1}: $stopTitle",
+                                    snippet = "Highway Rest / Regroup Point",
+                                    icon = com.google.android.gms.maps.model.BitmapDescriptorFactory.defaultMarker(
+                                        com.google.android.gms.maps.model.BitmapDescriptorFactory.HUE_AZURE
                                     )
                                 )
                             }
+
+                            if (activeRoutePolyline.isNotEmpty()) {
+                                Polyline(
+                                    points = activeRoutePolyline,
+                                    color = Color(0xFF0052CC),
+                                    width = 12f
+                                )
+                            }
+                        }
+
+                        if (isFetchingRoute) {
+                            Surface(
+                                color = Color.White.copy(alpha = 0.9f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC)),
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Calculating Road Route...", color = Color(0xFF0F172A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val displayDist = if (estimatedDistanceKm > 0) estimatedDistanceKm else DirectionsRepository.calculateRoadDistanceKm(startLatLng, destLatLng, waypointLatLngs.toList(), activeRoutePolyline)
+                        Text(
+                            text = "📏 Route: ${"%.1f".format(displayDist)} KM",
+                            color = Color(0xFF0F172A),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "⏱️ Est. Time: ${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m",
+                            color = accentColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // 7. Intermediate Highway Stops Section
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp)
+            ) {
+                Text(
+                    text = "Intermediate Stops (${waypointNames.size})",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF0F172A)
+                )
+
+                Button(
+                    onClick = {
+                        searchTargetField = "STOP"
+                        searchQuery = ""
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
+                ) {
+                    Icon(Icons.Default.AddLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("+ Add Stop", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    if (waypointNames.isEmpty()) {
+                        Text(
+                            text = "No intermediate stops added yet. Tap '+ Add Stop' above to search places on Google Maps.",
+                            color = Color(0xFF64748B),
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        waypointNames.forEachIndexed { index, wpName ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
+                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Surface(
+                                    color = Color(0xFFEFF6FF),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = "STOP ${index + 1}",
+                                        color = Color(0xFF0052CC),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = wpName,
+                                    color = Color(0xFF0F172A),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        if (index < waypointNames.size && index < waypointLatLngs.size) {
+                                            waypointNames.removeAt(index)
+                                            waypointLatLngs.removeAt(index)
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete Stop", tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Permissions & Policy Setup Button
+            OutlinedButton(
+                onClick = { showPermissionsDialog = true },
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF059669)),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFECFDF5), contentColor = Color(0xFF059669)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "🛡️ Device Permissions & Policy Setup",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Single Prominent "Save Trip" Button
+            Button(
+                onClick = {
+                    val finalTitle = tripTitle.ifBlank {
+                        if (origin.isNotBlank() && destination.isNotBlank()) "$origin to $destination Ride"
+                        else "Multi-Day Convoy Tour"
+                    }
+                    val freshLobbyCode = "TTS${(1000..9999).random()}"
+
+                    val finalPlan = currentItineraryPlan ?: run {
+                        val dayStops = mutableListOf<ItineraryStop>()
+                        dayStops.add(
+                            ItineraryStop(
+                                stopId = "stop_0",
+                                stopName = origin.ifBlank { "Start Point" },
+                                activityDescription = "Starting Point (Origin)",
+                                latitude = startLatLng.latitude,
+                                longitude = startLatLng.longitude,
+                                status = ItineraryStopStatus.PENDING,
+                                orderIndex = 0
+                            )
+                        )
+                        waypointNames.forEachIndexed { idx, wpName ->
+                            val latLng = waypointLatLngs.getOrNull(idx) ?: LatLng(0.0, 0.0)
                             dayStops.add(
                                 ItineraryStop(
-                                    stopId = "stop_${dayStops.size}",
-                                    stopName = destination.ifBlank { "Destination" },
-                                    activityDescription = "Ending Point (Destination)",
-                                    latitude = destLatLng.latitude,
-                                    longitude = destLatLng.longitude,
+                                    stopId = "stop_${idx + 1}",
+                                    stopName = wpName,
+                                    activityDescription = "Intermediate Stop / Route Point",
+                                    latitude = latLng.latitude,
+                                    longitude = latLng.longitude,
                                     status = ItineraryStopStatus.PENDING,
-                                    orderIndex = dayStops.size
+                                    orderIndex = idx + 1
                                 )
                             )
-                            ItineraryTripPlan(
-                                planId = "plan_${System.currentTimeMillis()}",
-                                creationMode = currentCreationMode,
-                                tripTitle = finalTitle,
-                                startDate = tripStartDate,
-                                totalDuration = if (multiDaySegments.isNotEmpty()) "${multiDaySegments.size} Days"
-                                                else if (estimatedDurationMin > 0) "${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m"
-                                                else "1 Day",
-                                days = if (multiDaySegments.isNotEmpty()) {
-                                    multiDaySegments.mapIndexed { idx, seg ->
-                                        ItineraryDay(
-                                            dayNumber = idx + 1,
-                                            dayTitle = seg.segmentName.ifBlank { "Day ${idx + 1}" },
-                                            date = tripStartDate,
-                                            stops = listOf(
-                                                ItineraryStop(stopId = "stop_${idx}_0", stopName = seg.originName.ifBlank { "Start" }, orderIndex = 0)
-                                            ) + seg.waypoints.mapIndexed { wIdx, wp ->
-                                                ItineraryStop(stopId = "stop_${idx}_${wIdx + 1}", stopName = wp, orderIndex = wIdx + 1)
-                                            } + listOf(
-                                                ItineraryStop(stopId = "stop_${idx}_${seg.waypoints.size + 1}", stopName = seg.destinationName.ifBlank { "End" }, orderIndex = seg.waypoints.size + 1)
-                                            )
-                                        )
-                                    }
-                                } else {
-                                    listOf(
-                                        ItineraryDay(
-                                            dayNumber = 1,
-                                            dayTitle = "Day 1: ${origin.ifBlank { "Start" }} to ${destination.ifBlank { "Destination" }}",
-                                            date = tripStartDate,
-                                            stops = dayStops
+                        }
+                        dayStops.add(
+                            ItineraryStop(
+                                stopId = "stop_${dayStops.size}",
+                                stopName = destination.ifBlank { "Destination" },
+                                activityDescription = "Ending Point (Destination)",
+                                latitude = destLatLng.latitude,
+                                longitude = destLatLng.longitude,
+                                status = ItineraryStopStatus.PENDING,
+                                orderIndex = dayStops.size
+                            )
+                        )
+                        ItineraryTripPlan(
+                            planId = "plan_${System.currentTimeMillis()}",
+                            creationMode = currentCreationMode,
+                            tripTitle = finalTitle,
+                            startDate = tripStartDate,
+                            totalDuration = if (multiDaySegments.isNotEmpty()) "${multiDaySegments.size} Days"
+                                            else if (estimatedDurationMin > 0) "${estimatedDurationMin / 60}h ${estimatedDurationMin % 60}m"
+                                            else "1 Day",
+                            days = if (multiDaySegments.isNotEmpty()) {
+                                multiDaySegments.mapIndexed { idx, seg ->
+                                    ItineraryDay(
+                                        dayNumber = idx + 1,
+                                        dayTitle = seg.segmentName.ifBlank { "Day ${idx + 1}" },
+                                        date = tripStartDate,
+                                        stops = listOf(
+                                            ItineraryStop(stopId = "stop_${idx}_0", stopName = seg.originName.ifBlank { "Start" }, orderIndex = 0)
+                                        ) + seg.waypoints.mapIndexed { wIdx, wp ->
+                                            ItineraryStop(stopId = "stop_${idx}_${wIdx + 1}", stopName = wp, orderIndex = wIdx + 1)
+                                        } + listOf(
+                                            ItineraryStop(stopId = "stop_${idx}_${seg.waypoints.size + 1}", stopName = seg.destinationName.ifBlank { "End" }, orderIndex = seg.waypoints.size + 1)
                                         )
                                     )
                                 }
-                            )
-                        }
-
-                        val formattedDateRange = if (tripStartDate.isNotBlank() && tripEndDate.isNotBlank() && tripStartDate != tripEndDate) {
-                            "$tripStartDate - $tripEndDate"
-                        } else tripStartDate.ifBlank { "Planned Upcoming Ride" }
-
-                        val newSavedTrip = SavedTrip(
-                            tripId = "TRIP-SAVED-${System.currentTimeMillis()}",
-                            plannerId = userProfile.userId.ifBlank { "user_host" },
-                            title = finalTitle,
-                            originName = origin.ifBlank { "Start Point" },
-                            destinationName = destination.ifBlank { "Destination" },
-                            startLatLng = startLatLng,
-                            destLatLng = destLatLng,
-                            waypoints = waypointNames.toList(),
-                            waypointLatLngs = waypointLatLngs.toList(),
-                            distanceKm = if (estimatedDistanceKm > 0) estimatedDistanceKm else (multiDaySegments.sumOf { it.distanceKm }.let { if (it > 0) it else 159.0 }),
-                            durationMinutes = if (estimatedDurationMin > 0) estimatedDurationMin else (multiDaySegments.sumOf { it.estimatedDurationMinutes }.let { if (it > 0) it else 214 }),
-                            role = selectedRole,
-                            category = TripCategory.UPCOMING,
-                            lobbyCode = freshLobbyCode,
-                            scheduledDate = formattedDateRange,
-                            joinedRiders = listOf(
-                                JoinedRiderProfile(
-                                    riderId = userProfile.userId.ifBlank { "rider_me" },
-                                    displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
-                                    bikeModel = selectedTripVehicle?.fullDisplayName ?: userProfile.displayVehicleModel,
-                                    role = selectedRole,
-                                    status = "Lead Navigator",
-                                    experienceBadge = "Trip Host",
-                                    emergencyContact = userProfile.privacySettings.emergencyContactPhone
+                            } else {
+                                listOf(
+                                    ItineraryDay(
+                                        dayNumber = 1,
+                                        dayTitle = "Day 1: ${origin.ifBlank { "Start" }} to ${destination.ifBlank { "Destination" }}",
+                                        date = tripStartDate,
+                                        stops = dayStops
+                                    )
                                 )
-                            ),
-                            routeSegments = multiDaySegments.toList(),
-                            itineraryPlan = finalPlan
+                            }
                         )
-                        TripRepository.saveTrip(newSavedTrip)
-                        Toast.makeText(context, "Trip '$finalTitle' saved! Code: $freshLobbyCode", Toast.LENGTH_LONG).show()
-                        selectedScreenTab = 1
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(bottom = 8.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(Color(0xFF0052CC), Color(0xFF003399))
-                            ),
-                            shape = RoundedCornerShape(16.dp)
+                    }
+
+                    val formattedDateRange = if (tripStartDate.isNotBlank() && tripEndDate.isNotBlank() && tripStartDate != tripEndDate) {
+                        "$tripStartDate - $tripEndDate"
+                    } else tripStartDate.ifBlank { "Planned Upcoming Ride" }
+
+                    val calcDist = DirectionsRepository.calculateRoadDistanceKm(
+                        startLatLng, destLatLng, waypointLatLngs.toList(), activeRoutePolyline
+                    )
+                    val finalDist = if (multiDaySegments.isNotEmpty()) {
+                        multiDaySegments.sumOf { it.distanceKm }.let { if (it > 0) it else calcDist }
+                    } else {
+                        if (estimatedDistanceKm > 0) estimatedDistanceKm else calcDist
+                    }
+                    val finalDur = if (multiDaySegments.isNotEmpty()) {
+                        multiDaySegments.sumOf { it.estimatedDurationMinutes }.let { if (it > 0) it else (finalDist * 1.35).toInt() }
+                    } else {
+                        if (estimatedDurationMin > 0) estimatedDurationMin else (finalDist * 1.35).toInt()
+                    }
+
+                    val newSavedTrip = SavedTrip(
+                        tripId = "TRIP-SAVED-${System.currentTimeMillis()}",
+                        plannerId = userProfile.userId.ifBlank { "user_host" },
+                        title = finalTitle,
+                        originName = origin.ifBlank { "Start Point" },
+                        destinationName = destination.ifBlank { "Destination" },
+                        startLatLng = startLatLng,
+                        destLatLng = destLatLng,
+                        waypoints = waypointNames.toList(),
+                        waypointLatLngs = waypointLatLngs.toList(),
+                        distanceKm = finalDist,
+                        durationMinutes = finalDur,
+                        role = selectedRole,
+                        category = TripCategory.UPCOMING,
+                        lobbyCode = freshLobbyCode,
+                        scheduledDate = formattedDateRange,
+                        joinedRiders = listOf(
+                            JoinedRiderProfile(
+                                riderId = userProfile.userId.ifBlank { "rider_me" },
+                                displayName = "${userProfile.displayName.ifBlank { "Rider" }} (Host)",
+                                bikeModel = selectedTripVehicle?.fullDisplayName ?: userProfile.displayVehicleModel,
+                                role = selectedRole,
+                                status = "Lead Navigator",
+                                experienceBadge = "Trip Host",
+                                emergencyContact = userProfile.privacySettings.emergencyContactPhone
+                            )
                         ),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
-                    elevation = ButtonDefaults.buttonElevation(6.dp)
-                ) {
-                    Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save Trip", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
-                }
+                        routeSegments = multiDaySegments.toList(),
+                        itineraryPlan = finalPlan
+                    )
+                    TripRepository.saveTrip(newSavedTrip)
+                    Toast.makeText(context, "Trip '$finalTitle' saved! Code: $freshLobbyCode", Toast.LENGTH_LONG).show()
+                    selectedScreenTab = 1
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(bottom = 8.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(Color(0xFF0052CC), Color(0xFF003399))
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                elevation = ButtonDefaults.buttonElevation(6.dp)
+            ) {
+                Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Save Trip", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
             }
+        }
 
         var geocoderResults by remember { mutableStateOf<List<PlaceSearchResult>>(emptyList()) }
         var isGeocoding by remember { mutableStateOf(false) }

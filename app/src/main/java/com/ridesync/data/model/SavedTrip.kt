@@ -15,7 +15,11 @@ data class JoinedRiderProfile(
     val role: ConvoyRole,
     val status: String = "Confirmed & Ready",
     val experienceBadge: String = "Pro Tourer",
-    val emergencyContact: String = ""
+    val emergencyContact: String = "",
+    val photoUrl: String = "",
+    val profileCode: String = "",
+    val email: String = "",
+    val mobileNumber: String = ""
 )
 
 data class SavedTrip(
@@ -43,5 +47,12 @@ data class SavedTrip(
     val routeSegments: List<TripRouteSegment> = emptyList(),
     val activeSegmentId: String = "",
     val itineraryPlan: ItineraryTripPlan? = null
-)
+) {
+    val formattedTripCode: String
+        get() = if (lobbyCode.isNotBlank()) {
+            if (lobbyCode.startsWith("TTS")) lobbyCode else "TTS${lobbyCode.replace("RSS", "")}"
+        } else {
+            "TTS-${(tripId.hashCode() % 9000 + 1000).let { if (it < 0) -it else it }}"
+        }
+}
 
