@@ -33,6 +33,7 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.*
 import com.ridesync.data.model.ConvoyRole
 import com.ridesync.data.model.JoinedRiderProfile
+import com.ridesync.ui.theme.HudColors
 import com.ridesync.data.model.SavedTrip
 import com.ridesync.data.model.TripCategory
 import com.ridesync.data.model.TripRouteSegment
@@ -3392,6 +3393,7 @@ fun SavedTripsHistoryScreen(
     onStartTripClick: (tripTitle: String, role: ConvoyRole, origin: String, destination: String, waypoints: List<String>, routePolyline: List<LatLng>) -> Unit,
     onShareLobbyClick: (lobbyCode: String) -> Unit,
     userProfile: UserProfile = UserProfile(userId = "user_me", displayName = "Ahmed (You)"),
+    onOpenJoinTrip: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -3427,27 +3429,45 @@ fun SavedTripsHistoryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF1F5F9))
+            .background(HudColors.ObsidianCanvas)
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         // 1. Screen Header
-        Text(
-            text = "Trip History & Saved Rides",
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Black,
-            color = Color(0xFF0F172A)
-        )
-        Text(
-            text = "View all trips you created, joined convoys, upcoming, and completed tours",
-            fontSize = 13.sp,
-            color = Color(0xFF475569),
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Trip History & Saved Rides",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+                Text(
+                    text = "View all trips, created convoys, and completed tours",
+                    fontSize = 12.sp,
+                    color = HudColors.TextCoolSilver
+                )
+            }
+
+            Button(
+                onClick = onOpenJoinTrip,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E), contentColor = Color.White),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Join Trip", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
 
         // 2. Rider Lifetime Stats Card
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+            colors = CardDefaults.cardColors(containerColor = HudColors.ObsidianSurface),
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -3463,7 +3483,7 @@ fun SavedTripsHistoryScreen(
                     text = "🏆 Rider Activity & Tour Stats",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
+                    color = Color.White,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -3471,11 +3491,11 @@ fun SavedTripsHistoryScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StatBox(title = "Total Distance", value = "${totalDistCompleted.toInt()} KM", accentColor = Color(0xFF0052CC), modifier = Modifier.weight(1f))
+                    StatBox(title = "Total Distance", value = "${totalDistCompleted.toInt()} KM", accentColor = HudColors.CyanPrimary, modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
-                    StatBox(title = "Completed Rides", value = "$completedCount Rides", accentColor = Color(0xFF16A34A), modifier = Modifier.weight(1f))
+                    StatBox(title = "Completed Rides", value = "$completedCount Rides", accentColor = Color(0xFF22C55E), modifier = Modifier.weight(1f))
                     Spacer(modifier = Modifier.width(8.dp))
-                    StatBox(title = "Upcoming Saved", value = "$upcomingCount Trips", accentColor = Color(0xFF0052CC), modifier = Modifier.weight(1f))
+                    StatBox(title = "Upcoming Saved", value = "$upcomingCount Trips", accentColor = HudColors.CyanPrimary, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -3498,15 +3518,15 @@ fun SavedTripsHistoryScreen(
                 Surface(
                     onClick = { activeCategoryFilter = catKey },
                     shape = androidx.compose.foundation.shape.CircleShape,
-                    color = if (isSelected) Color(0xFF0052CC) else Color(0xFFFFFFFF),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF0052CC) else Color(0xFFCBD5E1)),
+                    color = if (isSelected) Color(0xFF0052CC) else HudColors.ObsidianSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF0052CC) else HudColors.ObsidianBorder),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = catLabel,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                        color = if (isSelected) Color.White else Color(0xFF0F172A),
+                        color = if (isSelected) Color.White else HudColors.TextCoolSilver,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
                         maxLines = 1
@@ -3550,15 +3570,15 @@ fun SavedTripsHistoryScreen(
             text = "Trip History Records (${filteredTrips.size})",
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A),
+            color = Color.White,
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
         if (filteredTrips.isEmpty()) {
             Surface(
-                color = Color(0xFFFFFFFF),
+                color = HudColors.ObsidianSurface,
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, HudColors.ObsidianBorder),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
@@ -3567,18 +3587,18 @@ fun SavedTripsHistoryScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.BookmarkBorder, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(36.dp))
+                    Icon(Icons.Default.BookmarkBorder, contentDescription = null, tint = HudColors.TextCoolSilver, modifier = Modifier.size(36.dp))
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "No trips found in '$activeCategoryFilter' filter.",
-                        color = Color(0xFF0F172A),
+                        color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         text = "Create a new ride or join a convoy using a lobby code.",
-                        color = Color(0xFF64748B),
+                        color = HudColors.TextCoolSilver,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(top = 4.dp)
@@ -3616,109 +3636,74 @@ fun SavedTripsHistoryScreen(
     }
 
     // Full Trip Details Dialog
-    if (selectedTripForDetails != null) {
-        val trip = selectedTripForDetails!!
-        AlertDialog(
-            onDismissRequest = { selectedTripForDetails = null },
-            containerColor = Color(0xFFFFFFFF),
-            shape = RoundedCornerShape(22.dp),
-            modifier = Modifier.border(
-                width = 1.5.dp,
-                brush = Brush.horizontalGradient(listOf(Color(0xFF0052CC), Color(0xFF3B82F6))),
-                shape = RoundedCornerShape(22.dp)
-            ),
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "🗺️", fontSize = 20.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = trip.title,
-                            color = Color(0xFF0F172A),
-                            fontWeight = FontWeight.Black,
-                            fontSize = 18.sp,
-                            maxLines = 1
-                        )
-                    }
-                    IconButton(onClick = { selectedTripForDetails = null }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF64748B))
-                    }
-                }
+    selectedTripForDetails?.let { trip ->
+        TripFullDetailsDialog(
+            trip = trip,
+            currentUserId = userProfile.userId.ifBlank { "user_me" },
+            onDismiss = { selectedTripForDetails = null },
+            onLoadInPlanner = {
+                selectedTripForDetails = null
             },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Text(text = "Scheduled: ${trip.scheduledDate} • Category: ${trip.category.name}", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(text = "📍 Route Details:", color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "• Origin: ${trip.originName}", color = Color(0xFF475569), fontSize = 13.sp)
-                    Text(text = "• Destination: ${trip.destinationName}", color = Color(0xFF475569), fontSize = 13.sp)
-                    Text(text = "• Distance: ${trip.distanceKm.toInt()} km", color = Color(0xFF475569), fontSize = 13.sp)
-                    if (trip.waypoints.isNotEmpty()) {
-                        Text(text = "• Waypoints: ${trip.waypoints.joinToString(", ")}", color = Color(0xFFD97706), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = Color(0xFFE2E8F0))
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(text = "👥 Joined Convoy Members (${trip.joinedRiders.size}):", color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    trip.joinedRiders.forEach { rider ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text(text = "🏍️", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(text = rider.displayName, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text(text = "${rider.bikeModel} • ${rider.role.name}", color = Color(0xFF64748B), fontSize = 11.sp)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "🔑 Lobby Join Code: ${trip.lobbyCode}", color = Color(0xFF0052CC), fontSize = 13.sp, fontWeight = FontWeight.Black)
+            onLaunchTrip = {
+                TripRepository.setOngoingTrip(trip.tripId)
+                if (trip.routeSegments.isNotEmpty()) {
+                    pendingTripForDaySelection = trip
+                } else {
+                    val currentPolyline = if (trip.waypointLatLngs.isNotEmpty()) listOf(trip.startLatLng) + trip.waypointLatLngs + listOf(trip.destLatLng) else listOf(trip.startLatLng, trip.destLatLng)
+                    onStartTripClick(
+                        trip.title,
+                        trip.role,
+                        trip.originName,
+                        trip.destinationName,
+                        trip.waypoints,
+                        currentPolyline
+                    )
                 }
+                selectedTripForDetails = null
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val tr = selectedTripForDetails!!
-                        selectedTripForDetails = null
-                        TripRepository.setOngoingTrip(tr.tripId)
-                        onStartTripClick(
-                            tr.title,
-                            tr.role,
-                            tr.originName,
-                            tr.destinationName,
-                            tr.waypoints,
-                            if (tr.waypointLatLngs.isNotEmpty()) listOf(tr.startLatLng) + tr.waypointLatLngs + listOf(tr.destLatLng) else listOf(tr.startLatLng, tr.destLatLng)
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
-                    shape = androidx.compose.foundation.shape.CircleShape
-                ) {
-                    Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("START TRIP NAVIGATION", fontWeight = FontWeight.Black, fontSize = 12.sp)
-                }
+            onEditTrip = {
+                tripToEdit = trip
+                selectedTripForDetails = null
             },
-            dismissButton = {
-                TextButton(onClick = { selectedTripForDetails = null }) {
-                    Text("Close", color = Color(0xFF64748B))
+            onDeleteTrip = {
+                selectedTripForDetails = null
+                tripToDelete = trip
+            },
+            onExitTrip = {
+                selectedTripForDetails = null
+                val updatedRiders = trip.joinedRiders.filter { it.riderId != userProfile.userId && it.riderId != "user_me" }
+                val updatedTrip = trip.copy(joinedRiders = updatedRiders, activeRidersCount = (updatedRiders.size + 1).coerceAtLeast(1))
+                TripRepository.updateTrip(updatedTrip)
+                Toast.makeText(context, "Exited trip '${trip.title}'", Toast.LENGTH_SHORT).show()
+            },
+            onViewItinerary = {
+                selectedTripForDetails = null
+            },
+            onLaunchSegment = { segment ->
+                val segOriginName = segment.originName.ifBlank { trip.originName }
+                val segDestName = segment.destinationName.ifBlank { trip.destinationName }
+                val origPt = DirectionsRepository.resolveLocationNameToLatLng(segOriginName, trip.startLatLng)
+                val destPt = DirectionsRepository.resolveLocationNameToLatLng(segDestName, trip.destLatLng)
+
+                val segmentPolyline = if (segment.encodedPolyline.isNotBlank() && segment.encodedPolyline.length > 50) {
+                    try {
+                        com.google.maps.android.PolyUtil.decode(segment.encodedPolyline)
+                    } catch (_: Exception) {
+                        listOf(origPt, destPt)
+                    }
+                } else {
+                    listOf(origPt, destPt)
                 }
+                TripRepository.setOngoingTrip(trip.tripId)
+                onStartTripClick(
+                    segment.segmentName.ifBlank { trip.title },
+                    trip.role,
+                    segOriginName,
+                    segDestName,
+                    segment.waypoints,
+                    segmentPolyline
+                )
+                selectedTripForDetails = null
             }
         )
     }
@@ -3740,11 +3725,11 @@ fun SavedTripsHistoryScreen(
     if (tripToDelete != null) {
         AlertDialog(
             onDismissRequest = { tripToDelete = null },
-            containerColor = Color(0xFFFFFFFF),
+            containerColor = Color(0xFF1E293B),
             shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(20.dp)),
-            title = { Text("Delete Trip?", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to remove '${tripToDelete?.title}' from your saved trips history?", color = Color(0xFF475569)) },
+            modifier = Modifier.border(1.dp, HudColors.ObsidianBorder, RoundedCornerShape(20.dp)),
+            title = { Text("Delete Trip?", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to remove '${tripToDelete?.title}' from your saved trips history?", color = HudColors.TextCoolSilver) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -3759,7 +3744,7 @@ fun SavedTripsHistoryScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { tripToDelete = null }) { Text("Cancel", color = Color(0xFF64748B)) }
+                TextButton(onClick = { tripToDelete = null }) { Text("Cancel", color = HudColors.TextCoolSilver) }
             }
         )
     }

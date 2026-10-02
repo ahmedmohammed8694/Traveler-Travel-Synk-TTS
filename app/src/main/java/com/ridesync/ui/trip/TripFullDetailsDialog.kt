@@ -86,7 +86,7 @@ fun TripFullDetailsDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF1F5F9))
+                .background(HudColors.ObsidianCanvas)
         ) {
             Column(
                 modifier = Modifier
@@ -95,8 +95,8 @@ fun TripFullDetailsDialog(
             ) {
                 // Top App Bar
                 Surface(
-                    color = Color(0xFFFFFFFF),
-                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    color = HudColors.ObsidianSurface,
+                    border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -108,19 +108,19 @@ fun TripFullDetailsDialog(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onDismiss) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF0F172A))
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             Column {
                                 Text(
                                     text = "Trip Full Details",
-                                    color = Color(0xFF0F172A),
+                                    color = Color.White,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black
                                 )
                                 Text(
                                     text = liveTrip.title,
-                                    color = Color(0xFF0052CC),
+                                    color = HudColors.CyanPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -203,15 +203,15 @@ fun TripFullDetailsDialog(
                     // 1. TRIP SUMMARY & TELEMETRY HEADER CARD
                     // ==========================================
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                        colors = CardDefaults.cardColors(containerColor = HudColors.ObsidianSurface),
                         shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.5.dp, Color(0xFF0052CC)),
+                        border = BorderStroke(1.5.dp, HudColors.CyanPrimary),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 text = liveTrip.title,
-                                color = Color(0xFF0F172A),
+                                color = Color.White,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Black
                             )
@@ -219,11 +219,11 @@ fun TripFullDetailsDialog(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "${liveTrip.originName} ➔ ${liveTrip.destinationName}",
-                                    color = Color(0xFF0052CC),
+                                    color = HudColors.CyanPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -235,34 +235,34 @@ fun TripFullDetailsDialog(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF0F172A), RoundedCornerShape(12.dp))
+                                    .border(1.dp, HudColors.ObsidianBorder, RoundedCornerShape(12.dp))
                                     .padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Start Date", color = Color(0xFF475569), fontSize = 11.sp)
+                                    Text("Start Date", color = HudColors.TextCoolSilver, fontSize = 11.sp)
                                     Text(
                                         text = liveTrip.scheduledDate.ifBlank { "Oct 2026" },
-                                        color = Color(0xFFD97706),
+                                        color = Color(0xFFFBBF24),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Total Distance", color = Color(0xFF475569), fontSize = 11.sp)
+                                    Text("Total Distance", color = HudColors.TextCoolSilver, fontSize = 11.sp)
                                     Text(
                                         text = "${liveTrip.distanceKm.toInt()} KM",
-                                        color = Color(0xFF0052CC),
+                                        color = HudColors.CyanPrimary,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Travel Time", color = Color(0xFF475569), fontSize = 11.sp)
+                                    Text("Travel Time", color = HudColors.TextCoolSilver, fontSize = 11.sp)
                                     Text(
                                         text = "${liveTrip.durationMinutes / 60}h ${liveTrip.durationMinutes % 60}m",
-                                        color = Color(0xFF16A34A),
+                                        color = Color(0xFF22C55E),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -273,9 +273,9 @@ fun TripFullDetailsDialog(
 
                             // Trip Code & QR / Share Buttons
                             Surface(
-                                color = Color(0xFFF8FAFC),
+                                color = Color(0xFF0F172A),
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -284,10 +284,10 @@ fun TripFullDetailsDialog(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                 ) {
                                     Column {
-                                        Text("Trip Invite Code", color = Color(0xFF475569), fontSize = 11.sp)
+                                        Text("Trip Invite Code", color = HudColors.TextCoolSilver, fontSize = 11.sp)
                                         Text(
-                                            text = liveTrip.lobbyCode.ifBlank { "TTS-${liveTrip.tripId.takeLast(4)}" },
-                                            color = Color(0xFF0052CC),
+                                            text = liveTrip.lobbyCode.ifBlank { "TTSP${liveTrip.tripId.takeLast(4)}" },
+                                            color = HudColors.CyanPrimary,
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Black
                                         )
@@ -297,21 +297,21 @@ fun TripFullDetailsDialog(
                                         // Copy Code
                                         IconButton(
                                             onClick = {
-                                                val code = liveTrip.lobbyCode.ifBlank { "TTS-${liveTrip.tripId.takeLast(4)}" }
+                                                val code = liveTrip.lobbyCode.ifBlank { "TTSP${liveTrip.tripId.takeLast(4)}" }
                                                 clipboardManager.setText(AnnotatedString(code))
                                                 Toast.makeText(context, "Trip Code copied: $code", Toast.LENGTH_SHORT).show()
                                             },
                                             modifier = Modifier.size(36.dp)
                                         ) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = HudColors.CyanPrimary, modifier = Modifier.size(18.dp))
                                         }
-
 
                                         // Share QR Code Button
                                         Button(
                                             onClick = { showShareQrDialog = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E7FF), contentColor = Color(0xFF0052CC)),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B), contentColor = HudColors.CyanPrimary),
                                             shape = RoundedCornerShape(10.dp),
+                                            border = BorderStroke(1.dp, HudColors.CyanPrimary.copy(alpha = 0.5f)),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                                         ) {
                                             Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -421,7 +421,7 @@ fun TripFullDetailsDialog(
                     ) {
                         Text(
                             text = "🗓️ Day Routes & Itinerary (${daysList.size} Days)",
-                            color = Color(0xFF0F172A),
+                            color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black
                         )
@@ -432,9 +432,9 @@ fun TripFullDetailsDialog(
                                 showEditRouteDialog = true
                             }
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = HudColors.CyanPrimary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Edit All Routes", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Edit All Routes", color = HudColors.CyanPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -443,9 +443,9 @@ fun TripFullDetailsDialog(
                         val googleMapsUrl = matchingSegment?.googleMapsUrl ?: day.stops.firstOrNull { it.googleMapsUrl.isNotBlank() }?.googleMapsUrl ?: ""
 
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFFFF)),
+                            colors = CardDefaults.cardColors(containerColor = HudColors.ObsidianSurface),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
@@ -474,14 +474,14 @@ fun TripFullDetailsDialog(
                                         Column {
                                             Text(
                                                 text = day.dayTitle.ifBlank { "Day ${day.dayNumber} Route" },
-                                                color = Color(0xFF0F172A),
+                                                color = Color.White,
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             if (matchingSegment != null) {
                                                 Text(
                                                     text = "${matchingSegment.originName} ➔ ${matchingSegment.destinationName}",
-                                                    color = Color(0xFF475569),
+                                                    color = HudColors.TextCoolSilver,
                                                     fontSize = 12.sp
                                                 )
                                             }
@@ -497,7 +497,7 @@ fun TripFullDetailsDialog(
                                             },
                                             modifier = Modifier.size(32.dp)
                                         ) {
-                                            Icon(Icons.Default.Edit, contentDescription = "Edit Day Route", tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit Day Route", tint = HudColors.CyanPrimary, modifier = Modifier.size(16.dp))
                                         }
 
                                         // Open in Google Maps Link Button
@@ -513,7 +513,7 @@ fun TripFullDetailsDialog(
                                                 },
                                                 modifier = Modifier.size(32.dp)
                                             ) {
-                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in Google Maps", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
+                                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in Google Maps", tint = HudColors.CyanPrimary, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -522,20 +522,20 @@ fun TripFullDetailsDialog(
                                 if (googleMapsUrl.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Surface(
-                                        color = Color(0xFFF8FAFC),
+                                        color = Color(0xFF0F172A),
                                         shape = RoundedCornerShape(8.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                        border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                         ) {
-                                            Icon(Icons.Default.AddLink, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(14.dp))
+                                            Icon(Icons.Default.AddLink, contentDescription = null, tint = HudColors.CyanPrimary, modifier = Modifier.size(14.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
                                                 text = googleMapsUrl,
-                                                color = Color(0xFF0052CC),
+                                                color = HudColors.CyanPrimary,
                                                 fontSize = 11.sp,
                                                 maxLines = 1
                                             )
@@ -548,7 +548,7 @@ fun TripFullDetailsDialog(
                                 // Auto-Generated Stops List
                                 Text(
                                     text = "Milestones & Stops (${day.stops.size}):",
-                                    color = Color(0xFF475569),
+                                    color = HudColors.TextCoolSilver,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 6.dp)
@@ -559,11 +559,11 @@ fun TripFullDetailsDialog(
                                     val isSkipped = stop.status == ItineraryStopStatus.SKIPPED
 
                                     Surface(
-                                        color = Color(0xFFF8FAFC),
+                                        color = Color(0xFF0F172A),
                                         shape = RoundedCornerShape(10.dp),
                                         border = BorderStroke(
                                             1.dp,
-                                            if (isCompleted) Color(0xFF16A34A) else Color(0xFFCBD5E1)
+                                            if (isCompleted) Color(0xFF22C55E) else HudColors.ObsidianBorder
                                         ),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -594,9 +594,9 @@ fun TripFullDetailsDialog(
                                                     },
                                                     contentDescription = "Status",
                                                     tint = when (stop.status) {
-                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF16A34A)
+                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E)
                                                         ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
-                                                        else -> Color(0xFF64748B)
+                                                        else -> HudColors.TextCoolSilver
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -607,7 +607,7 @@ fun TripFullDetailsDialog(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = "${sIdx + 1}. ${stop.stopName}",
-                                                    color = if (isCompleted || isSkipped) Color(0xFF64748B) else Color(0xFF0F172A),
+                                                    color = if (isCompleted || isSkipped) HudColors.TextCoolSilver else Color.White,
                                                     textDecoration = if (isCompleted || isSkipped) TextDecoration.LineThrough else TextDecoration.None,
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold
@@ -615,7 +615,7 @@ fun TripFullDetailsDialog(
                                                 if (stop.activityDescription.isNotBlank()) {
                                                     Text(
                                                         text = stop.activityDescription,
-                                                        color = Color(0xFF475569),
+                                                        color = HudColors.TextCoolSilver,
                                                         fontSize = 11.sp
                                                     )
                                                 }
@@ -624,18 +624,26 @@ fun TripFullDetailsDialog(
                                             // Status Tag
                                             Surface(
                                                 color = when (stop.status) {
-                                                    ItineraryStopStatus.COMPLETED -> Color(0xFFDCFCE7)
-                                                    ItineraryStopStatus.SKIPPED -> Color(0xFFFEE2E2)
-                                                    else -> Color(0xFFE0E7FF)
+                                                    ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E).copy(alpha = 0.2f)
+                                                    ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444).copy(alpha = 0.2f)
+                                                    else -> HudColors.CyanPrimary.copy(alpha = 0.2f)
                                                 },
-                                                shape = RoundedCornerShape(6.dp)
+                                                shape = RoundedCornerShape(6.dp),
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    when (stop.status) {
+                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E)
+                                                        ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
+                                                        else -> HudColors.CyanPrimary
+                                                    }
+                                                )
                                             ) {
                                                 Text(
                                                     text = stop.status.name,
                                                     color = when (stop.status) {
-                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF16A34A)
+                                                        ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E)
                                                         ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
-                                                        else -> Color(0xFF0052CC)
+                                                        else -> HudColors.CyanPrimary
                                                     },
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
@@ -674,8 +682,8 @@ fun TripFullDetailsDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "👥 Joined Riders (${liveTrip.joinedRiders.size})",
-                            color = Color(0xFF0F172A),
+                            text = "👥 Joined Convoy Members (${liveTrip.joinedRiders.size})",
+                            color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black
                         )
@@ -695,14 +703,14 @@ fun TripFullDetailsDialog(
 
                     if (liveTrip.joinedRiders.isEmpty()) {
                         Surface(
-                            color = Color(0xFFF8FAFC),
+                            color = HudColors.ObsidianSurface,
                             shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "No other riders joined yet. Tap '+ Add Member' above to search by Profile Code (TTS-8899), Email, or Phone!",
-                                color = Color(0xFF475569),
+                                text = "No other riders joined yet. Tap '+ Add Member' above to search by Profile Code (TTSP8694), Email, or Phone!",
+                                color = HudColors.TextCoolSilver,
                                 fontSize = 12.sp,
                                 modifier = Modifier.padding(14.dp)
                             )
@@ -712,9 +720,9 @@ fun TripFullDetailsDialog(
                             val avatarBmp by com.ridesync.util.rememberRiderAvatarBitmap(rider.photoUrl)
 
                             Surface(
-                                color = Color(0xFFFFFFFF),
+                                color = HudColors.ObsidianSurface,
                                 shape = RoundedCornerShape(14.dp),
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -727,7 +735,7 @@ fun TripFullDetailsDialog(
                                                 displayName = rider.displayName,
                                                 vehicleModel = rider.bikeModel,
                                                 photoUrl = rider.photoUrl,
-                                                profileCode = rider.profileCode.ifBlank { "TTS-${rider.riderId.takeLast(4)}" },
+                                                profileCode = rider.profileCode.ifBlank { "TTSP${rider.riderId.takeLast(4)}" },
                                                 email = rider.email,
                                                 mobileNumber = rider.mobileNumber
                                             )
@@ -771,18 +779,19 @@ fun TripFullDetailsDialog(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 text = rider.displayName,
-                                                color = Color(0xFF0F172A),
+                                                color = Color.White,
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Surface(
-                                                color = Color(0xFFE0E7FF),
-                                                shape = RoundedCornerShape(6.dp)
+                                                color = HudColors.CyanPrimary.copy(alpha = 0.2f),
+                                                shape = RoundedCornerShape(6.dp),
+                                                border = BorderStroke(1.dp, HudColors.CyanPrimary.copy(alpha = 0.5f))
                                             ) {
                                                 Text(
                                                     text = rider.role.name,
-                                                    color = Color(0xFF0052CC),
+                                                    color = HudColors.CyanPrimary,
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -791,12 +800,12 @@ fun TripFullDetailsDialog(
                                         }
                                         Text(
                                             text = "🏍️ ${rider.bikeModel}",
-                                            color = Color(0xFF475569),
+                                            color = HudColors.TextCoolSilver,
                                             fontSize = 12.sp
                                         )
                                         Text(
-                                            text = "Code: ${rider.profileCode.ifBlank { "TTS-${rider.riderId.takeLast(4)}" }}",
-                                            color = Color(0xFF0052CC),
+                                            text = "Code: ${rider.profileCode.ifBlank { "TTSP${rider.riderId.takeLast(4)}" }}",
+                                            color = HudColors.CyanPrimary,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -810,25 +819,35 @@ fun TripFullDetailsDialog(
                                                 displayName = rider.displayName,
                                                 vehicleModel = rider.bikeModel,
                                                 photoUrl = rider.photoUrl,
-                                                profileCode = rider.profileCode.ifBlank { "TTS-${rider.riderId.takeLast(4)}" }
+                                                profileCode = rider.profileCode.ifBlank { "TTSP${rider.riderId.takeLast(4)}" }
                                             )
                                         },
                                         modifier = Modifier.size(36.dp)
                                     ) {
-                                        Icon(Icons.Default.Chat, contentDescription = "Chat", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.Chat, contentDescription = "Chat", tint = HudColors.CyanPrimary, modifier = Modifier.size(18.dp))
                                     }
 
-                                    // Host Remove Member Action
-                                    IconButton(
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    // Host Remove Member Button (1-tap clear Remove option)
+                                    Button(
                                         onClick = {
                                             val updatedRiders = liveTrip.joinedRiders.filter { it.riderId != rider.riderId }
                                             val updatedTrip = liveTrip.copy(joinedRiders = updatedRiders, activeRidersCount = (updatedRiders.size + 1).coerceAtLeast(1))
                                             TripRepository.updateTrip(updatedTrip)
                                             Toast.makeText(context, "Removed ${rider.displayName} from trip", Toast.LENGTH_SHORT).show()
                                         },
-                                        modifier = Modifier.size(36.dp)
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFEF4444).copy(alpha = 0.15f),
+                                            contentColor = Color(0xFFEF4444)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Remove Member", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.PersonRemove, contentDescription = "Remove", modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Remove", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -922,7 +941,7 @@ fun TripFullDetailsDialog(
     if (showShareQrDialog) {
         ShareTripQrDialog(
             tripTitle = liveTrip.title,
-            lobbyCode = liveTrip.lobbyCode.ifBlank { "TTS-${liveTrip.tripId.takeLast(4)}" },
+            lobbyCode = liveTrip.lobbyCode.ifBlank { "TTSP${liveTrip.tripId.takeLast(4)}" },
             startDate = liveTrip.scheduledDate,
 
             routeDescription = "${liveTrip.originName} to ${liveTrip.destinationName}",

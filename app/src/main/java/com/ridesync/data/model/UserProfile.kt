@@ -27,7 +27,18 @@ data class UserProfile(
     val createdAt: Long = System.currentTimeMillis()
 ) {
     val safeProfileCode: String
-        get() = if (profileCode.isNotBlank()) profileCode else "TTS-${(userId.hashCode() % 9000 + 1000).let { if (it < 0) -it else it }}"
+        get() {
+            val clean = profileCode.trim()
+            if (clean.isNotBlank()) {
+                val digits = clean.filter { it.isDigit() }
+                if (digits.isNotBlank()) {
+                    return "TTSP$digits"
+                }
+                return clean.uppercase()
+            }
+            val seed = (userId.hashCode() % 9000 + 1000).let { if (it < 0) -it else it }
+            return "TTSP$seed"
+        }
 
     val activeVehicle: Vehicle?
         get() {

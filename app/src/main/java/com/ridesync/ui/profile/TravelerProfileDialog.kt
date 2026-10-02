@@ -211,7 +211,7 @@ fun TravelerProfileDialog(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "12",
+                                    text = "0",
                                     color = Color(0xFF38BDF8),
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black
@@ -223,7 +223,7 @@ fun TravelerProfileDialog(
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "${traveler.followers.size.let { if (it > 0) it else 48 }}",
+                                    text = "${traveler.followers.size}",
                                     color = Color.White,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black
@@ -235,7 +235,7 @@ fun TravelerProfileDialog(
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "${traveler.following.size.let { if (it > 0) it else 34 }}",
+                                    text = "${traveler.following.size}",
                                     color = Color.White,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black
@@ -247,7 +247,7 @@ fun TravelerProfileDialog(
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "${traveler.friends.size.let { if (it > 0) it else 19 }}",
+                                    text = "${traveler.friends.size}",
                                     color = Color(0xFF22C55E),
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black

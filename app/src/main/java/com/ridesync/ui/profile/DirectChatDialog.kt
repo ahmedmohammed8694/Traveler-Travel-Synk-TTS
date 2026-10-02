@@ -1,6 +1,7 @@
 package com.ridesync.ui.profile
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ridesync.data.model.UserProfile
-import com.ridesync.data.repository.ChatMessage
 import com.ridesync.data.repository.SocialRepository
 import com.ridesync.util.rememberRiderAvatarBitmap
 import kotlinx.coroutines.launch
@@ -39,8 +38,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 1-on-1 Real-Time Direct Traveler Chat Screen.
- * Provides direct messaging with other travelers, profile details, and location pin sharing.
+ * 1-on-1 Real-Time Direct Traveler Chat Screen for TTS (Traveler Travel Synk).
+ * Aligned with Dark Obsidian & Sapphire Azure UI Theme.
+ * Responsive keyboard insets & system bars handling so message input bar is always visible.
  */
 @Composable
 fun DirectChatDialog(
@@ -55,6 +55,11 @@ fun DirectChatDialog(
     val avatarBitmap by rememberRiderAvatarBitmap(targetTraveler.photoUrl)
     val chatId = remember(currentUserProfile.userId, targetTraveler.userId) {
         SocialRepository.getChatId(currentUserProfile.userId, targetTraveler.userId)
+    }
+
+    // Start listening to real-time incoming & outgoing chat messages
+    LaunchedEffect(chatId) {
+        SocialRepository.startListeningToChat(chatId)
     }
 
     val allChats by SocialRepository.chatMessagesMap.collectAsState()
@@ -80,10 +85,16 @@ fun DirectChatDialog(
                 .fillMaxSize()
                 .background(Color(0xFF0F172A))
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .imePadding()
+            ) {
                 // Top Header Bar
                 Surface(
                     color = Color(0xFF1E293B),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -91,7 +102,11 @@ fun DirectChatDialog(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
                         }
 
                         // Avatar
@@ -99,8 +114,8 @@ fun DirectChatDialog(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF334155))
-                                .border(1.5.dp, Color(0xFF0052CC), CircleShape)
+                                .background(Color(0xFF0F172A))
+                                .border(1.5.dp, Color(0xFF38BDF8), CircleShape)
                         ) {
                             if (avatarBitmap != null) {
                                 Image(
@@ -132,7 +147,8 @@ fun DirectChatDialog(
                             Text(
                                 text = "${targetTraveler.safeProfileCode} • ${targetTraveler.displayVehicleModel}",
                                 color = Color(0xFF38BDF8),
-                                fontSize = 11.sp
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -157,8 +173,9 @@ fun DirectChatDialog(
                             ) {
                                 Text(
                                     text = "Start conversation with ${targetTraveler.displayName}\nSay Hi! 👋",
-                                    color = Color(0xFF64748B),
-                                    fontSize = 13.sp,
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
@@ -183,6 +200,8 @@ fun DirectChatDialog(
                                     bottomStart = if (isMe) 16.dp else 4.dp,
                                     bottomEnd = if (isMe) 4.dp else 16.dp
                                 ),
+                                border = if (!isMe) BorderStroke(1.dp, Color(0xFF334155)) else null,
+                                shadowElevation = 2.dp,
                                 modifier = Modifier.widthIn(max = 280.dp)
                             ) {
                                 Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -195,7 +214,7 @@ fun DirectChatDialog(
                                     Text(
                                         text = timeStr,
                                         color = if (isMe) Color(0xFF93C5FD) else Color(0xFF94A3B8),
-                                        fontSize = 9.sp,
+                                        fontSize = 9.5.sp,
                                         modifier = Modifier.align(Alignment.End)
                                     )
                                 }
@@ -204,44 +223,58 @@ fun DirectChatDialog(
                     }
                 }
 
-                // Bottom Input Control Bar
+                // Bottom Input Control Bar (Always visible & anchored at bottom)
                 Surface(
                     color = Color(0xFF1E293B),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding()
-                        .navigationBarsPadding()
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 10.dp)
                     ) {
-                        IconButton(onClick = {
-                            coroutineScope.launch {
-                                SocialRepository.sendMessage(
-                                    senderId = currentUserProfile.userId,
-                                    senderName = currentUserProfile.displayName,
-                                    senderPhotoUrl = currentUserProfile.photoUrl,
-                                    receiverId = targetTraveler.userId,
-                                    text = "📍 Shared Location Pin: 17.3753° N, 78.4344° E"
-                                )
-                            }
-                        }) {
-                            Icon(Icons.Default.LocationOn, contentDescription = "Share Location", tint = Color(0xFF38BDF8))
+                        // Location Pin Share Button
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    SocialRepository.sendMessage(
+                                        senderId = currentUserProfile.userId,
+                                        senderName = currentUserProfile.displayName,
+                                        senderPhotoUrl = currentUserProfile.photoUrl,
+                                        receiverId = targetTraveler.userId,
+                                        text = "📍 Shared Location Pin: 17.3753° N, 78.4344° E"
+                                    )
+                                    Toast.makeText(context, "Location pin sent to ${targetTraveler.displayName}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "Share Location",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
 
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Message Input Field
                         OutlinedTextField(
                             value = messageText,
                             onValueChange = { messageText = it },
-                            placeholder = { Text("Type a message...", color = Color(0xFF64748B), fontSize = 13.sp) },
-                            singleLine = true,
+                            placeholder = { Text("Type a message to ${targetTraveler.displayName}...", color = Color(0xFF94A3B8), fontSize = 12.5.sp) },
+                            singleLine = false,
                             maxLines = 3,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = Color(0xFF0F172A),
                                 unfocusedContainerColor = Color(0xFF0F172A),
                                 focusedTextColor = Color.White,
                                 unfocusedTextColor = Color.White,
-                                focusedBorderColor = Color(0xFF0052CC),
+                                focusedBorderColor = Color(0xFF38BDF8),
                                 unfocusedBorderColor = Color(0xFF334155)
                             ),
                             shape = RoundedCornerShape(20.dp),
@@ -250,6 +283,7 @@ fun DirectChatDialog(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
+                        // Send Button
                         IconButton(
                             onClick = {
                                 if (messageText.isNotBlank()) {
@@ -268,9 +302,17 @@ fun DirectChatDialog(
                             },
                             modifier = Modifier
                                 .size(42.dp)
-                                .background(if (messageText.isNotBlank()) Color(0xFF0052CC) else Color(0xFF334155), CircleShape)
+                                .background(
+                                    if (messageText.isNotBlank()) Color(0xFF0052CC) else Color(0xFF0052CC).copy(alpha = 0.5f),
+                                    CircleShape
+                                )
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }

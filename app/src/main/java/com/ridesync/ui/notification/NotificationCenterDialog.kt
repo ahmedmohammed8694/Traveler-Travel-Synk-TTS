@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,17 +27,14 @@ import androidx.compose.ui.window.DialogProperties
 import com.ridesync.data.model.AppNotification
 import com.ridesync.data.model.NotificationType
 import com.ridesync.data.repository.NotificationRepository
+import com.ridesync.ui.theme.HudColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
  * Notifications Center Dialog for TTS (Traveler Travel Synk).
- * Displays real-time notifications for:
- * 1. Friend Requests & Acceptances
- * 2. New Direct Messages & Convoy Group Chat updates
- * 3. New Members joining trips
- * 4. Trip alerts (Rest stops, Fuel stops, Emergency SOS)
+ * Displays real-time notifications aligned with Alpine Pearl & Sapphire Azure UI Theme.
  */
 @Composable
 fun NotificationCenterDialog(
@@ -64,12 +63,13 @@ fun NotificationCenterDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0F172A))
+                .background(HudColors.ObsidianCanvas)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top Header Bar
                 Surface(
-                    color = Color(0xFF1E293B),
+                    color = HudColors.ObsidianSurface,
+                    border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -79,22 +79,31 @@ fun NotificationCenterDialog(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onDismiss) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = HudColors.TextCrispWhite
+                                )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF38BDF8))
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = HudColors.CyanPrimary
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
                                     text = "Notifications Center",
-                                    color = Color.White,
+                                    color = HudColors.TextCrispWhite,
                                     fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.ExtraBold
                                 )
                                 Text(
                                     text = if (unreadCount > 0) "$unreadCount Unread Updates" else "All caught up",
-                                    color = Color(0xFF38BDF8),
-                                    fontSize = 11.sp
+                                    color = HudColors.CyanPrimary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -103,7 +112,12 @@ fun NotificationCenterDialog(
                             TextButton(
                                 onClick = { NotificationRepository.markAllAsRead() }
                             ) {
-                                Text("Mark All Read", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "Mark All Read",
+                                    color = HudColors.CyanPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -111,7 +125,8 @@ fun NotificationCenterDialog(
 
                 // Filter Category Chips
                 Surface(
-                    color = Color(0xFF1E293B).copy(alpha = 0.7f),
+                    color = HudColors.ObsidianElevated,
+                    border = BorderStroke(1.dp, HudColors.ObsidianBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -125,14 +140,20 @@ fun NotificationCenterDialog(
                             FilterChip(
                                 selected = isSel,
                                 onClick = { selectedFilter = key },
-                                label = { Text(label, fontSize = 11.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal) },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF0052CC),
+                                    selectedContainerColor = HudColors.CyanPrimary,
                                     selectedLabelColor = Color.White,
-                                    containerColor = Color(0xFF334155),
-                                    labelColor = Color(0xFF94A3B8)
+                                    containerColor = HudColors.ObsidianSurface,
+                                    labelColor = HudColors.TextCoolSilver
                                 ),
-                                border = null,
+                                border = if (!isSel) BorderStroke(1.dp, HudColors.ObsidianBorder) else null,
                                 shape = RoundedCornerShape(20.dp)
                             )
                         }
@@ -157,16 +178,17 @@ fun NotificationCenterDialog(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
-                                        Icons.Default.NotificationsNone,
+                                        imageVector = Icons.Default.NotificationsNone,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = HudColors.TextMuted,
                                         modifier = Modifier.size(48.dp)
                                     )
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
                                         text = "No notifications in this tab yet!",
-                                        color = Color(0xFF64748B),
-                                        fontSize = 14.sp
+                                        color = HudColors.TextCoolSilver,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
@@ -179,12 +201,13 @@ fun NotificationCenterDialog(
                         }
 
                         Surface(
-                            color = if (item.isRead) Color(0xFF1E293B) else Color(0xFF1E293B).copy(alpha = 0.95f),
+                            color = HudColors.ObsidianSurface,
                             shape = RoundedCornerShape(14.dp),
                             border = BorderStroke(
                                 width = if (item.isRead) 1.dp else 1.5.dp,
-                                color = if (item.isRead) Color(0xFF334155) else Color(0xFF0052CC)
+                                color = if (item.isRead) HudColors.ObsidianBorder else HudColors.CyanPrimary
                             ),
+                            shadowElevation = if (item.isRead) 1.dp else 3.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
@@ -205,7 +228,7 @@ fun NotificationCenterDialog(
                                             when (item.type) {
                                                 NotificationType.FRIEND_REQUEST -> Color(0xFF0284C7)
                                                 NotificationType.FRIEND_ACCEPTED -> Color(0xFF16A34A)
-                                                NotificationType.NEW_MESSAGE -> Color(0xFF2563EB)
+                                                NotificationType.NEW_MESSAGE -> HudColors.CyanLight
                                                 NotificationType.CONVOY_MEMBER_JOINED -> Color(0xFFD97706)
                                                 NotificationType.TRIP_UPDATE -> Color(0xFF7C3AED)
                                                 NotificationType.SOS_ALERT -> Color(0xFFDC2626)
@@ -216,9 +239,9 @@ fun NotificationCenterDialog(
                                         imageVector = when (item.type) {
                                             NotificationType.FRIEND_REQUEST -> Icons.Default.PersonAdd
                                             NotificationType.FRIEND_ACCEPTED -> Icons.Default.CheckCircle
-                                            NotificationType.NEW_MESSAGE -> Icons.Default.Chat
+                                            NotificationType.NEW_MESSAGE -> Icons.AutoMirrored.Filled.Chat
                                             NotificationType.CONVOY_MEMBER_JOINED -> Icons.Default.GroupAdd
-                                            NotificationType.TRIP_UPDATE -> Icons.Default.DirectionsBike
+                                            NotificationType.TRIP_UPDATE -> Icons.AutoMirrored.Filled.DirectionsBike
                                             NotificationType.SOS_ALERT -> Icons.Default.Warning
                                         },
                                         contentDescription = null,
@@ -237,14 +260,14 @@ fun NotificationCenterDialog(
                                     ) {
                                         Text(
                                             text = item.title,
-                                            color = Color.White,
+                                            color = HudColors.TextCrispWhite,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
                                             text = timeFormatted,
-                                            color = Color(0xFF94A3B8),
-                                            fontSize = 10.sp
+                                            color = HudColors.TextMuted,
+                                            fontSize = 10.5.sp
                                         )
                                     }
 
@@ -252,7 +275,7 @@ fun NotificationCenterDialog(
 
                                     Text(
                                         text = item.message,
-                                        color = Color(0xFFCBD5E1),
+                                        color = HudColors.TextCoolSilver,
                                         fontSize = 12.sp,
                                         lineHeight = 16.sp
                                     )
@@ -264,7 +287,7 @@ fun NotificationCenterDialog(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF38BDF8))
+                                            .background(HudColors.CyanPrimary)
                                     )
                                 }
                             }

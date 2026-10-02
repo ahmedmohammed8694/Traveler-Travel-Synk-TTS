@@ -15,41 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * 4. Trip alerts (Rest stops, Fuel stops, Emergency SOS)
  */
 object NotificationRepository {
-    private val _notifications = MutableStateFlow<List<AppNotification>>(
-        listOf(
-            AppNotification(
-                id = "notif_init_1",
-                title = "🎉 Friend Request Accepted",
-                message = "Alex Traveler accepted your friend request!",
-                type = NotificationType.FRIEND_ACCEPTED,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 15,
-                isRead = false,
-                senderUserId = "user_alex",
-                senderName = "Alex Traveler"
-            ),
-            AppNotification(
-                id = "notif_init_2",
-                title = "💬 New Message",
-                message = "Rohan: Hey, ready for the weekend ride?",
-                type = NotificationType.NEW_MESSAGE,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 45,
-                isRead = false,
-                senderUserId = "user_rohan",
-                senderName = "Rohan Rider"
-            ),
-            AppNotification(
-                id = "notif_init_3",
-                title = "🚀 New Member Joined Convoy",
-                message = "Vikram joined your trip 'Deccan Highway Cruise'!",
-                type = NotificationType.CONVOY_MEMBER_JOINED,
-                timestamp = System.currentTimeMillis() - 1000 * 60 * 120,
-                isRead = true,
-                senderUserId = "user_vikram",
-                senderName = "Vikram",
-                relatedTripId = "active_trip_101"
-            )
-        )
-    )
+    private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
 
     val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
 

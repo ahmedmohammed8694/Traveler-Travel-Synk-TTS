@@ -103,7 +103,7 @@ fun AddTripMemberDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search by Profile Code (TTS-8899), Email, Phone...", color = Color(0xFF64748B), fontSize = 12.sp) },
+                    placeholder = { Text("Search by Profile Code (TTSP8694), Email, Phone...", color = Color(0xFF64748B), fontSize = 12.sp) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF38BDF8)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color(0xFF0F172A),
@@ -125,7 +125,7 @@ fun AddTripMemberDialog(
                     }
                 } else if (searchResults.isEmpty() && searchQuery.length >= 2) {
                     Text(
-                        text = "No user found with '$searchQuery'. Double-check Profile Code (e.g. TTS-8899) or Email.",
+                        text = "No user found with '$searchQuery'. Double-check Profile Code (e.g. TTSP8694) or Email.",
                         color = Color(0xFF94A3B8),
                         fontSize = 12.sp,
                         modifier = Modifier.padding(vertical = 12.dp)

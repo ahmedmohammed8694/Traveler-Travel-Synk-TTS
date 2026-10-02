@@ -8,12 +8,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -102,14 +101,17 @@ fun MainContainerScreen(
     val allSavedTrips by com.ridesync.data.repository.TripRepository.tripsFlow.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Home, 1: Map, 2: Create Trip, 3: Chats, 4: Profile
+    // Bottom Menu Tabs: 0: Home, 1: Convoy Map, 2: Create Trip, 3: Trip History, 4: Chats, 5: Profile
+    var selectedTab by remember { mutableIntStateOf(0) }
     var activeRole by remember { mutableStateOf(ConvoyRole.LEAD) }
     var activeTripId by remember { mutableStateOf<String?>(null) }
 
     // Dialog state controllers
+    var showJoinTripDialog by remember { mutableStateOf(false) }
     var showNotificationCenterDialog by remember { mutableStateOf(false) }
     var showChatInboxDialog by remember { mutableStateOf(false) }
     var showSocialListDialog by remember { mutableStateOf(false) }
+    var socialListInitialTab by remember { mutableIntStateOf(0) } // 0 = Friends, 3 = Search All
     var activeDirectChatUser by remember { mutableStateOf<UserProfile?>(null) }
     var activeTravelerProfileView by remember { mutableStateOf<UserProfile?>(null) }
     var activeConvoyChatTrip by remember { mutableStateOf<SavedTrip?>(null) }
@@ -261,7 +263,7 @@ fun MainContainerScreen(
                             selected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
                             icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                            label = { Text("Home", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Home", fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -276,7 +278,7 @@ fun MainContainerScreen(
                             selected = selectedTab == 1,
                             onClick = { selectedTab = 1 },
                             icon = { Icon(Icons.Default.Map, contentDescription = "Convoy Map") },
-                            label = { Text("Convoy Map", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Convoy Map", fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -291,7 +293,7 @@ fun MainContainerScreen(
                             selected = selectedTab == 2,
                             onClick = { selectedTab = 2 },
                             icon = { Icon(Icons.Default.Route, contentDescription = "Create Trip") },
-                            label = { Text("Create Trip", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Create Trip", fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -301,15 +303,12 @@ fun MainContainerScreen(
                             )
                         )
 
-                        // 3: CHATS INBOX
+                        // 3: TRIP HISTORY
                         NavigationBarItem(
                             selected = selectedTab == 3,
-                            onClick = {
-                                selectedTab = 3
-                                showChatInboxDialog = true
-                            },
-                            icon = { Icon(Icons.Default.Chat, contentDescription = "Chats") },
-                            label = { Text("Chats", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            onClick = { selectedTab = 3 },
+                            icon = { Icon(Icons.Default.History, contentDescription = "Trip History") },
+                            label = { Text("History", fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -319,10 +318,28 @@ fun MainContainerScreen(
                             )
                         )
 
-                        // 4: TRAVELER PROFILE
+                        // 4: CHATS INBOX
                         NavigationBarItem(
                             selected = selectedTab == 4,
-                            onClick = { selectedTab = 4 },
+                            onClick = {
+                                selectedTab = 4
+                                showChatInboxDialog = true
+                            },
+                            icon = { Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chats") },
+                            label = { Text("Chats", fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = HudColors.CyanPrimary,
+                                selectedTextColor = HudColors.CyanPrimary,
+                                unselectedIconColor = HudColors.TextCoolSilver,
+                                unselectedTextColor = HudColors.TextCoolSilver,
+                                indicatorColor = HudColors.ObsidianElevated
+                            )
+                        )
+
+                        // 5: TRAVELER PROFILE
+                        NavigationBarItem(
+                            selected = selectedTab == 5,
+                            onClick = { selectedTab = 5 },
                             icon = {
                                 if (travelerAvatarBitmap != null) {
                                     Image(
@@ -330,11 +347,11 @@ fun MainContainerScreen(
                                         contentDescription = "Traveler Profile Photo",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(22.dp)
                                             .clip(CircleShape)
                                             .border(
-                                                width = if (selectedTab == 4) 1.5.dp else 1.dp,
-                                                color = if (selectedTab == 4) HudColors.CyanPrimary else HudColors.TextCoolSilver.copy(alpha = 0.5f),
+                                                width = if (selectedTab == 5) 1.5.dp else 1.dp,
+                                                color = if (selectedTab == 5) HudColors.CyanPrimary else HudColors.TextCoolSilver.copy(alpha = 0.5f),
                                                 shape = CircleShape
                                             )
                                     )
@@ -342,7 +359,7 @@ fun MainContainerScreen(
                                     Icon(Icons.Default.Person, contentDescription = "Traveler Profile")
                                 }
                             },
-                            label = { Text("Profile", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            label = { Text("Profile", fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,
@@ -369,8 +386,12 @@ fun MainContainerScreen(
                             onNavigateToTab = { tabIdx -> selectedTab = tabIdx },
                             onOpenNotificationCenter = { showNotificationCenterDialog = true },
                             onOpenChatInbox = { showChatInboxDialog = true },
-                            onOpenSocialList = { showSocialListDialog = true },
-                            onOpenConvoyChat = { trip -> activeConvoyChatTrip = trip }
+                            onOpenSocialList = { tabIdx ->
+                                socialListInitialTab = tabIdx
+                                showSocialListDialog = true
+                            },
+                            onOpenConvoyChat = { trip -> activeConvoyChatTrip = trip },
+                            onOpenJoinTrip = { showJoinTripDialog = true }
                         )
                     }
 
@@ -493,16 +514,71 @@ fun MainContainerScreen(
                     }
 
                     3 -> {
-                        // Chats Inbox Screen / Direct Messages List
-                        ChatInboxDialog(
-                            currentUserProfile = userProfile,
-                            onOpenChat = { targetUser -> activeDirectChatUser = targetUser },
-                            onSearchTravelers = { showSocialListDialog = true },
-                            onDismiss = { selectedTab = 0 }
+                        // Saved Trips History Screen
+                        SavedTripsHistoryScreen(
+                            userProfile = userProfile,
+                            onStartTripClick = { title, role, origin, dest, waypoints, routePolyline ->
+                                activeRole = role
+                                stopEvents.clear()
+                                val originPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(origin, routePolyline.firstOrNull())
+                                val destPt = com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(dest, routePolyline.lastOrNull())
+                                val waypointPts = waypoints.map { wpName -> com.ridesync.data.repository.DirectionsRepository.resolveLocationNameToLatLng(wpName) }
+
+                                waypoints.forEachIndexed { idx, wpName ->
+                                    val stopLatLng = waypointPts.getOrNull(idx) ?: if (routePolyline.size > 2) {
+                                        val targetIndex = (routePolyline.size * (idx + 1) / (waypoints.size + 1)).coerceIn(0, routePolyline.lastIndex)
+                                        routePolyline[targetIndex]
+                                    } else {
+                                        LatLng(
+                                            originPt.latitude + (destPt.latitude - originPt.latitude) * (idx + 1) / (waypoints.size + 1),
+                                            originPt.longitude + (destPt.longitude - originPt.longitude) * (idx + 1) / (waypoints.size + 1)
+                                        )
+                                    }
+                                    stopEvents.add(
+                                        StopEvent(
+                                            stopId = "stop_evt_$idx",
+                                            riderId = userProfile.userId,
+                                            riderName = wpName,
+                                            reason = StopReason.REST,
+                                            latitude = stopLatLng.latitude,
+                                            longitude = stopLatLng.longitude,
+                                            timestamp = System.currentTimeMillis()
+                                        )
+                                    )
+                                }
+
+                                coroutineScope.launch {
+                                    val realRoute = com.ridesync.data.repository.DirectionsRepository.getDirectionsRoute(originPt, destPt, waypointPts)
+                                    if (realRoute.polylinePoints.isNotEmpty()) {
+                                        activeRoutePolyline = realRoute.polylinePoints
+                                    } else if (routePolyline.size > 2) {
+                                        activeRoutePolyline = routePolyline
+                                    } else {
+                                        activeRoutePolyline = listOf(originPt, destPt)
+                                    }
+                                }
+                                alertBannerText = "Started Trip: $title as ${role.name}!"
+                                selectedTab = 1 // Switch to Convoy Map
+                            },
+                            onShareLobbyClick = { code -> },
+                            onOpenJoinTrip = { showJoinTripDialog = true }
                         )
                     }
 
                     4 -> {
+                        // Chats Inbox Screen / Direct Messages List
+                        ChatInboxDialog(
+                            currentUserProfile = userProfile,
+                            onOpenChat = { targetUser -> activeDirectChatUser = targetUser },
+                            onSearchTravelers = {
+                                socialListInitialTab = 3
+                                showSocialListDialog = true
+                            },
+                            onDismiss = { selectedTab = 0 }
+                        )
+                    }
+
+                    5 -> {
                         // User Profile Dashboard
                         UserProfileScreen(
                             userProfile = userProfile,
@@ -519,7 +595,7 @@ fun MainContainerScreen(
                     )
                 }
 
-                if (showChatInboxDialog && selectedTab != 3) {
+                if (showChatInboxDialog && selectedTab != 4) {
                     ChatInboxDialog(
                         currentUserProfile = userProfile,
                         onOpenChat = { targetUser ->
@@ -528,6 +604,7 @@ fun MainContainerScreen(
                         },
                         onSearchTravelers = {
                             showChatInboxDialog = false
+                            socialListInitialTab = 3
                             showSocialListDialog = true
                         },
                         onDismiss = { showChatInboxDialog = false }
@@ -536,6 +613,7 @@ fun MainContainerScreen(
 
                 if (showSocialListDialog) {
                     SocialTravelersListDialog(
+                        initialTab = socialListInitialTab,
                         currentUserProfile = userProfile,
                         onSaveCurrentUserProfile = onSaveUserProfile,
                         onSelectTraveler = { targetUser ->
@@ -577,6 +655,24 @@ fun MainContainerScreen(
                         currentUserProfile = userProfile,
                         onDismiss = { activeConvoyChatTrip = null }
                     )
+                }
+
+                if (showJoinTripDialog) {
+                    androidx.compose.ui.window.Dialog(
+                        onDismissRequest = { showJoinTripDialog = false },
+                        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+                    ) {
+                        JoinTripScreen(
+                            userProfile = userProfile,
+                            onTripJoined = { joinedTrip ->
+                                showJoinTripDialog = false
+                                activeTripId = joinedTrip.tripId
+                                selectedTab = 1 // Switch to Convoy Map
+                                android.widget.Toast.makeText(context, "🎉 Successfully joined ${joinedTrip.title}!", android.widget.Toast.LENGTH_LONG).show()
+                            },
+                            onCancel = { showJoinTripDialog = false }
+                        )
+                    }
                 }
 
                 if (showPermissionsOnboarding) {

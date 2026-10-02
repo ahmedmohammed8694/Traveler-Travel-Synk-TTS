@@ -356,7 +356,7 @@ fun TripSummaryCard(
     if (showQrDialog) {
         ShareTripQrDialog(
             tripTitle = trip.title,
-            lobbyCode = trip.lobbyCode.ifBlank { "TTS-${trip.tripId.takeLast(4)}" },
+            lobbyCode = trip.lobbyCode.ifBlank { "TTSP${trip.tripId.takeLast(4)}" },
             startDate = trip.scheduledDate,
 
             routeDescription = "${trip.originName} to ${trip.destinationName}",
@@ -369,7 +369,7 @@ fun TripSummaryCard(
  * Triggers native Android Share Sheet with trip join link, deep link, and Google Drive download redirect link.
  */
 fun shareTripLink(context: Context, trip: SavedTrip) {
-    val code = trip.lobbyCode.ifBlank { "TTS-${trip.tripId.takeLast(4)}" }
+    val code = trip.lobbyCode.ifBlank { "TTSP${trip.tripId.takeLast(4)}" }
     val deepLink = "ridesync://trip/join?code=$code"
     val shareText = "🏍️ Join my travel tour: '${trip.title}' on Traveler Travel Synk (TTS)!\n\n" +
             "📅 Date: ${trip.scheduledDate.ifBlank { "Upcoming" }}\n" +

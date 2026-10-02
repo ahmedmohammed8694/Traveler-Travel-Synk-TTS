@@ -3,6 +3,7 @@ package com.ridesync.ui.profile
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material3.*
@@ -27,14 +28,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.ridesync.data.model.UserProfile
 import com.ridesync.data.repository.SocialRepository
+import com.ridesync.ui.theme.HudColors
 import com.ridesync.util.rememberRiderAvatarBitmap
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Full Direct Messages Chat Inbox Dialog.
- * Shows all active traveler conversations, recent message previews, and instant 1-on-1 chat launcher.
+ * Full Direct Messages Chat Inbox Dialog for TTS (Traveler Travel Synk).
+ * Aligned with 3D Glassy Alpine White & Sapphire Azure UI Theme.
  */
 @Composable
 fun ChatInboxDialog(
@@ -60,21 +62,17 @@ fun ChatInboxDialog(
         // Include friends as default quick chat candidates if no chat history yet
         currentUserProfile.friends.forEach { userIdsWithChats.add(it) }
 
-        val result = knownTravelers.filter { userIdsWithChats.contains(it.userId) }.toMutableList()
-        if (result.isEmpty()) {
-            result.addAll(knownTravelers.take(4))
-        }
-        result
+        knownTravelers.filter { userIdsWithChats.contains(it.userId) }
     }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+            colors = CardDefaults.cardColors(containerColor = HudColors.ObsidianSurface),
             shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color(0xFF334155)),
+            border = BorderStroke(1.5.dp, HudColors.CyanPrimary),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(6.dp)
+                .padding(4.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 // Header
@@ -84,36 +82,47 @@ fun ChatInboxDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Chat, contentDescription = null, tint = Color(0xFF38BDF8))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = null,
+                            tint = HudColors.CyanPrimary
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "💬 Direct Messages & Inbox",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
+                            color = HudColors.TextCrispWhite,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
 
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF94A3B8))
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = HudColors.TextCoolSilver)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Find New Traveler Button
+                // Find New Traveler Search Button
                 Button(
                     onClick = {
                         onDismiss()
                         onSearchTravelers()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = HudColors.CyanPrimary,
+                        contentColor = Color.White
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.PersonSearch, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("🔍 Search Travelers to Chat (Code, Email, Phone)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "🔍 Search Travelers to Chat (Code, Email, Phone)",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -124,6 +133,17 @@ fun ChatInboxDialog(
                         .fillMaxWidth()
                         .heightIn(max = 340.dp)
                 ) {
+                    if (activeChatsList.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No recent chat conversations. Click search button above to find travelers by Email, Phone, or Code!",
+                                color = HudColors.TextCoolSilver,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+
                     items(activeChatsList) { traveler ->
                         val chatId = SocialRepository.getChatId(currentUserProfile.userId, traveler.userId)
                         val msgs = allChats[chatId] ?: emptyList()
@@ -135,9 +155,10 @@ fun ChatInboxDialog(
                         }
 
                         Surface(
-                            color = Color(0xFF0F172A),
+                            color = HudColors.ObsidianElevated,
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFF334155)),
+                            border = BorderStroke(1.dp, HudColors.ObsidianBorder),
+                            shadowElevation = 1.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
@@ -153,7 +174,8 @@ fun ChatInboxDialog(
                                     modifier = Modifier
                                         .size(42.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF334155))
+                                        .background(HudColors.ObsidianSurface)
+                                        .border(1.5.dp, HudColors.CyanPrimary, CircleShape)
                                 ) {
                                     if (avatarBitmap != null) {
                                         Image(
@@ -166,7 +188,7 @@ fun ChatInboxDialog(
                                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                                             Text(
                                                 text = traveler.displayName.take(1).uppercase(),
-                                                color = Color.White,
+                                                color = HudColors.CyanPrimary,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
@@ -183,12 +205,17 @@ fun ChatInboxDialog(
                                     ) {
                                         Text(
                                             text = traveler.displayName,
-                                            color = Color.White,
+                                            color = HudColors.TextCrispWhite,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                         if (timeStr.isNotBlank()) {
-                                            Text(timeStr, color = Color(0xFF64748B), fontSize = 10.sp)
+                                            Text(
+                                                text = timeStr,
+                                                color = HudColors.TextMuted,
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
                                         }
                                     }
 
@@ -196,8 +223,9 @@ fun ChatInboxDialog(
 
                                     Text(
                                         text = lastMsg?.text ?: "Tap to start conversation with ${traveler.displayName}",
-                                        color = if (lastMsg != null) Color(0xFF94A3B8) else Color(0xFF38BDF8),
+                                        color = HudColors.TextCoolSilver,
                                         fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
                                         maxLines = 1
                                     )
                                 }

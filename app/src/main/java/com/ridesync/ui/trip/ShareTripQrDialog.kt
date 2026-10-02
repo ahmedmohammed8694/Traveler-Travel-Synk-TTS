@@ -50,7 +50,7 @@ fun ShareTripQrDialog(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
-    val effectiveCode = lobbyCode.ifBlank { "TTS-9421" }
+    val effectiveCode = lobbyCode.ifBlank { "TTSP9421" }
     val deepLinkUrl = "ridesync://trip/join?code=$effectiveCode"
     val webJoinUrl = "https://tts.app/join/$effectiveCode"
 

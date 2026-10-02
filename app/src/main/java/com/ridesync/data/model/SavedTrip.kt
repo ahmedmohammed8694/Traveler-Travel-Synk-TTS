@@ -50,9 +50,22 @@ data class SavedTrip(
 ) {
     val formattedTripCode: String
         get() = if (lobbyCode.isNotBlank()) {
-            if (lobbyCode.startsWith("TTS")) lobbyCode else "TTS${lobbyCode.replace("RSS", "")}"
+            val clean = lobbyCode.trim().uppercase()
+            val digitsOnly = clean.replace(Regex("[^0-9]"), "")
+            if (digitsOnly.length >= 4) {
+                "TTSP${digitsOnly.takeLast(4)}"
+            } else if (clean.startsWith("TTSP")) {
+                clean
+            } else if (clean.startsWith("TTS-")) {
+                "TTSP${clean.removePrefix("TTS-")}"
+            } else if (clean.startsWith("TTS")) {
+                "TTSP${clean.removePrefix("TTS")}"
+            } else {
+                "TTSP$clean"
+            }
         } else {
-            "TTS-${(tripId.hashCode() % 9000 + 1000).let { if (it < 0) -it else it }}"
+            val seed = Math.abs(tripId.hashCode() % 9000) + 1000
+            "TTSP$seed"
         }
 }
 

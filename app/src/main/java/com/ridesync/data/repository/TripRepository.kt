@@ -71,18 +71,17 @@ object TripRepository {
     }
 
     fun formatLobbyCode(code: String, fallbackTripId: String = ""): String {
-        val clean = code.trim().uppercase().replace("-", "").replace(" ", "")
-        if (clean.startsWith("TTS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
-            return clean
+        val clean = code.trim().uppercase()
+        val digitsOnly = clean.replace(Regex("[^0-9]"), "")
+        if (digitsOnly.length >= 4) {
+            return "TTSP${digitsOnly.takeLast(4)}"
         }
-        if (clean.length == 4 && clean.all { it.isDigit() }) {
-            return "TTS$clean"
+        val seed = if (fallbackTripId.isNotBlank()) {
+            Math.abs(fallbackTripId.hashCode() % 9000) + 1000
+        } else {
+            1041
         }
-        if (clean.startsWith("RSS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
-            return "TTS${clean.substring(3)}"
-        }
-        val seed = if (fallbackTripId.isNotBlank()) Math.abs(fallbackTripId.hashCode() % 9000) + 1000 else (1000..9999).random()
-        return "TTS$seed"
+        return "TTSP$seed"
     }
 
     @Synchronized
@@ -90,9 +89,11 @@ object TripRepository {
         val currentList = getAllTrips().toMutableList()
         val existingIndex = currentList.indexOfFirst { it.tripId == trip.tripId }
         val finalCode = if (existingIndex >= 0 && currentList[existingIndex].lobbyCode.isNotBlank()) {
-            formatLobbyCode(currentList[existingIndex].lobbyCode, trip.tripId)
-        } else {
+            currentList[existingIndex].lobbyCode
+        } else if (trip.lobbyCode.isNotBlank()) {
             formatLobbyCode(trip.lobbyCode, trip.tripId)
+        } else {
+            formatLobbyCode("", trip.tripId)
         }
         val targetTrip = trip.copy(lobbyCode = finalCode)
 
@@ -117,9 +118,11 @@ object TripRepository {
         val currentList = getAllTrips().toMutableList()
         val index = currentList.indexOfFirst { it.tripId == trip.tripId }
         val finalCode = if (index >= 0 && currentList[index].lobbyCode.isNotBlank()) {
-            formatLobbyCode(currentList[index].lobbyCode, trip.tripId)
-        } else {
+            currentList[index].lobbyCode
+        } else if (trip.lobbyCode.isNotBlank()) {
             formatLobbyCode(trip.lobbyCode, trip.tripId)
+        } else {
+            formatLobbyCode("", trip.tripId)
         }
         val targetTrip = trip.copy(lobbyCode = finalCode)
 
