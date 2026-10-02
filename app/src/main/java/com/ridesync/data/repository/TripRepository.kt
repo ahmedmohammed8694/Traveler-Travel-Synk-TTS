@@ -70,7 +70,7 @@ object TripRepository {
         return getAllTrips().firstOrNull { it.tripId == tripId }
     }
 
-    fun formatLobbyCode(code: String): String {
+    fun formatLobbyCode(code: String, fallbackTripId: String = ""): String {
         val clean = code.trim().uppercase().replace("-", "").replace(" ", "")
         if (clean.startsWith("TTS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
             return clean
@@ -81,16 +81,21 @@ object TripRepository {
         if (clean.startsWith("RSS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
             return "TTS${clean.substring(3)}"
         }
-        return "TTS${(1000..9999).random()}"
+        val seed = if (fallbackTripId.isNotBlank()) Math.abs(fallbackTripId.hashCode() % 9000) + 1000 else (1000..9999).random()
+        return "TTS$seed"
     }
 
     @Synchronized
     fun saveTrip(trip: SavedTrip) {
-        val validCode = formatLobbyCode(trip.lobbyCode)
-        val targetTrip = if (trip.lobbyCode != validCode) trip.copy(lobbyCode = validCode) else trip
-
         val currentList = getAllTrips().toMutableList()
-        val existingIndex = currentList.indexOfFirst { it.tripId == targetTrip.tripId }
+        val existingIndex = currentList.indexOfFirst { it.tripId == trip.tripId }
+        val finalCode = if (existingIndex >= 0 && currentList[existingIndex].lobbyCode.isNotBlank()) {
+            formatLobbyCode(currentList[existingIndex].lobbyCode, trip.tripId)
+        } else {
+            formatLobbyCode(trip.lobbyCode, trip.tripId)
+        }
+        val targetTrip = trip.copy(lobbyCode = finalCode)
+
         if (existingIndex >= 0) {
             currentList[existingIndex] = targetTrip
         } else {
@@ -109,11 +114,15 @@ object TripRepository {
 
     @Synchronized
     fun updateTrip(trip: SavedTrip) {
-        val validCode = formatLobbyCode(trip.lobbyCode)
-        val targetTrip = if (trip.lobbyCode != validCode) trip.copy(lobbyCode = validCode) else trip
-
         val currentList = getAllTrips().toMutableList()
-        val index = currentList.indexOfFirst { it.tripId == targetTrip.tripId }
+        val index = currentList.indexOfFirst { it.tripId == trip.tripId }
+        val finalCode = if (index >= 0 && currentList[index].lobbyCode.isNotBlank()) {
+            formatLobbyCode(currentList[index].lobbyCode, trip.tripId)
+        } else {
+            formatLobbyCode(trip.lobbyCode, trip.tripId)
+        }
+        val targetTrip = trip.copy(lobbyCode = finalCode)
+
         if (index >= 0) {
             currentList[index] = targetTrip
             updateAndPersistList(currentList)
@@ -124,6 +133,7 @@ object TripRepository {
         syncTripToCloudflareAsync(targetTrip)
         syncTripToSupabaseAsync(targetTrip)
     }
+
 
     @Synchronized
     fun deleteTrip(tripId: String) {

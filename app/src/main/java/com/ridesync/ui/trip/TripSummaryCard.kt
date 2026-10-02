@@ -356,8 +356,9 @@ fun TripSummaryCard(
     if (showQrDialog) {
         ShareTripQrDialog(
             tripTitle = trip.title,
-            lobbyCode = trip.lobbyCode.ifBlank { "RRS-${trip.tripId.takeLast(4)}" },
+            lobbyCode = trip.lobbyCode.ifBlank { "TTS-${trip.tripId.takeLast(4)}" },
             startDate = trip.scheduledDate,
+
             routeDescription = "${trip.originName} to ${trip.destinationName}",
             onDismiss = { showQrDialog = false }
         )

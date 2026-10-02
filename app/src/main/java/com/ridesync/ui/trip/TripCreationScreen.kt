@@ -182,7 +182,8 @@ fun TripCreationScreen(
     // Google Maps Search Dialog State
     var searchTargetField by remember { mutableStateOf<String?>(null) } // "START", "DEST", or "STOP"
     var searchQuery by remember { mutableStateOf("") }
-    var generatedLobbyCode by remember { mutableStateOf("RSS${(1000..9999).random()}") }
+    var generatedLobbyCode by remember { mutableStateOf("TTS${(1000..9999).random()}") }
+
 
     // Real Google Maps Road Polyline State
     var activeRoutePolyline by remember { mutableStateOf<List<LatLng>>(emptyList()) }
@@ -1847,7 +1848,8 @@ fun TripCreationScreen(
                             if (origin.isNotBlank() && destination.isNotBlank()) "$origin to $destination Ride"
                             else "Multi-Day Convoy Tour"
                         }
-                        val freshLobbyCode = "RSS${(1000..9999).random()}"
+                        val freshLobbyCode = "TTS${(1000..9999).random()}"
+
                         val finalPlan = currentItineraryPlan ?: run {
                             val dayStops = mutableListOf<ItineraryStop>()
                             dayStops.add(

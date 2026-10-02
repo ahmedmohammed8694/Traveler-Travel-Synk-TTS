@@ -847,8 +847,9 @@ fun TripFullDetailsDialog(
     if (showShareQrDialog) {
         ShareTripQrDialog(
             tripTitle = liveTrip.title,
-            lobbyCode = liveTrip.lobbyCode.ifBlank { "RRS-${liveTrip.tripId.takeLast(4)}" },
+            lobbyCode = liveTrip.lobbyCode.ifBlank { "TTS-${liveTrip.tripId.takeLast(4)}" },
             startDate = liveTrip.scheduledDate,
+
             routeDescription = "${liveTrip.originName} to ${liveTrip.destinationName}",
             onDismiss = { showShareQrDialog = false }
         )
