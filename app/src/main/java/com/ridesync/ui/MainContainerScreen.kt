@@ -37,6 +37,13 @@ import com.ridesync.ui.trip.TripCreationScreen
 
 import androidx.compose.material.icons.filled.History
 import com.ridesync.ui.trip.SavedTripsHistoryScreen
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.ridesync.util.rememberRiderAvatarBitmap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +56,7 @@ fun MainContainerScreen(
     val context = LocalContext.current
     val telemetryRepository = remember(context) { TelemetryBufferRepository(context) }
     val firebaseClient = remember { HybridFirebaseClient() }
+    val travelerAvatarBitmap by rememberRiderAvatarBitmap(userProfile.photoUrl)
 
     // Live Phone Mobile GPS Tracking Engine
     val phoneLocationPing by LiveLocationEngine.liveLocationPing.collectAsState()
@@ -281,8 +289,26 @@ fun MainContainerScreen(
                         NavigationBarItem(
                             selected = selectedTab == 4,
                             onClick = { selectedTab = 4 },
-                            icon = { Icon(Icons.Default.Person, contentDescription = "Rider Profile") },
-                            label = { Text("Rider Profile", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            icon = {
+                                if (travelerAvatarBitmap != null) {
+                                    Image(
+                                        bitmap = travelerAvatarBitmap!!.asImageBitmap(),
+                                        contentDescription = "Traveler Profile Photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .border(
+                                                width = if (selectedTab == 4) 1.5.dp else 1.dp,
+                                                color = if (selectedTab == 4) HudColors.CyanPrimary else HudColors.TextCoolSilver.copy(alpha = 0.5f),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Person, contentDescription = "Traveler Profile")
+                                }
+                            },
+                            label = { Text("Traveler Profile", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = HudColors.CyanPrimary,
                                 selectedTextColor = HudColors.CyanPrimary,

@@ -67,7 +67,7 @@ data class PlaceSearchResult(
     val category: String = "Location"
 )
 
-private val POPULAR_MAP_LOCATIONS = listOf(
+val POPULAR_MAP_LOCATIONS = listOf(
     // Hyderabad & Telangana Route Locations
     PlaceSearchResult("Attapur, Hyderabad", "Attapur Ring Rd, Rajendranagar, Hyderabad, Telangana 500048, India", LatLng(17.3753, 78.4344), "Hyderabad Origin"),
     PlaceSearchResult("Nagarjuna Sagar Dam", "Vijayapuri North, Nalgonda / Palnadu, Telangana/AP, India", LatLng(16.5772, 79.3125), "Dam & Scenic Route"),
@@ -598,7 +598,7 @@ fun TripCreationScreen(
                         onClick = { currentCreationMode = TripCreationMode.MAP_LINKS }
                     )
                     CreationMethodTabChip(
-                        title = "📍 Direct Route",
+                        title = "📍 Direct Trip",
                         subtitle = "Search & Pins",
                         isSelected = currentCreationMode == TripCreationMode.MANUAL_SEARCH,
                         accentColor = Color(0xFF0052CC),
@@ -1335,6 +1335,89 @@ fun TripCreationScreen(
                                         label = "Trip End Date",
                                         modifier = Modifier.weight(1f)
                                     )
+                                }
+
+                                // Multi-Day Day Routes (Direct Multi-Leg Creation)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Multi-Day Direct Route Legs (${multiDaySegments.size})",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                        Text(
+                                            text = "Add day-by-day legs with start, destination & stop location search",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = { showAddSegmentDialog = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("+ Add Day Route", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                if (multiDaySegments.isNotEmpty()) {
+                                    multiDaySegments.forEachIndexed { index, segment ->
+                                        Surface(
+                                            color = Color(0xFFF8FAFC),
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(12.dp)
+                                            ) {
+                                                Surface(
+                                                    color = Color(0xFF0052CC),
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    modifier = Modifier.size(26.dp)
+                                                ) {
+                                                    Box(contentAlignment = Alignment.Center) {
+                                                        Text("${index + 1}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(segment.segmentName.ifBlank { "Day ${index + 1}" }, color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                    Text("${segment.originName} ➔ ${segment.destinationName}", color = Color(0xFF475569), fontSize = 12.sp)
+                                                    if (segment.waypoints.isNotEmpty()) {
+                                                        Text("📍 Stops (${segment.waypoints.size}): ${segment.waypoints.joinToString(" ➔ ")}", color = Color(0xFF0052CC), fontSize = 11.sp)
+                                                    }
+                                                    Text("📏 ${"%.1f".format(segment.distanceKm)} KM • ⏱️ ${segment.estimatedDurationMinutes / 60}h ${segment.estimatedDurationMinutes % 60}m", color = Color(0xFFD97706), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        if (index < multiDaySegments.size) {
+                                                            multiDaySegments.removeAt(index)
+                                                        }
+                                                    }
+                                                ) {
+                                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    HorizontalDivider(color = Color(0xFFE2E8F0))
+                                    Spacer(modifier = Modifier.height(10.dp))
                                 }
 
                                 OutlinedTextField(
@@ -3393,16 +3476,16 @@ fun SelectDayRouteDialog(
     onDismiss: () -> Unit,
     onSelectRoute: (title: String, role: ConvoyRole, origin: String, destination: String, waypoints: List<String>, routePolyline: List<LatLng>) -> Unit
 ) {
-    val accentColor = Color(0xFF00E5FF)
-    val goldColor = Color(0xFFF59E0B)
+    val accentColor = Color(0xFF0052CC)
+    val goldColor = Color(0xFFD97706)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF0B132B),
+        containerColor = Color(0xFFFFFFFF),
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .border(2.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(22.dp)),
+            .border(1.5.dp, Color(0xFF0052CC), RoundedCornerShape(22.dp)),
         title = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -3415,7 +3498,7 @@ fun SelectDayRouteDialog(
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Select Route Map",
-                        color = Color.White,
+                        color = Color(0xFF0F172A),
                         fontWeight = FontWeight.Black,
                         fontSize = 20.sp
                     )
@@ -3438,16 +3521,16 @@ fun SelectDayRouteDialog(
             ) {
                 Text(
                     text = "This trip has ${trip.routeSegments.size} multi-day itinerary stages. Choose which route you want to open in the Convoy HUD Map:",
-                    color = Color(0xFF94A3B8),
+                    color = Color(0xFF475569),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
                 // Option 1: OVERALL MASTER ROUTE (Full Itinerary Corridor)
                 Surface(
-                    color = Color(0xFF0F172A),
+                    color = Color(0xFFFFFBEB),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, goldColor),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFF59E0B)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 14.dp)
@@ -3460,7 +3543,7 @@ fun SelectDayRouteDialog(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Surface(
-                                    color = goldColor.copy(alpha = 0.2f),
+                                    color = Color(0xFFFEF3C7),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
@@ -3474,7 +3557,7 @@ fun SelectDayRouteDialog(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Full Master Itinerary",
-                                    color = Color.White,
+                                    color = Color(0xFF0F172A),
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -3484,7 +3567,7 @@ fun SelectDayRouteDialog(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "${trip.originName} ➔ ${trip.destinationName}",
-                            color = Color(0xFFE2E8F0),
+                            color = Color(0xFF1E293B),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -3492,7 +3575,7 @@ fun SelectDayRouteDialog(
                         if (trip.waypoints.isNotEmpty()) {
                             Text(
                                 text = "📍 All Waypoints (${trip.waypoints.size}): ${trip.waypoints.joinToString(" ➔ ")}",
-                                color = Color(0xFF38BDF8),
+                                color = Color(0xFF0052CC),
                                 fontSize = 11.sp,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
@@ -3518,7 +3601,7 @@ fun SelectDayRouteDialog(
                                     masterPolyline
                                 )
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = goldColor, contentColor = Color.Black),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B), contentColor = Color.Black),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -3540,9 +3623,9 @@ fun SelectDayRouteDialog(
 
                 trip.routeSegments.forEachIndexed { index, segment ->
                     Surface(
-                        color = Color(0xFF020617),
+                        color = Color(0xFFF8FAFC),
                         shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 5.dp)
@@ -3562,7 +3645,7 @@ fun SelectDayRouteDialog(
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
                                                 text = "${index + 1}",
-                                                color = Color.Black,
+                                                color = Color.White,
                                                 fontWeight = FontWeight.Black,
                                                 fontSize = 11.sp
                                             )
@@ -3571,7 +3654,7 @@ fun SelectDayRouteDialog(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = segment.segmentName.ifBlank { "Day ${index + 1} Route" },
-                                        color = Color.White,
+                                        color = Color(0xFF0F172A),
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -3581,14 +3664,15 @@ fun SelectDayRouteDialog(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "${segment.originName.ifBlank { trip.originName }} ➔ ${segment.destinationName.ifBlank { trip.destinationName }}",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 12.sp
+                                color = Color(0xFF475569),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
                             )
 
                             if (segment.waypoints.isNotEmpty()) {
                                 Text(
                                     text = "📍 Stops: ${segment.waypoints.joinToString(" ➔ ")}",
-                                    color = Color(0xFF38BDF8),
+                                    color = Color(0xFF0052CC),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(top = 2.dp)
@@ -3598,7 +3682,7 @@ fun SelectDayRouteDialog(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "📏 ${"%.1f".format(segment.distanceKm)} KM • ⏱️ ${segment.estimatedDurationMinutes / 60}h ${segment.estimatedDurationMinutes % 60}m",
-                                color = accentColor,
+                                color = goldColor,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -3629,7 +3713,7 @@ fun SelectDayRouteDialog(
                                         segPolyline
                                     )
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7), contentColor = Color.White),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC), contentColor = Color.White),
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -3645,7 +3729,7 @@ fun SelectDayRouteDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFF94A3B8))
+                Text("Cancel", color = Color(0xFF64748B), fontWeight = FontWeight.Bold)
             }
         }
     )

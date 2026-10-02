@@ -155,7 +155,7 @@ fun UserProfileScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "RRS User Profile",
+                        text = "Traveler Profile",
                         fontWeight = FontWeight.Bold,
                         color = HudColors.TextCrispWhite
                     )
@@ -218,14 +218,14 @@ fun UserProfileScreen(
                     if (avatarBitmap != null) {
                         Image(
                             bitmap = avatarBitmap!!.asImageBitmap(),
-                            contentDescription = "Rider Profile Photo",
+                            contentDescription = "Traveler Profile Photo",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
                         Image(
                             painter = painterResource(id = R.drawable.ic_app_logo_badge),
-                            contentDescription = "RRS Profile Picture",
+                            contentDescription = "TTS Traveler Profile Picture",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(76.dp)
                         )
@@ -298,14 +298,14 @@ fun UserProfileScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = displayName.ifBlank { "Rider" },
+                    text = displayName.ifBlank { "Traveler" },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = HudColors.TextCrispWhite
                 )
 
                 Text(
-                    text = activeVehicle?.fullDisplayName?.let { "Default Ride: $it" } ?: "Riders Ride Sync (RRS) Member",
+                    text = activeVehicle?.fullDisplayName?.let { "Default Vehicle: $it" } ?: "Traveler Travel Sync (TTS) Member",
                     fontSize = 14.sp,
                     color = HudColors.TextCoolSilver,
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -313,6 +313,7 @@ fun UserProfileScreen(
 
                 // ACTIVE VEHICLE HUD RANGE CARD (RECIRCULATING REMINDER)
                 if (activeVehicle != null) {
+                    val isEvActive = activeVehicle.fuelTypeEnum == FuelType.EV
                     Surface(
                         color = cardColor,
                         shape = RoundedCornerShape(18.dp),
@@ -356,7 +357,7 @@ fun UserProfileScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text(text = "Current Fuel Level", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                                    Text(text = if (isEvActive) "Current Battery Level" else "Current Fuel Level", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                                     Text(
                                         text = "${activeVehicle.currentFuelAvailable} / ${activeVehicle.fuelTankCapacity} ${activeVehicle.fuelTypeEnum.fuelUnit}",
                                         fontSize = 14.sp,
@@ -366,7 +367,7 @@ fun UserProfileScreen(
                                 }
 
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text(text = "Available Range", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                                    Text(text = if (isEvActive) "Available EV Range" else "Available Range", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                                     Text(
                                         text = "${activeVehicle.estimatedRangeKm} km",
                                         fontSize = 20.sp,
@@ -376,7 +377,7 @@ fun UserProfileScreen(
                                 }
                             }
 
-                            // Refuel Reminder Banner
+                            // Refuel / Charge Reminder Banner
                             if (activeVehicle.isLowFuelAlert) {
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Surface(
@@ -396,7 +397,7 @@ fun UserProfileScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "Refuel Reminder: Fuel low (${activeVehicle.estimatedRangeKm} km remaining)! Please fill up your vehicle before taking on long convoy trips.",
+                                            text = if (isEvActive) "⚡ Charge Reminder: Battery low (${activeVehicle.estimatedRangeKm} km left)! Plug in EV before starting trip." else "Refuel Reminder: Fuel low (${activeVehicle.estimatedRangeKm} km remaining)! Please fill up your vehicle before taking on long convoy trips.",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = Color(0xFFFCA5A5)

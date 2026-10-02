@@ -359,15 +359,19 @@ fun AddEditVehicleDialog(
                     )
                 )
 
-                // 5. Fuel Tank Capacity
+                // 5. Fuel Tank Capacity / Battery Capacity
                 OutlinedTextField(
                     value = capacityText,
                     onValueChange = { capacityText = it },
-                    label = { Text("Fuel Tank Capacity (${currentFuelTypeEnum.capacityUnit})") },
+                    label = { Text(if (selectedFuelType == "EV") "Battery Capacity (kWh)" else "Fuel Tank Capacity (${currentFuelTypeEnum.capacityUnit})") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     leadingIcon = {
-                        Icon(imageVector = Icons.Default.LocalGasStation, contentDescription = null, tint = HudColors.CyanPrimary)
+                        Icon(
+                            imageVector = if (selectedFuelType == "EV") Icons.Default.ElectricCar else Icons.Default.LocalGasStation,
+                            contentDescription = null,
+                            tint = HudColors.CyanPrimary
+                        )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -385,11 +389,11 @@ fun AddEditVehicleDialog(
                     )
                 )
 
-                // 6. Mileage / Efficiency
+                // 6. Mileage / Efficiency / Range per kWh
                 OutlinedTextField(
                     value = mileageText,
                     onValueChange = { mileageText = it },
-                    label = { Text("Mileage / Efficiency (${currentFuelTypeEnum.mileageUnit})") },
+                    label = { Text(if (selectedFuelType == "EV") "Energy Efficiency (${currentFuelTypeEnum.mileageUnit})" else "Mileage / Efficiency (${currentFuelTypeEnum.mileageUnit})") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     leadingIcon = {
@@ -411,15 +415,19 @@ fun AddEditVehicleDialog(
                     )
                 )
 
-                // 7. Current Fuel Available
+                // 7. Current Fuel / Battery Charge Available
                 OutlinedTextField(
                     value = currentFuelText,
                     onValueChange = { currentFuelText = it },
-                    label = { Text("Current Fuel Available (${currentFuelTypeEnum.fuelUnit})") },
+                    label = { Text(if (selectedFuelType == "EV") "Current Battery Charge Available (kWh)" else "Current Fuel Available (${currentFuelTypeEnum.fuelUnit})") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     leadingIcon = {
-                        Icon(imageVector = Icons.Default.LocalGasStation, contentDescription = null, tint = HudColors.CyanPrimary)
+                        Icon(
+                            imageVector = if (selectedFuelType == "EV") Icons.Default.ElectricBike else Icons.Default.LocalGasStation,
+                            contentDescription = null,
+                            tint = HudColors.CyanPrimary
+                        )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -437,7 +445,7 @@ fun AddEditVehicleDialog(
                     )
                 )
 
-                // 8. Range Reminder Indicator Card
+                // 8. Range Reminder & 100% Charge Full Range Card
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = if (isLowFuel) Color(0xFF451A1A) else Color(0xFF0F2D2E),
@@ -456,7 +464,7 @@ fun AddEditVehicleDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Estimated Vehicle Range:",
+                                text = if (selectedFuelType == "EV") "Current Available EV Range:" else "Estimated Vehicle Range:",
                                 fontSize = 13.sp,
                                 color = HudColors.TextCoolSilver
                             )
@@ -465,6 +473,28 @@ fun AddEditVehicleDialog(
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (isLowFuel) Color(0xFFEF4444) else HudColors.CyanPrimary
+                            )
+                        }
+
+                        val max100PercentRange = ((capacityVal * mileageVal) * 10.0).let { Math.round(it) / 10.0 }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                        ) {
+                            Text(
+                                text = if (selectedFuelType == "EV") "100% Full Charge Max Range:" else "Full Tank Max Range:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = HudColors.TextCrispWhite
+                            )
+                            Text(
+                                text = "$max100PercentRange km",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8)
                             )
                         }
 
@@ -479,7 +509,7 @@ fun AddEditVehicleDialog(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Refuel Reminder: Fuel low! Range is under 50 km. Fill up soon.",
+                                    text = if (selectedFuelType == "EV") "⚡ Charge Alert: Battery low! Range under 50 km or < 20%. Plug in EV." else "Refuel Reminder: Fuel low! Range is under 50 km. Fill up soon.",
                                     fontSize = 11.sp,
                                     color = Color(0xFFFCA5A5),
                                     fontWeight = FontWeight.Medium
@@ -487,11 +517,33 @@ fun AddEditVehicleDialog(
                             }
                         } else {
                             Text(
-                                text = "Based on $currentFuelVal ${currentFuelTypeEnum.fuelUnit} fuel × $mileageVal ${currentFuelTypeEnum.mileageUnit} mileage",
+                                text = if (selectedFuelType == "EV") "Based on $currentFuelVal kWh battery × $mileageVal km/kWh efficiency" else "Based on $currentFuelVal ${currentFuelTypeEnum.fuelUnit} fuel × $mileageVal ${currentFuelTypeEnum.mileageUnit} mileage",
                                 fontSize = 11.sp,
                                 color = HudColors.TextCoolSilver,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
+                        }
+
+                        if (selectedFuelType == "EV") {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                color = Color(0xFF1E293B),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "⚡", fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "100% Charge Range means how many kilometers vehicle will go on full battery. Check official EV specs online for exact vehicle range.",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF7DD3FC)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -685,18 +737,20 @@ fun VehicleDetailsViewDialog(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
+                        val isEv = vehicle.fuelTypeEnum == FuelType.EV
+
                         DetailRowItem(label = "Vehicle Type / Category", value = "${vehicle.vehicleTypeEnum.iconEmoji} ${vehicle.vehicleTypeEnum.displayName}")
-                        DetailRowItem(label = "Fuel / Engine Type", value = "${vehicle.fuelTypeEnum.iconEmoji} ${vehicle.fuelTypeEnum.displayName}")
-                        DetailRowItem(label = "Fuel Tank Capacity", value = "${vehicle.fuelTankCapacity} ${vehicle.fuelTypeEnum.capacityUnit}")
-                        DetailRowItem(label = "Fuel Mileage / Efficiency", value = "${vehicle.mileage} ${vehicle.fuelTypeEnum.mileageUnit}")
-                        DetailRowItem(label = "Current Fuel Level", value = "${vehicle.currentFuelAvailable} ${vehicle.fuelTypeEnum.fuelUnit} (${vehicle.fuelPercentage}%)")
-                        DetailRowItem(label = "Calculated Trip Range", value = "${vehicle.estimatedRangeKm} km")
-                        DetailRowItem(label = "Full Tank Max Range", value = "${vehicle.maxRangeKm} km")
+                        DetailRowItem(label = if (isEv) "Motor / Energy Type" else "Fuel / Engine Type", value = "${vehicle.fuelTypeEnum.iconEmoji} ${vehicle.fuelTypeEnum.displayName}")
+                        DetailRowItem(label = if (isEv) "Battery Capacity" else "Fuel Tank Capacity", value = "${vehicle.fuelTankCapacity} ${vehicle.fuelTypeEnum.capacityUnit}")
+                        DetailRowItem(label = if (isEv) "Energy Efficiency" else "Fuel Mileage / Efficiency", value = "${vehicle.mileage} ${vehicle.fuelTypeEnum.mileageUnit}")
+                        DetailRowItem(label = if (isEv) "Current Battery Charge" else "Current Fuel Level", value = "${vehicle.currentFuelAvailable} ${vehicle.fuelTypeEnum.fuelUnit} (${vehicle.fuelPercentage}%)")
+                        DetailRowItem(label = if (isEv) "Available EV Range" else "Calculated Trip Range", value = "${vehicle.estimatedRangeKm} km")
+                        DetailRowItem(label = if (isEv) "100% Charge Max Range" else "Full Tank Max Range", value = "${vehicle.maxRangeKm} km")
                         DetailRowItem(label = "Default Vehicle Status", value = if (vehicle.isActive) "★ Default Trip Vehicle" else "Secondary Garage Vehicle")
                     }
                 }
 
-                // Refuel Warning Banner
+                // Refuel / Recharge Warning Banner
                 if (vehicle.isLowFuelAlert) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Surface(
@@ -717,7 +771,7 @@ fun VehicleDetailsViewDialog(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Refuel Alert: Fuel level low (${vehicle.estimatedRangeKm} km remaining). Refuel before long trips.",
+                                text = if (vehicle.fuelTypeEnum == FuelType.EV) "⚡ Low Battery Alert: Battery low (${vehicle.estimatedRangeKm} km remaining). Charge EV before starting trip." else "Refuel Alert: Fuel level low (${vehicle.estimatedRangeKm} km remaining). Refuel before long trips.",
                                 fontSize = 12.sp,
                                 color = Color(0xFFFCA5A5),
                                 fontWeight = FontWeight.Medium
@@ -866,13 +920,14 @@ fun VehicleItemCard(
             Divider(color = HudColors.ObsidianBorder)
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Spec Grid: Fuel Capacity, Mileage, Current Fuel, Range
+            // Spec Grid: Fuel/Battery Capacity, Mileage/Efficiency, Current Fuel/Battery, Range
+            val isEvCard = vehicle.fuelTypeEnum == FuelType.EV
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Capacity", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                    Text(text = if (isEvCard) "Battery" else "Capacity", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
                         text = "${vehicle.fuelTankCapacity} ${vehicle.fuelTypeEnum.capacityUnit}",
                         fontSize = 13.sp,
@@ -882,7 +937,7 @@ fun VehicleItemCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Mileage", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                    Text(text = if (isEvCard) "Efficiency" else "Mileage", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
                         text = "${vehicle.mileage} ${vehicle.fuelTypeEnum.mileageUnit}",
                         fontSize = 13.sp,
@@ -892,7 +947,7 @@ fun VehicleItemCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Current Fuel", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                    Text(text = if (isEvCard) "Charge" else "Current Fuel", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
                         text = "${vehicle.currentFuelAvailable} ${vehicle.fuelTypeEnum.fuelUnit}",
                         fontSize = 13.sp,
@@ -902,7 +957,7 @@ fun VehicleItemCard(
                 }
 
                 Column(modifier = Modifier.weight(1.2f), horizontalAlignment = Alignment.End) {
-                    Text(text = "Trip Range", fontSize = 11.sp, color = HudColors.TextCoolSilver)
+                    Text(text = if (isEvCard) "EV Range" else "Trip Range", fontSize = 11.sp, color = HudColors.TextCoolSilver)
                     Text(
                         text = "${vehicle.estimatedRangeKm} km",
                         fontSize = 15.sp,
@@ -912,7 +967,7 @@ fun VehicleItemCard(
                 }
             }
 
-            // Low Fuel Reminder Bar
+            // Low Fuel / Low Battery Reminder Bar
             if (vehicle.isLowFuelAlert) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
@@ -932,7 +987,7 @@ fun VehicleItemCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Refuel Reminder: Fuel low (${vehicle.estimatedRangeKm} km left). Fill up vehicle!",
+                            text = if (isEvCard) "⚡ Charge Reminder: Battery low (${vehicle.estimatedRangeKm} km left). Plug in EV!" else "Refuel Reminder: Fuel low (${vehicle.estimatedRangeKm} km left). Fill up vehicle!",
                             fontSize = 11.sp,
                             color = Color(0xFFFCA5A5),
                             fontWeight = FontWeight.Medium

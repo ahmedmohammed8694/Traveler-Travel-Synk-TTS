@@ -53,6 +53,12 @@ fun AddRouteSegmentDialog(
     var newStopInput by remember { mutableStateOf("") }
     var showAddManualStop by remember { mutableStateOf(false) }
 
+    // Segment Location Search State (Start, Destination, Stop)
+    var segmentSearchTargetField by remember { mutableStateOf<String?>(null) }
+    var segmentSearchQuery by remember { mutableStateOf("") }
+    var segmentGeocoderResults by remember { mutableStateOf<List<PlaceSearchResult>>(emptyList()) }
+    var isSegmentGeocoding by remember { mutableStateOf(false) }
+
     var isResolving by remember { mutableStateOf(false) }
     var calculatedDistanceKm by remember { mutableDoubleStateOf(0.0) }
     var calculatedDurationMins by remember { mutableIntStateOf(0) }
@@ -69,6 +75,40 @@ fun AddRouteSegmentDialog(
 
     val accentColor = Color(0xFF0052CC)
     val surfaceColor = Color(0xFFFFFFFF)
+
+    LaunchedEffect(segmentSearchQuery) {
+        if (segmentSearchQuery.trim().length >= 2) {
+            isSegmentGeocoding = true
+            try {
+                val results = withContext(Dispatchers.IO) {
+                    val geocoder = Geocoder(context, Locale.getDefault())
+                    val addresses = geocoder.getFromLocationName(segmentSearchQuery, 5)
+                    addresses?.map { addr ->
+                        val feature = addr.featureName ?: addr.locality ?: segmentSearchQuery
+                        val fullAddress = (0..addr.maxAddressLineIndex)
+                            .map { addr.getAddressLine(it) }
+                            .joinToString(", ")
+                            .ifBlank { "${addr.locality ?: ""}, ${addr.adminArea ?: ""}, ${addr.countryName ?: ""}" }
+
+                        PlaceSearchResult(
+                            title = if (feature.isNotBlank() && !fullAddress.startsWith(feature)) "$feature, ${addr.locality ?: addr.adminArea ?: ""}" else fullAddress,
+                            address = fullAddress,
+                            latLng = LatLng(addr.latitude, addr.longitude),
+                            category = addr.countryName ?: "Google Maps Location"
+                        )
+                    } ?: emptyList()
+                }
+                segmentGeocoderResults = results
+            } catch (e: Exception) {
+                segmentGeocoderResults = emptyList()
+            } finally {
+                isSegmentGeocoding = false
+            }
+        } else {
+            segmentGeocoderResults = emptyList()
+            isSegmentGeocoding = false
+        }
+    }
 
     suspend fun resolveLocation(locStr: String, fallback: LatLng): LatLng {
         val coords = GoogleMapsUrlParser.parseLatLng(locStr)
@@ -345,6 +385,14 @@ fun AddRouteSegmentDialog(
                             leadingIcon = {
                                 Icon(imageVector = Icons.Default.MyLocation, contentDescription = null, tint = Color(0xFF16A34A))
                             },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    segmentSearchTargetField = "START"
+                                    segmentSearchQuery = ""
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search Start Location", tint = Color(0xFF0052CC))
+                                }
+                            },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
@@ -452,13 +500,34 @@ fun AddRouteSegmentDialog(
                                 }
                             }
                         } else {
-                            TextButton(
-                                onClick = { showAddManualStop = true },
-                                modifier = Modifier.padding(top = 4.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.AddLocation, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("+ Add Intermediate Stop", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                TextButton(
+                                    onClick = { showAddManualStop = true },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.AddLocation, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("+ Add Text Stop", color = Color(0xFF0052CC), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        segmentSearchTargetField = "STOP"
+                                        segmentSearchQuery = ""
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0052CC))
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Search Stop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
 
@@ -472,6 +541,14 @@ fun AddRouteSegmentDialog(
                             placeholder = { Text("e.g. Nagarjuna Sagar Dam") },
                             leadingIcon = {
                                 Icon(imageVector = Icons.Default.Flag, contentDescription = null, tint = Color(0xFFEF4444))
+                            },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    segmentSearchTargetField = "DEST"
+                                    segmentSearchQuery = ""
+                                }) {
+                                    Icon(Icons.Default.Search, contentDescription = "Search Destination Location", tint = Color(0xFF0052CC))
+                                }
                             },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -690,5 +767,165 @@ fun AddRouteSegmentDialog(
                 }
             }
         }
+    }
+
+    // Segment Google Maps Location Search Dialog
+    if (segmentSearchTargetField != null) {
+        val targetLabel = when (segmentSearchTargetField) {
+            "START" -> "Start Location (Origin)"
+            "DEST" -> "Destination Location"
+            else -> "Intermediate Stop Location"
+        }
+
+        val filteredPresetResults = remember(segmentSearchQuery) {
+            if (segmentSearchQuery.isBlank()) {
+                POPULAR_MAP_LOCATIONS
+            } else {
+                POPULAR_MAP_LOCATIONS.filter {
+                    it.title.contains(segmentSearchQuery, ignoreCase = true) ||
+                            it.address.contains(segmentSearchQuery, ignoreCase = true) ||
+                            it.category.contains(segmentSearchQuery, ignoreCase = true)
+                }
+            }
+        }
+
+        val combinedResults = remember(segmentGeocoderResults, filteredPresetResults) {
+            (segmentGeocoderResults + filteredPresetResults).distinctBy { "${it.latLng.latitude},${it.latLng.longitude}" }
+        }
+
+        AlertDialog(
+            onDismissRequest = { segmentSearchTargetField = null },
+            containerColor = Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.border(1.5.dp, Color(0xFF0052CC), RoundedCornerShape(20.dp)),
+            title = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Search $targetLabel",
+                            color = Color(0xFF0F172A),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 17.sp
+                        )
+                    }
+                    Text(
+                        text = "Search Google Maps places, cities, landmarks, or highway stops",
+                        color = Color(0xFF64748B),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                ) {
+                    OutlinedTextField(
+                        value = segmentSearchQuery,
+                        onValueChange = { segmentSearchQuery = it },
+                        placeholder = { Text("Type place, city, or highway name...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF0052CC)) },
+                        trailingIcon = {
+                            if (isSegmentGeocoding) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color(0xFF0052CC), strokeWidth = 2.dp)
+                            } else if (segmentSearchQuery.isNotBlank()) {
+                                IconButton(onClick = { segmentSearchQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color(0xFF64748B))
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0xFFFFFFFF),
+                            unfocusedContainerColor = Color(0xFFFFFFFF),
+                            focusedTextColor = Color(0xFF0F172A),
+                            unfocusedTextColor = Color(0xFF0F172A),
+                            focusedBorderColor = Color(0xFF0052CC),
+                            unfocusedBorderColor = Color(0xFFCBD5E1)
+                        )
+                    )
+
+                    Text(
+                        text = if (segmentSearchQuery.isBlank()) "POPULAR HIGHWAY & CITY LOCATIONS:" else "SEARCH RESULTS (${combinedResults.size}):",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        combinedResults.forEach { res ->
+                            Surface(
+                                onClick = {
+                                    when (segmentSearchTargetField) {
+                                        "START" -> {
+                                            originName = res.title
+                                            originLatLng = res.latLng
+                                        }
+                                        "DEST" -> {
+                                            destinationName = res.title
+                                            destLatLng = res.latLng
+                                        }
+                                        "STOP" -> {
+                                            stopsList.add(res.title)
+                                            waypointLatLngs.add(res.latLng)
+                                        }
+                                    }
+                                    segmentSearchTargetField = null
+                                    calculateAndPreviewRoute()
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFF8FAFC),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = res.title, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text(text = res.address, color = Color(0xFF64748B), fontSize = 11.sp, maxLines = 1)
+                                    }
+                                    Surface(
+                                        color = Color(0xFFEFF6FF),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = res.category,
+                                            color = Color(0xFF0052CC),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { segmentSearchTargetField = null }) {
+                    Text("Close", color = Color(0xFF64748B), fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 }

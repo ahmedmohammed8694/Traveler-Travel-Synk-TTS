@@ -33,7 +33,7 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/ic_app_logo_square"
+        android:icon="@drawable/ic_app_logo_badge"
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_app_logo_badge"
         android:supportsRtl="true"

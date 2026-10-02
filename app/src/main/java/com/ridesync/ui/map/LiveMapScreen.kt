@@ -1080,45 +1080,46 @@ fun LiveMapScreen(
     arrivalPopupStop?.let { stop ->
         AlertDialog(
             onDismissRequest = { arrivalPopupStop = null },
-            containerColor = Color(0xFF0F172A),
-            shape = RoundedCornerShape(20.dp),
+            containerColor = Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(22.dp),
+            modifier = Modifier.border(1.5.dp, Color(0xFF059669), RoundedCornerShape(22.dp)),
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Celebration, contentDescription = null, tint = Color(0xFF22C55E), modifier = Modifier.size(24.dp))
+                    Icon(Icons.Default.Celebration, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "You Have Reached!",
-                        color = Color.White,
+                        color = Color(0xFF0F172A),
                         fontWeight = FontWeight.Black,
-                        fontSize = 18.sp
+                        fontSize = 19.sp
                     )
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Surface(
-                        color = Color(0xFF020617),
+                        color = Color(0xFFECFDF5),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFF22C55E)),
+                        border = BorderStroke(1.dp, Color(0xFF059669)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text(
                                 text = stop.stopName,
-                                color = Color(0xFF22C55E),
+                                color = Color(0xFF065F46),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Black
                             )
                             if (stop.activityDescription.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(stop.activityDescription, color = Color(0xFFCBD5E1), fontSize = 12.sp)
+                                Text(stop.activityDescription, color = Color(0xFF047857), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
 
                     Text(
                         text = "Marking this point completed will remove it from the live map and update your convoy navigation to the next stop.",
-                        color = Color(0xFF94A3B8),
+                        color = Color(0xFF475569),
                         fontSize = 12.sp
                     )
                 }
@@ -1131,13 +1132,13 @@ fun LiveMapScreen(
                         Toast.makeText(context, "Marked '${stop.stopName}' as Completed!", Toast.LENGTH_SHORT).show()
                         arrivalPopupStop = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E), contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669), contentColor = Color.White),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("✅ Mark as Completed", fontWeight = FontWeight.Black)
+                    Text("✅ Mark as Completed", fontWeight = FontWeight.Black, fontSize = 13.sp)
                 }
             },
             dismissButton = {
@@ -1153,11 +1154,11 @@ fun LiveMapScreen(
                             arrivalPopupStop = null
                         }
                     ) {
-                        Text("Skip Stop", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Skip Stop", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     TextButton(onClick = { arrivalPopupStop = null }) {
-                        Text("Later / Dismiss", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                        Text("Later / Dismiss", color = Color(0xFF64748B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1170,24 +1171,30 @@ fun LiveMapScreen(
     selectedStopForModal?.let { stop ->
         AlertDialog(
             onDismissRequest = { selectedStopForModal = null },
-            containerColor = Color(0xFF0F172A),
-            shape = RoundedCornerShape(18.dp),
+            containerColor = Color(0xFFFFFFFF),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.border(1.5.dp, Color(0xFF0052CC), RoundedCornerShape(20.dp)),
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Place, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = stop.stopName,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        color = Color(0xFF0F172A),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 17.sp
                     )
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stop.activityDescription.ifBlank { "Planned Stop / Milestone on Route" }, color = Color(0xFFCBD5E1), fontSize = 13.sp)
-                    Text("Status: ${stop.status.name}", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stop.activityDescription.ifBlank { "Planned Stop / Milestone on Route" }, color = Color(0xFF475569), fontSize = 13.sp)
+                    Surface(
+                        color = Color(0xFFEFF6FF),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("Status: ${stop.status.name}", color = Color(0xFF0052CC), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                    }
                 }
             },
             confirmButton = {
@@ -1198,7 +1205,7 @@ fun LiveMapScreen(
                         Toast.makeText(context, "Marked as Completed! Removed from active map.", Toast.LENGTH_SHORT).show()
                         selectedStopForModal = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981), contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669), contentColor = Color.White),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text("Mark Completed", fontWeight = FontWeight.Bold)
@@ -1212,7 +1219,7 @@ fun LiveMapScreen(
                         Toast.makeText(context, "Marked as Skipped! Removed from active map.", Toast.LENGTH_SHORT).show()
                         selectedStopForModal = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444), contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626), contentColor = Color.White),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text("Skip Stop", fontWeight = FontWeight.Bold)

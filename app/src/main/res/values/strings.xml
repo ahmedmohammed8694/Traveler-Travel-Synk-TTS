@@ -1,4 +1,5 @@
 <resources>
-    <string name="app_name">Riders Ride Sync (RRS)</string>
+    <string name="app_name">Traveler Travel Synk (TTS)</string>
+    <string name="app_slogan">Never travel alone again. Traveler Travel Synk (TTS) is your ultimate group convoy navigator and smart trip planner.</string>
     <string name="default_web_client_id">395720155616-qlsvl60qq4c6qti4nkt0lcqji04nkvbt.apps.googleusercontent.com</string>
 </resources>
