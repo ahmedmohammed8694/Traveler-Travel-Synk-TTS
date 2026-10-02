@@ -36,7 +36,7 @@ const val RIDERsYNK_DRIVE_DOWNLOAD_URL = "https://drive.google.com/drive/folders
  * Share Trip QR Code & Deep Link Invite Dialog.
  * Generates an instant scannable QR Code and formatted share invitation.
  * Supports:
- * 1. Automatic deep linking: opens the trip in RIDERsYNK if installed.
+ * 1. Automatic deep linking: opens the trip in Traveler Travel Synk (TTS) if installed.
  * 2. Download redirect link to Google Drive if the app is not yet installed.
  */
 @Composable
@@ -50,9 +50,9 @@ fun ShareTripQrDialog(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
-    val effectiveCode = lobbyCode.ifBlank { "RRS-9421" }
+    val effectiveCode = lobbyCode.ifBlank { "TTS-9421" }
     val deepLinkUrl = "ridesync://trip/join?code=$effectiveCode"
-    val webJoinUrl = "https://ridesync.app/join/$effectiveCode"
+    val webJoinUrl = "https://tts.app/join/$effectiveCode"
 
     // Generate QR Code bitmap with the deep link content
     val qrBitmap = remember(effectiveCode) {
@@ -63,16 +63,16 @@ fun ShareTripQrDialog(
         )
     }
 
-    val shareText = "🏍️ Join my motorcycle trip on RIDERsYNK!\n\n" +
+    val shareText = "🏍️ Join my travel trip on Traveler Travel Synk (TTS)!\n\n" +
             "📌 Trip: '$tripTitle'\n" +
             (if (startDate.isNotBlank()) "📅 Date: $startDate\n" else "") +
             (if (routeDescription.isNotBlank()) "📍 Route: $routeDescription\n" else "") +
-            "🔑 Lobby Code: $effectiveCode\n\n" +
-            "📲 If you already have RIDERsYNK installed, open to join:\n" +
+            "🔑 Trip Code: $effectiveCode\n\n" +
+            "📲 If you already have Traveler Travel Synk (TTS) installed, open to join:\n" +
             "$deepLinkUrl\n\n" +
-            "📥 If you haven't installed RIDERsYNK yet, download it here:\n" +
+            "📥 If you haven't installed Traveler Travel Synk (TTS) yet, download it here:\n" +
             "$RIDERsYNK_DRIVE_DOWNLOAD_URL\n" +
-            "(After installing, open the link or enter the Lobby Code '$effectiveCode' to join our convoy!)"
+            "(After installing, open the link or enter the Trip Code '$effectiveCode' to join our convoy!)"
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -135,14 +135,14 @@ fun ShareTripQrDialog(
                 }
 
                 Text(
-                    text = "Scan with RIDERsYNK app to join this convoy instantly",
+                    text = "Scan with Traveler Travel Synk (TTS) app to join this convoy instantly",
                     color = Color(0xFF475569),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center
                 )
 
-                // Lobby Code Banner
+                // Trip Code Banner
                 Surface(
                     color = Color(0xFFF8FAFC),
                     shape = RoundedCornerShape(14.dp),
@@ -155,7 +155,7 @@ fun ShareTripQrDialog(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                     ) {
                         Column {
-                            Text("Lobby Join Code", color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Trip Join Code", color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             Text(
                                 text = effectiveCode,
                                 color = Color(0xFF0052CC),
@@ -167,7 +167,7 @@ fun ShareTripQrDialog(
                         Button(
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(effectiveCode))
-                                Toast.makeText(context, "Lobby Code copied: $effectiveCode", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Trip Code copied: $effectiveCode", Toast.LENGTH_SHORT).show()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF0052CC)),
                             shape = RoundedCornerShape(10.dp),
@@ -192,7 +192,7 @@ fun ShareTripQrDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF0052CC), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("App Download Link (For new riders):", color = Color(0xFF0F172A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("App Download Link (For new travelers):", color = Color(0xFF0F172A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

@@ -212,7 +212,7 @@ fun JoinTripScreen(
                                     color = HudColors.TextCrispWhite
                                 )
                                 Text(
-                                    text = "Example: RSS1041 or https://ridesync.app/join/RSS1041",
+                                    text = "Example: TTS1041 or https://tts.app/join/TTS1041",
                                     fontSize = 12.sp,
                                     color = HudColors.TextCoolSilver,
                                     modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
@@ -221,7 +221,8 @@ fun JoinTripScreen(
                                 OutlinedTextField(
                                     value = tripCodeInput,
                                     onValueChange = { tripCodeInput = it },
-                                    placeholder = { Text("e.g. RSS1041 or paste trip link", color = HudColors.TextCoolSilver) },
+                                    placeholder = { Text("e.g. TTS1041 or paste trip link", color = HudColors.TextCoolSilver) },
+
                                     singleLine = true,
                                     leadingIcon = {
                                         Icon(Icons.Default.Key, contentDescription = null, tint = HudColors.CyanPrimary)
@@ -309,8 +310,9 @@ fun JoinTripScreen(
                                                 shape = RoundedCornerShape(6.dp)
                                             ) {
                                                 Text(
-                                                    text = publicTrip.lobbyCode.ifBlank { "RSS1041" },
+                                                    text = publicTrip.lobbyCode.ifBlank { "TTS1041" },
                                                     color = HudColors.CyanPrimary,
+
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Black,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

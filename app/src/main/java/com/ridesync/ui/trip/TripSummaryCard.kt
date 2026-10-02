@@ -368,17 +368,18 @@ fun TripSummaryCard(
  * Triggers native Android Share Sheet with trip join link, deep link, and Google Drive download redirect link.
  */
 fun shareTripLink(context: Context, trip: SavedTrip) {
-    val code = trip.lobbyCode.ifBlank { "RRS-${trip.tripId.takeLast(4)}" }
+    val code = trip.lobbyCode.ifBlank { "TTS-${trip.tripId.takeLast(4)}" }
     val deepLink = "ridesync://trip/join?code=$code"
-    val shareText = "🏍️ Join my motorcycle tour: '${trip.title}' on RIDERsYNK!\n\n" +
+    val shareText = "🏍️ Join my travel tour: '${trip.title}' on Traveler Travel Synk (TTS)!\n\n" +
             "📅 Date: ${trip.scheduledDate.ifBlank { "Upcoming" }}\n" +
             "📍 Route: ${trip.originName} to ${trip.destinationName}\n" +
-            "🔑 Lobby Code: $code\n\n" +
+            "🔑 Trip Code: $code\n\n" +
             "📲 Open in App (if installed):\n" +
             "$deepLink\n\n" +
-            "📥 Download & Install RIDERsYNK (if not installed):\n" +
+            "📥 Download & Install Traveler Travel Synk (TTS):\n" +
             "$RIDERsYNK_DRIVE_DOWNLOAD_URL\n" +
             "(After installing, open the app and enter code '$code' to join the convoy!)"
+
 
     val sendIntent = Intent().apply {
         action = Intent.ACTION_SEND

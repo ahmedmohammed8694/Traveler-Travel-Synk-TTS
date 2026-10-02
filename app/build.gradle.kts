@@ -153,6 +153,7 @@ dependencies {
     implementation("com.google.guava:guava:33.3.0-android")
     implementation("androidx.concurrent:concurrent-futures:1.2.0")
     implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.zxing.core)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)

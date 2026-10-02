@@ -70,12 +70,18 @@ object TripRepository {
         return getAllTrips().firstOrNull { it.tripId == tripId }
     }
 
-    private fun formatLobbyCode(code: String): String {
+    fun formatLobbyCode(code: String): String {
         val clean = code.trim().uppercase().replace("-", "").replace(" ", "")
-        if (clean.startsWith("RSS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
+        if (clean.startsWith("TTS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
             return clean
         }
-        return "RSS${(1000..9999).random()}"
+        if (clean.length == 4 && clean.all { it.isDigit() }) {
+            return "TTS$clean"
+        }
+        if (clean.startsWith("RSS") && clean.length == 7 && clean.substring(3).all { it.isDigit() }) {
+            return "TTS${clean.substring(3)}"
+        }
+        return "TTS${(1000..9999).random()}"
     }
 
     @Synchronized
@@ -678,85 +684,96 @@ object TripRepository {
 
     suspend fun fetchTripByLobbyCode(code: String): SavedTrip? {
         return kotlinx.coroutines.withContext(Dispatchers.IO) {
-            val cleanCode = code.trim().uppercase()
-            if (cleanCode.isBlank()) return@withContext null
+            val raw = code.trim().uppercase().replace("-", "").replace(" ", "")
+            if (raw.isBlank()) return@withContext null
 
-            // 1. Instant check in local trips flow & cache
-            val localMatch = getAllTrips().firstOrNull { 
-                it.lobbyCode.isNotBlank() && it.lobbyCode.uppercase().replace("-", "") == cleanCode.replace("-", "")
+            val targetCode = formatLobbyCode(raw)
+            val digitsOnly = raw.takeLast(4)
+
+            // 1. Check local trips flow & cache (match by formatted code, raw code, or trailing 4 digits)
+            val localMatch = getAllTrips().firstOrNull { trip ->
+                val tripCode = trip.lobbyCode.trim().uppercase().replace("-", "")
+                tripCode == targetCode || tripCode == raw || (digitsOnly.length == 4 && tripCode.endsWith(digitsOnly))
             }
             if (localMatch != null) {
                 return@withContext localMatch
             }
 
-            // 2. Query Cloudflare Edge & D1 Database
-            try {
-                val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/by-code?code=$cleanCode")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "GET"
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.connectTimeout = 4000
-                conn.readTimeout = 4000
+            // 2. Query Cloudflare Edge & D1 Database with both targetCode and raw input
+            for (queryCode in listOf(targetCode, raw).distinct()) {
+                try {
+                    val url = URL("$CLOUDFLARE_EDGE_URL/api/trip/by-code?code=$queryCode")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.requestMethod = "GET"
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.connectTimeout = 4000
+                    conn.readTimeout = 4000
 
-                if (conn.responseCode in 200..299) {
-                    val text = conn.inputStream.bufferedReader().readText()
-                    val json = JSONObject(text)
-                    val tripObj = json.optJSONObject("trip")
-                    if (tripObj != null) {
-                        val parsed = deserializeTrip(tripObj)
-                        if (parsed != null && parsed.title.isNotBlank()) {
-                            return@withContext parsed
+                    if (conn.responseCode in 200..299) {
+                        val text = conn.inputStream.bufferedReader().readText()
+                        val json = JSONObject(text)
+                        val tripObj = json.optJSONObject("trip")
+                        if (tripObj != null) {
+                            val parsed = deserializeTrip(tripObj)
+                            if (parsed != null && parsed.title.isNotBlank()) {
+                                saveTrip(parsed)
+                                return@withContext parsed
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error looking up trip code $queryCode on Cloudflare", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error looking up trip code $cleanCode on Cloudflare", e)
             }
 
-            // 3. Query Supabase REST Database directly if Cloudflare lookup failed or returned null
-            try {
-                val sbUrl = URL("$SUPABASE_URL/rest/v1/saved_trips?lobby_code=ilike.$cleanCode&select=*")
-                val conn = sbUrl.openConnection() as HttpURLConnection
-                conn.requestMethod = "GET"
-                conn.setRequestProperty("apikey", SUPABASE_ANON_KEY)
-                conn.setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
-                conn.connectTimeout = 4000
-                conn.readTimeout = 4000
+            // 3. Query Supabase REST Database directly if Cloudflare lookup returned null
+            for (queryCode in listOf(targetCode, raw).distinct()) {
+                try {
+                    val sbUrl = URL("$SUPABASE_URL/rest/v1/saved_trips?lobby_code=ilike.$queryCode&select=*")
+                    val conn = sbUrl.openConnection() as HttpURLConnection
+                    conn.requestMethod = "GET"
+                    conn.setRequestProperty("apikey", SUPABASE_ANON_KEY)
+                    conn.setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                    conn.connectTimeout = 4000
+                    conn.readTimeout = 4000
 
-                if (conn.responseCode in 200..299) {
-                    val text = conn.inputStream.bufferedReader().readText()
-                    val array = JSONArray(text)
-                    if (array.length() > 0) {
-                        val obj = array.getJSONObject(0)
-                        val tripId = obj.optString("trip_id", "")
-                        val title = obj.optString("title", "")
-                        if (tripId.isNotBlank() && title.isNotBlank()) {
-                            val parsed = SavedTrip(
-                                tripId = tripId,
-                                plannerId = obj.optString("planner_id", "user_host"),
-                                title = title,
-                                originName = obj.optString("origin_name", ""),
-                                destinationName = obj.optString("destination_name", ""),
-                                startLatLng = LatLng(obj.optDouble("start_lat", 0.0), obj.optDouble("start_lng", 0.0)),
-                                destLatLng = LatLng(obj.optDouble("dest_lat", 0.0), obj.optDouble("dest_lng", 0.0)),
-                                distanceKm = obj.optDouble("distance_km", 0.0),
-                                durationMinutes = obj.optInt("duration_minutes", 0),
-                                category = try { TripCategory.valueOf(obj.optString("category", "UPCOMING")) } catch (_: Exception) { TripCategory.UPCOMING },
-                                lobbyCode = obj.optString("lobby_code", cleanCode),
-                                scheduledDate = obj.optString("scheduled_date", ""),
-                                activeRidersCount = obj.optInt("active_riders_count", 1)
-                            )
-                            return@withContext parsed
+                    if (conn.responseCode in 200..299) {
+                        val text = conn.inputStream.bufferedReader().readText()
+                        val array = JSONArray(text)
+                        if (array.length() > 0) {
+                            val obj = array.getJSONObject(0)
+                            val tripId = obj.optString("trip_id", "")
+                            val title = obj.optString("title", "")
+                            if (tripId.isNotBlank() && title.isNotBlank()) {
+                                val parsed = SavedTrip(
+                                    tripId = tripId,
+                                    plannerId = obj.optString("planner_id", "user_host"),
+                                    title = title,
+                                    originName = obj.optString("origin_name", ""),
+                                    destinationName = obj.optString("destination_name", ""),
+                                    startLatLng = LatLng(obj.optDouble("start_lat", 0.0), obj.optDouble("start_lng", 0.0)),
+                                    destLatLng = LatLng(obj.optDouble("dest_lat", 0.0), obj.optDouble("dest_lng", 0.0)),
+                                    distanceKm = obj.optDouble("distance_km", 0.0),
+                                    durationMinutes = obj.optInt("duration_minutes", 0),
+                                    category = try { TripCategory.valueOf(obj.optString("category", "UPCOMING")) } catch (_: Exception) { TripCategory.UPCOMING },
+                                    lobbyCode = obj.optString("lobby_code", targetCode),
+                                    scheduledDate = obj.optString("scheduled_date", ""),
+                                    activeRidersCount = obj.optInt("active_riders_count", 1)
+                                )
+                                saveTrip(parsed)
+                                return@withContext parsed
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Supabase code lookup note: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Supabase code lookup note: ${e.message}")
             }
 
             null
         }
     }
+
 
     private fun syncTripToCloudflareAsync(trip: SavedTrip) {
         CoroutineScope(Dispatchers.IO).launch {

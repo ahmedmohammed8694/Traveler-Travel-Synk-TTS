@@ -265,7 +265,7 @@ fun TripFullDetailsDialog(
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Lobby Code & QR / Share Buttons
+                            // Trip Code & QR / Share Buttons
                             Surface(
                                 color = Color(0xFFF8FAFC),
                                 shape = RoundedCornerShape(12.dp),
@@ -278,9 +278,9 @@ fun TripFullDetailsDialog(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                 ) {
                                     Column {
-                                        Text("Lobby Invite Code", color = Color(0xFF475569), fontSize = 11.sp)
+                                        Text("Trip Invite Code", color = Color(0xFF475569), fontSize = 11.sp)
                                         Text(
-                                            text = liveTrip.lobbyCode.ifBlank { "RRS-${liveTrip.tripId.takeLast(4)}" },
+                                            text = liveTrip.lobbyCode.ifBlank { "TTS-${liveTrip.tripId.takeLast(4)}" },
                                             color = Color(0xFF0052CC),
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Black
@@ -291,14 +291,15 @@ fun TripFullDetailsDialog(
                                         // Copy Code
                                         IconButton(
                                             onClick = {
-                                                val code = liveTrip.lobbyCode.ifBlank { "RRS-${liveTrip.tripId.takeLast(4)}" }
+                                                val code = liveTrip.lobbyCode.ifBlank { "TTS-${liveTrip.tripId.takeLast(4)}" }
                                                 clipboardManager.setText(AnnotatedString(code))
-                                                Toast.makeText(context, "Lobby Code copied: $code", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Trip Code copied: $code", Toast.LENGTH_SHORT).show()
                                             },
                                             modifier = Modifier.size(36.dp)
                                         ) {
                                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF0052CC), modifier = Modifier.size(18.dp))
                                         }
+
 
                                         // Share QR Code Button
                                         Button(
