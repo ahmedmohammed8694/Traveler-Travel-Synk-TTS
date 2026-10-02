@@ -32,14 +32,23 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.ridesync.data.model.UserProfile
+
 /**
  * Notifications Center Dialog for TTS (Traveler Travel Synk).
  * Displays real-time notifications aligned with Alpine Pearl & Sapphire Azure UI Theme.
  */
 @Composable
 fun NotificationCenterDialog(
+    currentUserProfile: UserProfile? = null,
+    onSaveCurrentUserProfile: (UserProfile) -> Unit = {},
+    onOpenTravelerProfileById: (String) -> Unit = {},
+    onOpenSocialTab: (Int) -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val notificationsList by NotificationRepository.notifications.collectAsState()
     var selectedFilter by remember { mutableStateOf("ALL") }
 
@@ -212,83 +221,169 @@ fun NotificationCenterDialog(
                                 .fillMaxWidth()
                                 .clickable {
                                     NotificationRepository.markAsRead(item.id)
+                                    onDismiss()
+                                    if (item.type == NotificationType.FRIEND_REQUEST || item.type == NotificationType.FRIEND_ACCEPTED) {
+                                        if (item.senderUserId.isNotBlank()) {
+                                            onOpenTravelerProfileById(item.senderUserId)
+                                        } else {
+                                            onOpenSocialTab(0)
+                                        }
+                                    } else if (item.type == NotificationType.NEW_MESSAGE) {
+                                        if (item.senderUserId.isNotBlank()) {
+                                            onOpenTravelerProfileById(item.senderUserId)
+                                        }
+                                    }
                                 }
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(14.dp)
-                            ) {
-                                // Notification Type Badge Icon
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            when (item.type) {
-                                                NotificationType.FRIEND_REQUEST -> Color(0xFF0284C7)
-                                                NotificationType.FRIEND_ACCEPTED -> Color(0xFF16A34A)
-                                                NotificationType.NEW_MESSAGE -> HudColors.CyanLight
-                                                NotificationType.CONVOY_MEMBER_JOINED -> Color(0xFFD97706)
-                                                NotificationType.TRIP_UPDATE -> Color(0xFF7C3AED)
-                                                NotificationType.SOS_ALERT -> Color(0xFFDC2626)
-                                            }
-                                        )
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(
-                                        imageVector = when (item.type) {
-                                            NotificationType.FRIEND_REQUEST -> Icons.Default.PersonAdd
-                                            NotificationType.FRIEND_ACCEPTED -> Icons.Default.CheckCircle
-                                            NotificationType.NEW_MESSAGE -> Icons.AutoMirrored.Filled.Chat
-                                            NotificationType.CONVOY_MEMBER_JOINED -> Icons.Default.GroupAdd
-                                            NotificationType.TRIP_UPDATE -> Icons.AutoMirrored.Filled.DirectionsBike
-                                            NotificationType.SOS_ALERT -> Icons.Default.Warning
-                                        },
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
+                                    // Notification Type Badge Icon
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                when (item.type) {
+                                                    NotificationType.FRIEND_REQUEST -> Color(0xFF0284C7)
+                                                    NotificationType.FRIEND_ACCEPTED -> Color(0xFF16A34A)
+                                                    NotificationType.NEW_MESSAGE -> HudColors.CyanLight
+                                                    NotificationType.CONVOY_MEMBER_JOINED -> Color(0xFFD97706)
+                                                    NotificationType.TRIP_UPDATE -> Color(0xFF7C3AED)
+                                                    NotificationType.SOS_ALERT -> Color(0xFFDC2626)
+                                                }
+                                            )
                                     ) {
-                                        Text(
-                                            text = item.title,
-                                            color = HudColors.TextCrispWhite,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = timeFormatted,
-                                            color = HudColors.TextMuted,
-                                            fontSize = 10.5.sp
+                                        Icon(
+                                            imageVector = when (item.type) {
+                                                NotificationType.FRIEND_REQUEST -> Icons.Default.PersonAdd
+                                                NotificationType.FRIEND_ACCEPTED -> Icons.Default.CheckCircle
+                                                NotificationType.NEW_MESSAGE -> Icons.AutoMirrored.Filled.Chat
+                                                NotificationType.CONVOY_MEMBER_JOINED -> Icons.Default.GroupAdd
+                                                NotificationType.TRIP_UPDATE -> Icons.AutoMirrored.Filled.DirectionsBike
+                                                NotificationType.SOS_ALERT -> Icons.Default.Warning
+                                            },
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
 
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
 
-                                    Text(
-                                        text = item.message,
-                                        color = HudColors.TextCoolSilver,
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = item.title,
+                                                color = HudColors.TextCrispWhite,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = timeFormatted,
+                                                color = HudColors.TextMuted,
+                                                fontSize = 10.5.sp
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Text(
+                                            text = item.message,
+                                            color = HudColors.TextCoolSilver,
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+
+                                    if (!item.isRead) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(HudColors.CyanPrimary)
+                                        )
+                                    }
                                 }
 
-                                if (!item.isRead) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(HudColors.CyanPrimary)
-                                    )
+                                // Quick Action Accept / Decline Bar for Friend Request Notifications
+                                if (item.type == NotificationType.FRIEND_REQUEST && currentUserProfile != null && item.senderUserId.isNotBlank()) {
+                                    val isPending = currentUserProfile.friendRequestsReceived.contains(item.senderUserId)
+                                    val isAlreadyFriends = currentUserProfile.friends.contains(item.senderUserId)
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        if (isAlreadyFriends) {
+                                            Surface(
+                                                color = Color(0xFF16A34A).copy(alpha = 0.2f),
+                                                shape = RoundedCornerShape(8.dp),
+                                                border = BorderStroke(1.dp, Color(0xFF16A34A))
+                                            ) {
+                                                Text(
+                                                    text = "Friends ✓",
+                                                    color = Color(0xFF22C55E),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        } else if (isPending) {
+                                            Button(
+                                                onClick = {
+                                                    val updated = com.ridesync.data.repository.SocialRepository.acceptFriendRequest(
+                                                        currentUserProfile,
+                                                        item.senderUserId
+                                                    )
+                                                    onSaveCurrentUserProfile(updated)
+                                                    NotificationRepository.markAsRead(item.id)
+                                                    Toast.makeText(context, "Accepted friend request from ${item.senderName}!", Toast.LENGTH_SHORT).show()
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A), contentColor = Color.White),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Accept", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    val updated = com.ridesync.data.repository.SocialRepository.declineFriendRequest(
+                                                        currentUserProfile,
+                                                        item.senderUserId
+                                                    )
+                                                    onSaveCurrentUserProfile(updated)
+                                                    NotificationRepository.markAsRead(item.id)
+                                                    Toast.makeText(context, "Declined request", Toast.LENGTH_SHORT).show()
+                                                },
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                                                border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Decline", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

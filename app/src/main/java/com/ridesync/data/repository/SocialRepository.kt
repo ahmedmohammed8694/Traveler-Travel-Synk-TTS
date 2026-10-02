@@ -221,6 +221,12 @@ object SocialRepository {
                     val photo = doc.getString("photoUrl") ?: ""
                     val bike = doc.getString("vehicleModel") ?: ""
 
+                    val friends = (doc.get("friends") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+                    val followers = (doc.get("followers") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+                    val following = (doc.get("following") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+                    val reqSent = (doc.get("friendRequestsSent") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+                    val reqRecv = (doc.get("friendRequestsReceived") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+
                     val user = UserProfile(
                         userId = uid,
                         displayName = name,
@@ -228,7 +234,12 @@ object SocialRepository {
                         mobileNumber = phone,
                         profileCode = code,
                         photoUrl = photo,
-                        vehicleModel = bike
+                        vehicleModel = bike,
+                        friends = friends,
+                        followers = followers,
+                        following = following,
+                        friendRequestsSent = reqSent,
+                        friendRequestsReceived = reqRecv
                     )
                     if (matchesUserQuery(user)) {
                         registerKnownTraveler(user)
@@ -257,12 +268,21 @@ object SocialRepository {
 
     /**
      * Get or register a traveler profile in the cache.
+     * Merges non-empty social lists to prevent overwriting existing social relationships.
      */
     fun registerKnownTraveler(user: UserProfile) {
         val current = _knownTravelers.value.toMutableList()
         val existingIdx = current.indexOfFirst { it.userId == user.userId }
         if (existingIdx >= 0) {
-            current[existingIdx] = user
+            val existing = current[existingIdx]
+            val merged = user.copy(
+                friends = if (user.friends.isNotEmpty()) user.friends else existing.friends,
+                followers = if (user.followers.isNotEmpty()) user.followers else existing.followers,
+                following = if (user.following.isNotEmpty()) user.following else existing.following,
+                friendRequestsSent = if (user.friendRequestsSent.isNotEmpty()) user.friendRequestsSent else existing.friendRequestsSent,
+                friendRequestsReceived = if (user.friendRequestsReceived.isNotEmpty()) user.friendRequestsReceived else existing.friendRequestsReceived
+            )
+            current[existingIdx] = merged
         } else {
             current.add(user)
         }
@@ -338,8 +358,8 @@ object SocialRepository {
      */
     fun toggleFollowUser(currentProfile: UserProfile, targetUserId: String): UserProfile {
         val following = currentProfile.following.toMutableList()
-        val isFollowing = following.contains(targetUserId)
-        if (isFollowing) {
+        val isFollowingBefore = following.contains(targetUserId)
+        if (isFollowingBefore) {
             following.remove(targetUserId)
         } else {
             following.add(targetUserId)
@@ -354,7 +374,7 @@ object SocialRepository {
                 ?: fetchProfilesByIds(listOf(targetUserId)).firstOrNull()
             if (targetUser != null) {
                 val targetFollowers = targetUser.followers.toMutableList()
-                if (isFollowing) {
+                if (isFollowingBefore) {
                     targetFollowers.remove(currentProfile.userId)
                 } else {
                     if (!targetFollowers.contains(currentProfile.userId)) {
@@ -363,6 +383,20 @@ object SocialRepository {
                 }
                 val updatedTarget = targetUser.copy(followers = targetFollowers)
                 syncProfileToRemote(updatedTarget)
+            }
+
+            if (!isFollowingBefore) {
+                NotificationRepository.addNotification(
+                    com.ridesync.data.model.AppNotification(
+                        title = "👤 New Follower Alert",
+                        message = "${currentProfile.displayName} is now following you!",
+                        type = com.ridesync.data.model.NotificationType.FRIEND_REQUEST,
+                        targetUserId = targetUserId,
+                        senderUserId = currentProfile.userId,
+                        senderName = currentProfile.displayName,
+                        senderPhotoUrl = currentProfile.photoUrl
+                    )
+                )
             }
         }
 
@@ -395,6 +429,7 @@ object SocialRepository {
                     title = "📩 Friend Request Received",
                     message = "${currentProfile.displayName} sent you a friend request!",
                     type = com.ridesync.data.model.NotificationType.FRIEND_REQUEST,
+                    targetUserId = targetUserId,
                     senderUserId = currentProfile.userId,
                     senderName = currentProfile.displayName,
                     senderPhotoUrl = currentProfile.photoUrl
@@ -435,6 +470,7 @@ object SocialRepository {
                     title = "🎉 Friend Request Accepted",
                     message = "${currentProfile.displayName} accepted your friend request! You are now connected as friends.",
                     type = com.ridesync.data.model.NotificationType.FRIEND_ACCEPTED,
+                    targetUserId = targetUserId,
                     senderUserId = currentProfile.userId,
                     senderName = currentProfile.displayName,
                     senderPhotoUrl = currentProfile.photoUrl
@@ -580,6 +616,7 @@ object SocialRepository {
                 title = if (receiverId.startsWith("trip_group_")) "💬 Convoy Alert" else "💬 New Message",
                 message = "$senderName: $text",
                 type = com.ridesync.data.model.NotificationType.NEW_MESSAGE,
+                targetUserId = receiverId,
                 senderUserId = senderId,
                 senderName = senderName,
                 senderPhotoUrl = senderPhotoUrl

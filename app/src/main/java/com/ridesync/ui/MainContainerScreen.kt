@@ -122,6 +122,13 @@ fun MainContainerScreen(
             ?: allSavedTrips.firstOrNull()
     }
 
+    // Real-time notification listener for current user
+    LaunchedEffect(userProfile.userId) {
+        if (userProfile.userId.isNotBlank()) {
+            com.ridesync.data.repository.NotificationRepository.startListeningForUser(userProfile.userId)
+        }
+    }
+
     // Real-time background poller for online trips and joined rider roster updates
     LaunchedEffect(activeTrip?.tripId) {
         while (true) {
@@ -591,6 +598,25 @@ fun MainContainerScreen(
                 // DIALOG OVERLAYS
                 if (showNotificationCenterDialog) {
                     NotificationCenterDialog(
+                        currentUserProfile = userProfile,
+                        onSaveCurrentUserProfile = onSaveUserProfile,
+                        onOpenTravelerProfileById = { senderId ->
+                            coroutineScope.launch {
+                                val loaded = com.ridesync.data.repository.SocialRepository.fetchProfilesByIds(listOf(senderId))
+                                val target = loaded.firstOrNull()
+                                    ?: com.ridesync.data.repository.SocialRepository.knownTravelers.value.firstOrNull { it.userId == senderId }
+                                if (target != null) {
+                                    activeTravelerProfileView = target
+                                } else {
+                                    socialListInitialTab = 0
+                                    showSocialListDialog = true
+                                }
+                            }
+                        },
+                        onOpenSocialTab = { tab ->
+                            socialListInitialTab = tab
+                            showSocialListDialog = true
+                        },
                         onDismiss = { showNotificationCenterDialog = false }
                     )
                 }

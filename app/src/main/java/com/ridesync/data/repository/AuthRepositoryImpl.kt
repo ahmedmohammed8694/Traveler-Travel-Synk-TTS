@@ -125,6 +125,13 @@ class AuthRepositoryImpl : AuthRepository {
             put("activeVehicleId", profile.activeVehicleId)
             put("createdAt", profile.createdAt)
 
+            put("friends", JSONArray(profile.friends))
+            put("friendRequestsSent", JSONArray(profile.friendRequestsSent))
+            put("friendRequestsReceived", JSONArray(profile.friendRequestsReceived))
+            put("following", JSONArray(profile.following))
+            put("followers", JSONArray(profile.followers))
+            put("blockedUsers", JSONArray(profile.blockedUsers))
+
             val vehArray = JSONArray()
             profile.vehicles.forEach { v ->
                 vehArray.put(vehicleToJson(v))
@@ -153,6 +160,24 @@ class AuthRepositoryImpl : AuthRepository {
             val activeVehId = j.optString("activeVehicleId", "")
             val created = j.optLong("createdAt", System.currentTimeMillis())
 
+            fun parseJsonList(key: String): List<String> {
+                if (!j.has(key) || j.isNull(key)) return emptyList()
+                val arr = j.getJSONArray(key)
+                val list = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    val s = arr.optString(i, "")
+                    if (s.isNotBlank()) list.add(s)
+                }
+                return list
+            }
+
+            val friendsList = parseJsonList("friends")
+            val reqSentList = parseJsonList("friendRequestsSent")
+            val reqRecvList = parseJsonList("friendRequestsReceived")
+            val followingList = parseJsonList("following")
+            val followersList = parseJsonList("followers")
+            val blockedList = parseJsonList("blockedUsers")
+
             val vehiclesList = mutableListOf<Vehicle>()
             if (j.has("vehicles") && !j.isNull("vehicles")) {
                 val arr = j.getJSONArray("vehicles")
@@ -179,6 +204,12 @@ class AuthRepositoryImpl : AuthRepository {
                 tankCapacityLiters = tank,
                 vehicles = vehiclesList,
                 activeVehicleId = activeVehId,
+                friends = friendsList,
+                friendRequestsSent = reqSentList,
+                friendRequestsReceived = reqRecvList,
+                following = followingList,
+                followers = followersList,
+                blockedUsers = blockedList,
                 privacySettings = PrivacySettings(
                     shareLocationWithGroup = shareLoc,
                     emergencyContactPhone = emergency

@@ -349,55 +349,98 @@ fun TravelerProfileDialog(
 
                     // ACTION BUTTONS GRID (Add Friend, Follow, Chat)
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        // Friend Action Button
-                        Button(
-                            onClick = {
-                                val updated = when {
-                                    isFriend -> SocialRepository.removeFriend(profileState, traveler.userId)
-                                    isFriendRequestReceived -> SocialRepository.acceptFriendRequest(profileState, traveler.userId)
-                                    isFriendRequestSent -> profileState
-                                    else -> SocialRepository.sendFriendRequest(profileState, traveler.userId)
-                                }
-                                profileState = updated
-                                onSaveCurrentUserProfile(updated)
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = when {
-                                    isFriend -> Color(0xFF16A34A)
-                                    isFriendRequestSent -> Color(0xFF475569)
-                                    isFriendRequestReceived -> Color(0xFFD97706)
-                                    else -> Color(0xFF0052CC)
+                        if (isFriendRequestReceived) {
+                            // Accept Friend Request Button
+                            Button(
+                                onClick = {
+                                    val updated = SocialRepository.acceptFriendRequest(profileState, traveler.userId)
+                                    profileState = updated
+                                    onSaveCurrentUserProfile(updated)
+                                    Toast.makeText(context, "Connected as Friends with ${traveler.displayName}!", Toast.LENGTH_SHORT).show()
                                 },
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                        ) {
-                            Icon(
-                                imageVector = when {
-                                    isFriend -> Icons.Default.Check
-                                    isFriendRequestSent -> Icons.Default.HourglassTop
-                                    else -> Icons.Default.PersonAdd
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A), contentColor = Color.White),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Accept", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            // Decline Friend Request Button
+                            Button(
+                                onClick = {
+                                    val updated = SocialRepository.declineFriendRequest(profileState, traveler.userId)
+                                    profileState = updated
+                                    onSaveCurrentUserProfile(updated)
+                                    Toast.makeText(context, "Declined request", Toast.LENGTH_SHORT).show()
                                 },
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = when {
-                                    isFriend -> "Friends"
-                                    isFriendRequestSent -> "Request Sent"
-                                    isFriendRequestReceived -> "Accept Friend"
-                                    else -> "Add Friend"
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626), contentColor = Color.White),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Decline", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            // Normal Friend Action Button
+                            Button(
+                                onClick = {
+                                    val updated = when {
+                                        isFriend -> SocialRepository.removeFriend(profileState, traveler.userId)
+                                        isFriendRequestSent -> profileState
+                                        else -> SocialRepository.sendFriendRequest(profileState, traveler.userId)
+                                    }
+                                    profileState = updated
+                                    onSaveCurrentUserProfile(updated)
+                                    val msg = when {
+                                        isFriend -> "Removed from Friends"
+                                        isFriendRequestSent -> "Request already pending"
+                                        else -> "Friend request sent to ${traveler.displayName}!"
+                                    }
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                 },
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = when {
+                                        isFriend -> Color(0xFF16A34A)
+                                        isFriendRequestSent -> Color(0xFF475569)
+                                        else -> Color(0xFF0052CC)
+                                    },
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                            ) {
+                                Icon(
+                                    imageVector = when {
+                                        isFriend -> Icons.Default.Check
+                                        isFriendRequestSent -> Icons.Default.HourglassTop
+                                        else -> Icons.Default.PersonAdd
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = when {
+                                        isFriend -> "Friends ✓"
+                                        isFriendRequestSent -> "Request Sent"
+                                        else -> "Add Friend"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
 
                         // Follow Action Button
@@ -421,7 +464,7 @@ fun TravelerProfileDialog(
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = if (isFollowing) "Following" else "Follow",
                                 fontSize = 12.sp,

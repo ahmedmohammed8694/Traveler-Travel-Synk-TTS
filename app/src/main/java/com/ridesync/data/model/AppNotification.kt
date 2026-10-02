@@ -16,6 +16,7 @@ data class AppNotification(
     val type: NotificationType = NotificationType.TRIP_UPDATE,
     val timestamp: Long = System.currentTimeMillis(),
     val isRead: Boolean = false,
+    val targetUserId: String = "",
     val senderUserId: String = "",
     val senderName: String = "",
     val senderPhotoUrl: String = "",

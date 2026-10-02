@@ -89,24 +89,47 @@ fun SocialTravelersListDialog(
     }
 
     LaunchedEffect(searchQuery, selectedTab) {
-        if (searchQuery.trim().length >= 2) {
+        if (selectedTab == 3 && searchQuery.trim().length >= 2) {
             isSearching = true
             searchResults = SocialRepository.searchUsers(searchQuery.trim())
             isSearching = false
-        } else {
+        } else if (selectedTab != 3) {
             searchResults = emptyList()
         }
     }
 
     val displayList = remember(selectedTab, searchQuery, searchResults, friendsList, followersList, followingList) {
-        if (searchQuery.trim().length >= 2) {
-            searchResults
-        } else {
-            when (selectedTab) {
-                0 -> friendsList
-                1 -> followersList
-                2 -> followingList
-                else -> if (searchQuery.isBlank()) emptyList() else searchResults
+        val q = searchQuery.trim().lowercase()
+        when (selectedTab) {
+            0 -> {
+                if (q.isBlank()) friendsList
+                else friendsList.filter {
+                    it.displayName.lowercase().contains(q) ||
+                    it.email.lowercase().contains(q) ||
+                    it.mobileNumber.contains(q) ||
+                    it.safeProfileCode.lowercase().contains(q)
+                }
+            }
+            1 -> {
+                if (q.isBlank()) followersList
+                else followersList.filter {
+                    it.displayName.lowercase().contains(q) ||
+                    it.email.lowercase().contains(q) ||
+                    it.mobileNumber.contains(q) ||
+                    it.safeProfileCode.lowercase().contains(q)
+                }
+            }
+            2 -> {
+                if (q.isBlank()) followingList
+                else followingList.filter {
+                    it.displayName.lowercase().contains(q) ||
+                    it.email.lowercase().contains(q) ||
+                    it.mobileNumber.contains(q) ||
+                    it.safeProfileCode.lowercase().contains(q)
+                }
+            }
+            else -> {
+                if (q.isBlank()) emptyList() else searchResults
             }
         }
     }
@@ -149,9 +172,6 @@ fun SocialTravelersListDialog(
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
-                            if (selectedTab != 3 && it.isNotBlank()) {
-                                selectedTab = 3
-                            }
                         },
                         placeholder = { Text("Enter Email, Code (TTSP8694), Phone...", color = Color(0xFF94A3B8), fontSize = 11.5.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF38BDF8)) },
