@@ -191,28 +191,26 @@ fun MainContainerScreen(
 
     val mergedLocations = remember(liveTelemetry, userProfile, phoneLocationPing, activeConvoyMembers, activeTrip) {
         val map = liveTelemetry.toMutableMap()
-        val myPing = phoneLocationPing ?: RiderLocationPing(
-            latitude = activeTrip?.startLatLng?.latitude ?: 17.3753,
-            longitude = activeTrip?.startLatLng?.longitude ?: 78.4344,
-            speedKmh = 0f,
-            bearing = 0f,
-            timestamp = System.currentTimeMillis()
-        )
-        map[userProfile.userId] = myPing
 
-        val baseLat = myPing.latitude
-        val baseLng = myPing.longitude
-        var offsetIdx = 1
+        // Current phone user strictly uses local hardware GPS telemetry
+        phoneLocationPing?.let { myPing ->
+            map[userProfile.userId] = myPing
+        }
+
+        // For all other convoy members who haven't transmitted a live ping yet,
+        // default their initial location to the trip starting point (never copying local user's moving GPS)
+        val defaultStartLat = activeTrip?.startLatLng?.latitude ?: 17.3753
+        val defaultStartLng = activeTrip?.startLatLng?.longitude ?: 78.4344
+
         for ((mId, member) in activeConvoyMembers) {
-            if (!map.containsKey(mId) && mId != userProfile.userId) {
+            if (mId != userProfile.userId && !map.containsKey(mId)) {
                 map[mId] = RiderLocationPing(
-                    latitude = baseLat + (offsetIdx * 0.0004),
-                    longitude = baseLng + (offsetIdx * 0.0004),
+                    latitude = defaultStartLat,
+                    longitude = defaultStartLng,
                     speedKmh = 0f,
                     bearing = 0f,
                     timestamp = System.currentTimeMillis()
                 )
-                offsetIdx++
             }
         }
         map

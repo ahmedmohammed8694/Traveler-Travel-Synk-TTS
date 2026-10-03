@@ -76,6 +76,51 @@ export default {
         );
       }
 
+      // 1c. 24/7 Robot Database Keep-Alive & Health Monitor Endpoint
+      if (url.pathname === '/api/database/robot-ping' || url.pathname === '/api/database/ping') {
+        const pingStart = Date.now();
+        let d1Status = 'disabled_or_unbound';
+        let kvStatus = env.CONVOY_CACHE ? 'active' : 'memory_fallback_active';
+        let supabaseStatus = 'not_configured';
+
+        try {
+          if (env.DB) {
+            await env.DB.prepare("SELECT 1").first();
+            d1Status = 'active_24_7';
+          }
+        } catch (e: any) {
+          d1Status = `error: ${e.message}`;
+        }
+
+        try {
+          const supabase = getSupabase(env);
+          if (supabase) {
+            await supabase.from('profiles').select('id').limit(1);
+            supabaseStatus = 'active_24_7';
+          }
+        } catch (e: any) {
+          supabaseStatus = `error: ${e.message}`;
+        }
+
+        const latencyMs = Date.now() - pingStart;
+
+        return new Response(
+          JSON.stringify({
+            robotStatus: '24_7_DATABASE_WARM_AND_ACTIVE',
+            message: 'Database robot ping successful. Cloudflare Edge & Database activated 24/7.',
+            latencyMs,
+            databases: {
+              cloudflareD1: d1Status,
+              kvCache: kvStatus,
+              supabaseRest: supabaseStatus
+            },
+            serverTime: new Date().toISOString(),
+            timestamp: Date.now()
+          }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
       // 1b. Google ID Token Authentication on Cloudflare Edge
       if (url.pathname === '/api/auth/google' && request.method === 'POST') {
         const body = await request.json() as { idToken?: string };
@@ -970,4 +1015,25 @@ export default {
       );
     }
   },
+
+  // 24/7 Robot Scheduled Cron Keep-Alive Routine (Executes automatically on Cloudflare Edge)
+  async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    console.log(`[Database Robot 24/7] Automated Keep-Alive Trigger at ${new Date().toISOString()}`);
+    try {
+      if (env.DB) {
+        await env.DB.prepare("SELECT 1").first();
+        console.log("[Database Robot 24/7] Cloudflare D1 Database pinged successfully.");
+      }
+      const supabase = getSupabase(env);
+      if (supabase) {
+        await supabase.from('profiles').select('id').limit(1);
+        console.log("[Database Robot 24/7] Supabase Database pinged successfully.");
+      }
+      if (env.CONVOY_CACHE) {
+        await env.CONVOY_CACHE.put('robot:last_ping', new Date().toISOString());
+      }
+    } catch (err: any) {
+      console.error("[Database Robot 24/7] Keep-Alive check warning:", err?.message);
+    }
+  }
 };

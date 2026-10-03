@@ -6,6 +6,9 @@ compatibility_date = "2026-09-18"
 ENVIRONMENT = "production"
 APP_NAME = "RIDERsYNK"
 
+[triggers]
+crons = ["*/5 * * * *"] # Automated 24/7 Database Robot Keep-Alive Ping every 5 minutes
+
 # ==============================================================================
 # Cloudflare Resource Bindings Instructions:
 # To enable D1, R2, or KV, create resources in Cloudflare Dashboard & uncomment:

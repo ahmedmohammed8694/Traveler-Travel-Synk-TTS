@@ -50,18 +50,6 @@ object ConvoyRadarEngine {
         val result = mutableListOf<ConvoyRadarRiderInfo>()
 
         val combinedRiders = riders.toMutableMap()
-        for ((mId, member) in members) {
-            if (!combinedRiders.containsKey(mId)) {
-                combinedRiders[mId] = RiderLocationPing(
-                    latitude = myLocation.latitude,
-                    longitude = myLocation.longitude,
-                    speedKmh = 0f,
-                    bearing = myBearing,
-                    timestamp = System.currentTimeMillis()
-                )
-            }
-        }
-
         for ((riderId, ping) in combinedRiders) {
             if (riderId == myUserId) continue
 

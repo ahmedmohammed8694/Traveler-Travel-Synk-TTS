@@ -86,7 +86,7 @@ fun TripFullDetailsDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(HudColors.ObsidianCanvas)
+                .background(Color(0xFF0F172A))
         ) {
             Column(
                 modifier = Modifier
@@ -95,8 +95,8 @@ fun TripFullDetailsDialog(
             ) {
                 // Top App Bar
                 Surface(
-                    color = HudColors.ObsidianSurface,
-                    border = BorderStroke(1.dp, HudColors.ObsidianBorder),
+                    color = Color(0xFF1E293B),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -626,7 +626,7 @@ fun TripFullDetailsDialog(
                                                 color = when (stop.status) {
                                                     ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E).copy(alpha = 0.2f)
                                                     ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444).copy(alpha = 0.2f)
-                                                    else -> HudColors.CyanPrimary.copy(alpha = 0.2f)
+                                                    else -> Color(0xFF38BDF8).copy(alpha = 0.2f)
                                                 },
                                                 shape = RoundedCornerShape(6.dp),
                                                 border = BorderStroke(
@@ -634,7 +634,7 @@ fun TripFullDetailsDialog(
                                                     when (stop.status) {
                                                         ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E)
                                                         ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
-                                                        else -> HudColors.CyanPrimary
+                                                        else -> Color(0xFF38BDF8)
                                                     }
                                                 )
                                             ) {
@@ -643,7 +643,7 @@ fun TripFullDetailsDialog(
                                                     color = when (stop.status) {
                                                         ItineraryStopStatus.COMPLETED -> Color(0xFF22C55E)
                                                         ItineraryStopStatus.SKIPPED -> Color(0xFFEF4444)
-                                                        else -> HudColors.CyanPrimary
+                                                        else -> Color(0xFF38BDF8)
                                                     },
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,

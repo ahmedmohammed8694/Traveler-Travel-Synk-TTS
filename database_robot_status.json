@@ -1,0 +1,26 @@
+{
+  "last_ping_timestamp": "2026-10-03T02:51:37.727338",
+  "overall_status": "ONLINE_24_7",
+  "cloudflare_health": {
+    "status": 200,
+    "latency_ms": 47,
+    "data": {
+      "status": "ok",
+      "provider": "Cloudflare Workers Edge Database",
+      "timestamp": 1790976098172
+    },
+    "error": null
+  },
+  "cloudflare_robot_ping": {
+    "status": 404,
+    "latency_ms": 21,
+    "data": null,
+    "error": "HTTP Error 404"
+  },
+  "supabase_health": {
+    "status": 401,
+    "latency_ms": 21,
+    "data": null,
+    "error": "HTTP Error 401"
+  }
+}

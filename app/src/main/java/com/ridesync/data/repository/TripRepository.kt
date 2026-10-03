@@ -29,6 +29,8 @@ import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
+import com.google.firebase.firestore.FirebaseFirestore
+
 object TripRepository {
     private const val TAG = "TripRepository"
     private const val PREFS_NAME = "ridesync_trips_prefs"
@@ -52,6 +54,7 @@ object TripRepository {
     init {
         loadTripsFromStorage()
         fetchOnlineTripsAsync()
+        startRealtimeFirestoreTripSync()
     }
 
     private var isInitialized = false
@@ -111,6 +114,7 @@ object TripRepository {
         updateAndPersistList(currentList)
         syncTripToCloudflareAsync(targetTrip)
         syncTripToSupabaseAsync(targetTrip)
+        syncTripToFirestoreAsync(targetTrip)
     }
 
     @Synchronized
@@ -135,6 +139,7 @@ object TripRepository {
         }
         syncTripToCloudflareAsync(targetTrip)
         syncTripToSupabaseAsync(targetTrip)
+        syncTripToFirestoreAsync(targetTrip)
     }
 
 
@@ -976,5 +981,97 @@ object TripRepository {
                 Log.w(TAG, "Supabase Delete Trip Note: ${e.message}")
             }
         }
+    }
+
+    private fun syncTripToFirestoreAsync(trip: SavedTrip) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val db = FirebaseFirestore.getInstance()
+                val jsonMap = jsonObjectToMap(serializeTrip(trip))
+                db.collection("trips").document(trip.tripId).set(jsonMap)
+                Log.d(TAG, "Firestore Trip Sync Success: ${trip.tripId}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Firestore Trip Sync Note: ${e.message}")
+            }
+        }
+    }
+
+    fun startRealtimeFirestoreTripSync() {
+        try {
+            val db = FirebaseFirestore.getInstance()
+            db.collection("trips").addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) return@addSnapshotListener
+                val fetchedTrips = mutableListOf<SavedTrip>()
+                for (doc in snapshot.documents) {
+                    try {
+                        val data = doc.data
+                        if (data != null) {
+                            val jsonObj = JSONObject(data)
+                            val parsed = deserializeTrip(jsonObj)
+                            if (parsed != null && parsed.title.isNotBlank()) {
+                                fetchedTrips.add(parsed)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to parse trip snapshot doc ${doc.id}: ${e.message}")
+                    }
+                }
+                if (fetchedTrips.isNotEmpty()) {
+                    val currentMap = _tripsFlow.value.associateBy { it.tripId }.toMutableMap()
+                    for (onlineTrip in fetchedTrips) {
+                        val local = currentMap[onlineTrip.tripId]
+                        if (local == null) {
+                            currentMap[onlineTrip.tripId] = onlineTrip
+                        } else {
+                            val combinedRiders = (local.joinedRiders + onlineTrip.joinedRiders).distinctBy { it.riderId }
+                            val updatedRidersCount = maxOf(local.activeRidersCount, onlineTrip.activeRidersCount, combinedRiders.size)
+                            currentMap[onlineTrip.tripId] = onlineTrip.copy(
+                                joinedRiders = combinedRiders,
+                                activeRidersCount = updatedRidersCount,
+                                itineraryPlan = onlineTrip.itineraryPlan ?: local.itineraryPlan,
+                                routeSegments = if (onlineTrip.routeSegments.isNotEmpty()) onlineTrip.routeSegments else local.routeSegments
+                            )
+                        }
+                    }
+                    updateAndPersistList(currentMap.values.toList())
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Firestore trip real-time listener error: ${e.message}")
+        }
+    }
+
+    private fun jsonObjectToMap(jsonObject: JSONObject): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        val keys = jsonObject.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            var value = jsonObject.get(key)
+            if (value is JSONArray) {
+                value = jsonArrayToList(value)
+            } else if (value is JSONObject) {
+                value = jsonObjectToMap(value)
+            } else if (value == JSONObject.NULL) {
+                value = null
+            }
+            map[key] = value
+        }
+        return map
+    }
+
+    private fun jsonArrayToList(array: JSONArray): List<Any?> {
+        val list = mutableListOf<Any?>()
+        for (i in 0 until array.length()) {
+            var value = array.get(i)
+            if (value is JSONArray) {
+                value = jsonArrayToList(value)
+            } else if (value is JSONObject) {
+                value = jsonObjectToMap(value)
+            } else if (value == JSONObject.NULL) {
+                value = null
+            }
+            list.add(value)
+        }
+        return list
     }
 }
